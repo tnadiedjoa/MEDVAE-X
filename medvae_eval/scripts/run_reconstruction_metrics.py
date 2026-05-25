@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 IMAGE_DIR = "../../arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
-OUTPUT_CSV = "outputs/metrics/reconstruction_metrics.csv"
+OUTPUT_CSV = "../outputs/metrics/reconstruction_metrics.csv"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
 
