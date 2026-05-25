@@ -1,0 +1,15 @@
+arcade_challenge_datasets/
+MedVAE-main/
+.DS_Store
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.aux
+*.fls
+*.fdb_latexmk
+*.log
+*.synctex.gz
+*.out
+*.toc
+sample.png
+sample_superposed.png
