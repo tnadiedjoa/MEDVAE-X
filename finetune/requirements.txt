@@ -1,0 +1,26 @@
+# Deep learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Segmentation
+segmentation-models-pytorch>=0.3.3
+
+# Métriques
+torchmetrics>=1.0.0
+
+# MedVAE (conditions B et C)
+medvae
+
+# Données
+pycocotools>=2.0.6
+Pillow>=9.0.0
+numpy>=1.23.0
+
+# Config
+pyyaml>=6.0
+
+# Visualisation
+matplotlib>=3.7.0
+
+# Utilitaires
+tqdm>=4.65.0
