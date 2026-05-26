@@ -1,7 +1,7 @@
 import torch
 
-from medvae.utils.vae.diffusionmodels_3d import Decoder, Encoder
-from medvae.utils.vae.distributions import DiagonalGaussianDistribution
+from .diffusionmodels_3d import Decoder, Encoder
+from .distributions import DiagonalGaussianDistribution
 from torch.utils.checkpoint import checkpoint
 
 
