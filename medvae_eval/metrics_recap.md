@@ -2,10 +2,12 @@
 
 ---
 
+![Pipeline](pipeline_figure/pipeline.jpg)
+
 ## 1. Choix de la métrique sans référence pour tester la qualité de l'image d'entrée
 
 Nous avons choisi d'utiliser la métrique ARNIQA comme conseillée par l'encadrante du projet.
-Le script `run_arniqa.py` permet la création d'un `.csv` contenant pour chacune des images du dataset (3000 images) un score ARNIQA.
+Le script `run_arniqa.py` permet la création d'un `.csv` contenant pour chacune des images du dataset (3000 images) un score ARNIQA. Il est à noter que pour l'instant aucune dégradation n'est appliquée au dataset et que cette étape préliminaire permet de voir si il est deja possible d'observer le comportant d'ARNIQA sur le dataset.
 
 Nous avons aussi utilisé un score composite unique qui est calculé comme la moyenne non pondérée de 7 métriques normalisées (min-max). La moyenne est calculée sur les métriques suivantes : Laplacian Variance, Tenengrad, RMS Contrast, Immerkaer σ, NIQE et BRISQUE (lire le `recap.md` de Théophile).
 
@@ -17,7 +19,7 @@ PSNR et MS-SSIM étant utilisés dans le papier MedVAE, il est plutôt naturel p
 
 ## 3. Analyse des résultats, comparaisons, corrélations
 
-L'affichage des métriques avec référence par rapport à ARNIQA sur un plan 2D ne permet pas vraiment de mettre en lumière une quelconque corrélation (nuage de points diffus).
+L'affichage des métriques avec référence par rapport à ARNIQA sur un plan 2D ne permet pas vraiment de mettre en lumière une quelconque corrélation (nuage de points diffus). 
 
 ![Nuage de points ARNIQA vs PSNR](outputs/metrics/plot_metrics.png)
 
@@ -26,10 +28,13 @@ Le script `plot_metrics.py` renvoie aussi une matrice de corrélation qui permet
 
 ![Matrice de correlation](outputs/metrics/correlation_matrix.png)
 
-Ce résultat est plutôt contre-intuitif, mais on peut peut-être l'expliquer avec le biais de l'indice ARNIQA, celui-ci est entraîné sur des photos naturelles, peut-être que les caractéristiques n'ont pas de sens avec les données dont on dispose.
+Ce résultat est plutôt contre-intuitif, mais on peut peut-être l'expliquer avec le biais de l'indice ARNIQA, celui-ci est entraîné sur des photos naturelles, peut-être que les caractéristiques n'ont pas de sens avec les données dont on dispose. ARNIQA ne permet pas (ce qui est naturel ici puisqu'il s'agit d'images médicales) de determiner quelles sont les images de "haute qualité" au sens de la perception humaine sur des images de ce type.
 
-On pourrait émettre l'hypothèse de l'effet passe-bas des VAEs. Les VAEs ont tendance à moyenner les détails haute fréquence, ils produisent des reconstructions légèrement floues/lissées. Le VAE produira donc une meilleure reconstruction si l'entrée ne possède pas de trop hautes fréquences (la sortie sera plus fidèle à l'entrée).
+À noter aussi que la corrélation est calculée sur un nuage très bruité.
 
 ## 4. Conclusion et perspectives
 
-Les résultats actuels ne permettent pas de conclure clairement sur l'impact de la qualité de l'image d'entrée sur la reconstruction de MedVAE, notamment à cause du biais de domaine d'ARNIQA. Pour la suite, nous allons appliquer des dégradations synthétiques contrôlées (bruit, flou, compression) sur les images propres du dataset avant de les passer dans MedVAE. Cela permettra de tester si la qualité de l'image d'entrée a un réel impact sur la qualité de reconstruction, tout en s'assurant qu'ARNIQA est utilisé dans des conditions pour lesquelles il a été entraîné.
+En l'état, on ne peut pas conclure clairement sur l'impact de la qualité de l'image d'entrée sur la reconstruction de MedVAE, surtout à cause du biais de domaine d'ARNIQA qui rend l'interprétation du score ambiguë.
+Pour la suite, on va appliquer des dégradations synthétiques contrôlées (bruit, flou, compression) à plusieurs niveaux sur les images propres du dataset, avant de les passer dans MedVAE. ARNIQA permettra de quantifier cette degradation, on pourra donc comparer l'evolution du PSNR avec celui d'ARNIQA.
+
+![Next pipeline](pipeline_figure/pipeline_2.jpg)
