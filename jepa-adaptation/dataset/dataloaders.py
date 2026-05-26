@@ -1,13 +1,13 @@
 from torch.utils.data import DataLoader
 from .dataset import get_files_labels, ArcadeDataset
 
-STEN_TRAIN_PATH = "./arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
-STEN_VAL_PATH = "./arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_val"
-STEN_TEST_PATH = "./arcade_challenge_datasets/dataset_final_phase/test_cases_stenosis"  
+STEN_TRAIN_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
+STEN_VAL_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_val"
+STEN_TEST_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_cases_stenosis"  
 
-SEG_TRAIN_PATH = "./arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
-SEG_VAL_PATH = "./arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val"
-SEG_TEST_PATH = "./arcade_challenge_datasets/dataset_final_phase/test_case_segmentation"
+SEG_TRAIN_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+SEG_VAL_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val"
+SEG_TEST_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_case_segmentation"
 
 def get_loaders(batch_size=4, num_workers=0, pin_memory=True):
     sten_train_files, sten_train_ann = get_files_labels(STEN_TRAIN_PATH)
