@@ -26,3 +26,11 @@ encoder. The BioMedCLIP-based consistency term is replaced by a latent
 prediction loss between predicted target latents and frozen target encoder
 latents. The adapted encoder can then be evaluated on downstream medical image
 tasks.
+
+### Progress summary — 2026-05-26
+
+- Completed the full pretraining pipeline: phase 1 (VAE reconstruction) and phase 2 (JEPA latent prediction) trainers are implemented in `utils/vae_trainer.py` and `utils/jepa_trainer.py`, driven by a unified entry-point `pretraining.py`.
+- Added a downstream evaluation pipeline (`downstream.py`, `utils/downstream_wrapper.py`) supporting linear probing on top of the frozen JEPA-adapted encoder.
+- Added SLURM job scripts (`jobs/`) for cluster execution of all training phases and downstream evaluation.
+- Configuration files reorganised: `configs/pretraining.yaml` for the pretraining phases, `configs/downstream.yaml` for evaluation.
+- General code cleanup across model modules (removed dead code, fixed imports, unified logging).
