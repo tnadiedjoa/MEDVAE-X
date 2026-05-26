@@ -4,8 +4,6 @@ import torch.nn.functional as F
 
 
 class LatentPredictionLoss(nn.Module):
-    """JEPA loss between predicted and target Med-VAE latents."""
-
     def __init__(self, loss_type="smooth_l1", normalize=True):
         super().__init__()
         if loss_type not in {"mse", "smooth_l1"}:
