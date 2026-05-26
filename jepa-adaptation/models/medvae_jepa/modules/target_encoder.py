@@ -7,8 +7,6 @@ from .context_encoder import apply_patch_keep_mask
 
 
 class TargetEncoder(nn.Module):
-    """Frozen EMA copy of the context encoder."""
-
     def __init__(self, context_encoder):
         super().__init__()
         self.encoder = copy.deepcopy(context_encoder)

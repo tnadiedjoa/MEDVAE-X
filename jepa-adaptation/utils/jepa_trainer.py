@@ -9,12 +9,12 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 JEPA_ROOT = Path(__file__).resolve().parents[1]
-MEDVAE_ROOT = PROJECT_ROOT / "MedVAE-main"
+MEDVAE_ROOT = PROJECT_ROOT.parent / "MedVAE"
 
 
 def ensure_medvae_on_path() -> None:
@@ -105,8 +105,19 @@ def build_autoencoder(config: Dict[str, Any]) -> torch.nn.Module:
     raise ValueError("model.spatial_dims must be 2 or 3.")
 
 
-def build_model(config: Dict[str, Any]) -> MedVAE_JEPA:
+def build_model(
+    config: Dict[str, Any],
+    phase1_ckpt: Optional[str | Path] = None,
+) -> MedVAE_JEPA:
     autoencoder = build_autoencoder(config["autoencoder"])
+    if phase1_ckpt is not None:
+        raw = torch.load(phase1_ckpt, map_location="cpu")
+        sd  = raw.get("autoencoder", raw.get("state_dict", raw))
+        missing, unexpected = autoencoder.load_state_dict(sd, strict=False)
+        print(
+            f"[JEPATrainer] Phase-1 autoencoder loaded "
+            f"({len(missing)} missing, {len(unexpected)} unexpected keys)"
+        )
     jepa_config = config["jepa"]
     return MedVAE_JEPA(
         autoencoder=autoencoder,
@@ -156,27 +167,48 @@ def batch_to_image(batch: Any) -> torch.Tensor:
 
 
 class JEPATrainer:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        train_dataset: Optional[Dataset] = None,
+        val_dataset: Optional[Dataset] = None,
+        phase1_ckpt: Optional[str | Path] = None,
+    ):
         self.config = config
         train_cfg = config["training"]
-        device_name = train_cfg.get("device", "auto")
-        if device_name == "auto":
-            device_name = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = torch.device(device_name)
+        _dev = train_cfg.get("device", "auto")
+        if _dev == "auto":
+            _dev = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = torch.device(_dev)
         set_seed(int(train_cfg.get("seed", 42)))
 
-        self.model = build_model(config["model"]).to(self.device)
+        _ckpt = phase1_ckpt or resolve_path(train_cfg.get("phase1_ckpt"))
+        self.model = build_model(config["model"], phase1_ckpt=_ckpt).to(self.device)
         self.optimizer = self.build_optimizer()
         self.scaler = torch.cuda.amp.GradScaler(
             enabled=bool(train_cfg.get("amp", False)) and self.device.type == "cuda"
         )
 
         loader_cfg = config["data"].get("loader", {})
-        self.train_loader = build_dataloader(config["data"]["train"], loader_cfg)
-        valid_cfg = config["data"].get("valid")
-        self.valid_loader = (
-            build_dataloader(valid_cfg, loader_cfg) if valid_cfg is not None else None
-        )
+        if train_dataset is not None:
+            bs = int(loader_cfg.get("batch_size", 16))
+            nw = int(loader_cfg.get("num_workers", 0))
+            pm = bool(loader_cfg.get("pin_memory", True))
+            self.train_loader = DataLoader(
+                train_dataset, batch_size=bs, shuffle=True,
+                num_workers=nw, pin_memory=pm, drop_last=False,
+            )
+            self.valid_loader = (
+                DataLoader(val_dataset, batch_size=bs, shuffle=False,
+                           num_workers=nw, pin_memory=pm)
+                if val_dataset is not None else None
+            )
+        else:
+            self.train_loader = build_dataloader(config["data"]["train"], loader_cfg)
+            valid_cfg = config["data"].get("valid")
+            self.valid_loader = (
+                build_dataloader(valid_cfg, loader_cfg) if valid_cfg is not None else None
+            )
 
         self.output_dir = resolve_path(train_cfg.get("output_dir", "outputs/jepa"))
         self.output_dir.mkdir(parents=True, exist_ok=True)

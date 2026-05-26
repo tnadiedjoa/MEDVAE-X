@@ -19,7 +19,6 @@ def sample_patch_mask(
     device=None,
     generator=None,
 ):
-    """Return a boolean patch mask with True entries selected as targets."""
     spatial_dims = len(spatial_shape)
     patch_size = _as_tuple(patch_size, spatial_dims)
     grid_shape = tuple((s + p - 1) // p for s, p in zip(spatial_shape, patch_size))
@@ -36,7 +35,6 @@ def sample_patch_mask(
 
 
 def patch_mask_to_image_mask(patch_mask, image_shape, patch_size):
-    """Upsample a patch mask to image resolution with nearest-neighbor blocks."""
     spatial_dims = len(image_shape)
     patch_size = _as_tuple(patch_size, spatial_dims)
     image_mask = patch_mask
@@ -57,8 +55,6 @@ def apply_patch_keep_mask(x, keep_mask, patch_size, mask_value=0.0):
 
 
 class ContextEncoder(nn.Module):
-    """Med-VAE encoder wrapper used on visible image patches."""
-
     def __init__(
         self,
         autoencoder,

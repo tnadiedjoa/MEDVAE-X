@@ -51,8 +51,6 @@ class AutoencoderKL(torch.nn.Module):
                 if param.size() == model_state_dict[name].size():
                     model_state_dict[name].copy_(param)
                 else:
-                    # If the dimensions of the checkpoint param is one less than model param, then copy the checkpoint param across
-                    # middle dimension of model param
                     if (
                         len(param.size()) == len(model_state_dict[name].size()) - 1
                         and len(model_state_dict[name].size()) == 5
@@ -61,7 +59,6 @@ class AutoencoderKL(torch.nn.Module):
                         ckpt_param_repeat = ckpt_param.repeat(
                             1, 1, 1, 1, model_state_dict[name].size(4)
                         )
-                        # Only save the weight to the middle kernel slice
                         ckpt_param_repeat = torch.zeros_like(ckpt_param_repeat)
                         ckpt_param_repeat[
                             :, :, :, :, model_state_dict[name].size(4) // 2
@@ -73,10 +70,8 @@ class AutoencoderKL(torch.nn.Module):
             else:
                 unexpected.append(name)
 
-        # Load state
         self.load_state_dict(model_state_dict, strict=False)
 
-        # missing, unexpected = self.load_state_dict(sd, strict=False)
         print(
             f"Restored from {path} with {len(missing)} missing and {len(unexpected)} unexpected keys"
         )
