@@ -13,3 +13,10 @@ __pycache__/
 *.toc
 sample.png
 sample_superposed.png
+jepa-adaptation/outputs/
+outputs/
+runs/
+wandb/
+*.ckpt
+*.pt
+*.pth
