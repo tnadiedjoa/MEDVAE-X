@@ -27,6 +27,14 @@ prediction loss between predicted target latents and frozen target encoder
 latents. The adapted encoder can then be evaluated on downstream medical image
 tasks.
 
+### Progress summary — 2026-05-26
+
+- Completed the full pretraining pipeline: phase 1 (VAE reconstruction) and phase 2 (JEPA latent prediction) trainers are implemented in `utils/vae_trainer.py` and `utils/jepa_trainer.py`, driven by a unified entry-point `pretraining.py`.
+- Added a downstream evaluation pipeline (`downstream.py`, `utils/downstream_wrapper.py`) supporting linear probing on top of the frozen JEPA-adapted encoder.
+- Added SLURM job scripts (`jobs/`) for cluster execution of all training phases and downstream evaluation.
+- Configuration files reorganised: `configs/pretraining.yaml` for the pretraining phases, `configs/downstream.yaml` for evaluation.
+- General code cleanup across model modules (removed dead code, fixed imports, unified logging).
+
 ## Fine-tuning MedVAE on New Medical Modalities (PALAGI Théo)
 
 This project investigates whether fine-tuning MedVAE, which is a medical image autoencoder pre-trained on chest X-rays and mammographies, on a new imaging modality can improve downstream segmentation performance.  
@@ -38,4 +46,3 @@ To test this, we design three comparable pipelines. The first trains a standard 
 All three pipelines are evaluated using the mean Dice score across the 26 arterial classes on a held-out test set. The gap between the second and third conditions directly quantifies the benefit of fine-tuning MedVAE on a previously unseen medical modality.
 
 ![fine-tune pipeline](finetune/images/pipeline.jpg)
-

@@ -1,0 +1,114 @@
+medmnist:
+  root: ~/.medmnist
+  data_fraction: 0.1
+  phase1_ratio: 0.5
+  val_ratio: 0.1
+  size: 224
+  as_rgb: false
+  download: true
+  seed: 42
+
+data:
+  loader:
+    batch_size: 8
+    num_workers: 4
+    pin_memory: true
+
+model:
+  spatial_dims: 2
+  embed_dim: 4
+  apply_channel_ds: true
+  ignore_keys: []
+  ddconfig:
+    double_z: true
+    z_channels: 4
+    resolution: 64
+    in_channels: 1
+    out_ch: 1
+    ch: 128
+    ch_mult: [1, 2, 4]
+    num_res_blocks: 2
+    attn_resolutions: []
+    dropout: 0.0
+
+phase1:
+  seed: 42
+  device: auto
+  epochs: 30
+  amp: false
+  output_dir: jepa-adaptation/outputs/pretraining/phase1
+  log_every: 200
+  save_every: 5
+
+  optimizer:
+    name: adamw
+    lr: 4.5e-6
+    weight_decay: 0.0
+
+  disc_optimizer:
+    name: adamw
+    lr: 4.5e-6
+    weight_decay: 0.0
+
+  loss:
+    kl_weight: 1.0e-6
+    disc_weight: 0.5
+    perceptual_weight: 1.0
+    disc_start: 50001
+    num_channels: 3
+
+phase2_clip:
+  seed: 42
+  device: auto
+  epochs: 15
+  amp: false
+  phase1_ckpt: jepa-adaptation/outputs/pretraining/phase1/best.pt
+  output_dir: jepa-adaptation/outputs/pretraining/phase2_clip
+  log_every: 200
+  save_every: 5
+
+  optimizer:
+    name: adamw
+    lr: 4.5e-6
+    weight_decay: 0.0
+
+  disc_optimizer:
+    name: adamw
+    lr: 4.5e-6
+    weight_decay: 0.0
+
+  loss:
+    kl_weight: 1.0e-6
+    disc_weight: 0.5
+    perceptual_weight: 1.0
+    disc_start: 0
+    num_channels: 3
+    use_biomedclip_loss: true
+
+phase2_jepa:
+  seed: 42
+  device: auto
+  epochs: 15
+  amp: false
+  phase1_ckpt: jepa-adaptation/outputs/pretraining/phase1/best.pt
+  output_dir: jepa-adaptation/outputs/pretraining/phase2_jepa
+  log_every: 50
+  save_every: 5
+  max_grad_norm: 1.0
+
+  optimizer:
+    name: adamw
+    lr: 1.0e-4
+    weight_decay: 1.0e-4
+
+  jepa:
+    latent_dim: 4
+    patch_size: 8
+    target_mask_ratio: 0.4
+    predictor_hidden_dim: 128
+    predictor_depth: 3
+    ema_momentum: 0.996
+    loss_type: smooth_l1
+    normalize_loss: true
+    sample_posterior: false
+    freeze_decoder: true
