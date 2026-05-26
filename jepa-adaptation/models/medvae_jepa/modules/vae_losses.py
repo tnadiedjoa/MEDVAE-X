@@ -13,33 +13,22 @@ from medvae.utils.vae.loss_components import (
 
 __all__ = ["LPIPSWithDiscriminator", "BiomedClipLoss"]
 
-""" 
-Take a 2D input array and average out the loss across all the slices to get a 3D loss
-@input: net: The network to calculate the loss
-@input: inp_arr: The input array
-@output: The average loss across all the slices
-"""
-
 
 def discriminator_2d_nets_to_3d(net, inp_arr):
     p_loss_arr = []
     dims = ["depth", "height", "width"]
 
     for dim_idx, dim_name in enumerate(dims, start=2):
-        # Iterate over slices along the current dimension
         for j in range(inp_arr.size(dim_idx)):
-            # Select the appropriate slice along each dimension
             if dim_name == "depth":
                 slice_i = inp_arr[:, :, j, :, :]
             elif dim_name == "height":
                 slice_i = inp_arr[:, :, :, j, :]
-            else:  # width
+            else:
                 slice_i = inp_arr[:, :, :, :, j]
 
-            # Calculate perceptual loss for the current slice
             p_loss_arr.append(net(slice_i.contiguous()))
 
-    # Average the perceptual loss across all slices
     return torch.mean(torch.stack(p_loss_arr), 0)
 
 
@@ -48,7 +37,6 @@ class BiomedClipLoss(nn.Module):
         super().__init__()
 
         self.clip, _, _ = open_clip.create_model_and_transforms(
-            # pretrained="/admin/home-mayavarma/.cache/huggingface/hub/models--microsoft--BiomedCLIP-PubMedBERT_256-vit_base_patch16_224/blobs/8792dba76fc3a96544a87bb0f76c82167b4ba509d57c08b98b9c9266f764598b",
             model_name="hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",
         )
 
@@ -68,26 +56,6 @@ class BiomedClipLoss(nn.Module):
         self.compute_rec_loss = compute_rec_loss
         self.compute_lat_loss = compute_lat_loss
 
-        # self.transform_img = Compose(
-        #     [
-        #         Resize(size=48, interpolation=3, max_size=None, antialias=True),
-        #         Pad(88),
-        #         Normalize(
-        #             mean=[0.48145466, 0.4578275, 0.40821073],
-        #             std=[0.26862954, 0.26130258, 0.27577711],
-        #         ),
-        #     ]
-        # )
-        # self.transform_latent = Compose(
-        #     [
-        #         Pad(88),
-        #         Normalize(
-        #             mean=[0.48145466, 0.4578275, 0.40821073],
-        #             std=[0.26862954, 0.26130258, 0.27577711],
-        #         ),
-        #     ]
-        # )
-
     def forward(self, img, rec=None, latent=None):
         img = torch.clamp((img + 1.0) / 2.0, min=0.0, max=1.0)
 
@@ -100,21 +68,18 @@ class BiomedClipLoss(nn.Module):
             feature_arr = []
 
             for dim_idx, dim_name in enumerate(["depth", "height", "width"], start=2):
-                # Iterate over slices along the current dimension
                 for j in range(img.size(dim_idx)):
-                    # Select the appropriate slice along each dimension
                     if dim_name == "depth":
                         slice_i = img[:, :, j, :, :]
                     elif dim_name == "height":
                         slice_i = img[:, :, :, j, :]
-                    else:  # width
+                    else:
                         slice_i = img[:, :, :, :, j]
 
                     img_slice = self.transform(slice_i)
 
                     feature_arr.append(self.clip.encode_image(img_slice))
 
-            # bc_loss = torch.zeros(img.shape[0]).cuda()
             if self.compute_lat_loss:
                 latent = latent / 4.6
                 latent = latent.mean(1, keepdim=True)
@@ -124,20 +89,17 @@ class BiomedClipLoss(nn.Module):
                 for dim_idx, dim_name in enumerate(
                     ["depth", "height", "width"], start=2
                 ):
-                    # Iterate over slices along the current dimension
                     for j in range(latent.size(dim_idx)):
-                        # Select the appropriate slice along each dimension
                         if dim_name == "depth":
                             slice_i = latent[:, :, j, :, :]
                         elif dim_name == "height":
                             slice_i = latent[:, :, :, j, :]
-                        else:  # width
+                        else:
                             slice_i = latent[:, :, :, :, j]
 
                         latent_slice = self.transform(slice_i.expand(-1, 3, -1, -1))
                         latent_arr.append(self.clip.encode_image(latent_slice))
 
-                # Take the average of all the slices
                 feature_arr = torch.stack(feature_arr).permute(1, 2, 0)
 
                 latent_arr = torch.stack(latent_arr)
@@ -149,7 +111,6 @@ class BiomedClipLoss(nn.Module):
                     align_corners=False,
                 ).permute(2, 0, 1)
 
-                # Do the element wise difference  between feature_arr and latent_arr
                 img_rec_loss_arr = []
                 for i in range(feature_arr_interpolate.shape[0]):
                     img_rec_loss_arr.append(
@@ -170,20 +131,17 @@ class BiomedClipLoss(nn.Module):
                 for dim_idx, dim_name in enumerate(
                     ["depth", "height", "width"], start=2
                 ):
-                    # Iterate over slices along the current dimension
                     for j in range(rec.size(dim_idx)):
-                        # Select the appropriate slice along each dimension
                         if dim_name == "depth":
                             slice_i = rec[:, :, j, :, :]
                         elif dim_name == "height":
                             slice_i = rec[:, :, :, j, :]
-                        else:  # width
+                        else:
                             slice_i = rec[:, :, :, :, j]
 
                         rec_slice = self.transform(slice_i)
                         rec_arr.append(self.clip.encode_image(rec_slice))
 
-                # Do the element wise difference  between feature_arr and latent_arr
                 img_rec_loss_arr = []
                 for i in range(len(feature_arr)):
                     img_rec_loss_arr.append(((feature_arr[i] - rec_arr[i]) ** 2).sum(1))
@@ -195,7 +153,6 @@ class BiomedClipLoss(nn.Module):
 
             img_features = self.clip.encode_image(img)
 
-            # bc_loss = torch.zeros(img.shape[0]).cuda()
             if self.compute_lat_loss:
                 latent = latent / 4.6
                 latent = latent.mean(1, keepdim=True)
@@ -231,17 +188,16 @@ class LPIPSWithDiscriminator(nn.Module):
     ):
         super().__init__()
         self.learn_logvar = learn_logvar
-        self.kl_weight = kl_weight  # Weight assigned to KL regularization term
-        self.perceptual_loss = LPIPS().eval()  # Perceptual loss function
-        # self.monai_perceptual_loss = PerceptualLoss(spatial_dims=3, network_type="vgg", is_fake_3d=True, fake_3d_ratio=0.1)
-        self.perceptual_weight = perceptual_weight  # Weight assigned to perceptual loss
+        self.kl_weight = kl_weight
+        self.perceptual_loss = LPIPS().eval()
+        self.perceptual_weight = perceptual_weight
         self.logvar = nn.Parameter(torch.ones(size=()) * 0.0)
 
         self.discriminator = NLayerDiscriminator(input_nc=num_channels).apply(
             weights_init
         )
         self.discriminator_iter_start = disc_start
-        self.discriminator_weight = disc_weight  # Weight assigned to generator loss
+        self.discriminator_weight = disc_weight
 
         self.lora = lora
 
@@ -296,61 +252,47 @@ class LPIPSWithDiscriminator(nn.Module):
         bsz = inputs.shape[0]
 
         if optimizer_idx == 0:
-            # Perceptual loss
-            # Absolute Error
             rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
             if len(inputs.size()) == 5:
                 p_loss_arr = []
                 dims = ["depth", "height", "width"]
 
                 for dim_idx, dim_name in enumerate(dims, start=2):
-                    # Iterate over slices along the current dimension
                     for j in range(inputs.size(dim_idx)):
-                        # Select the appropriate slice along each dimension
                         if dim_name == "depth":
                             slice_i = inputs[:, :, j, :, :]
                             slice_r = reconstructions[:, :, j, :, :]
                         elif dim_name == "height":
                             slice_i = inputs[:, :, :, j, :]
                             slice_r = reconstructions[:, :, :, j, :]
-                        else:  # width
+                        else:
                             slice_i = inputs[:, :, :, :, j]
                             slice_r = reconstructions[:, :, :, :, j]
 
-                        # Calculate perceptual loss for the current slice
                         p_loss_arr.append(
                             self.perceptual_loss(
                                 slice_i.contiguous(), slice_r.contiguous()
                             )
                         )
 
-                # Average the perceptual loss across all slices
                 p_loss = torch.mean(torch.stack(p_loss_arr))
 
-                # monai_loss = self.monai_perceptual_loss(inputs.contiguous(), reconstructions.contiguous())
-
-                # print("2D Loss is ", p_loss.item(), " while 3D loss: ", monai_loss.item())
-
             else:
-                # Perceptual Error (dim = [bsz x 1 x 1 x1])
                 p_loss = self.perceptual_loss(
                     inputs.contiguous(), reconstructions.contiguous()
                 )
             rec_loss = rec_loss + self.perceptual_weight * p_loss
             nll_loss = (rec_loss / torch.exp(self.logvar) + self.logvar).sum() / bsz
 
-            # BiomedCLIP loss
             if self.use_biomedclip_loss:
                 bc_loss = self.biomed_clip_loss(
                     inputs.contiguous(), rec=reconstructions.contiguous(), latent=None
                 )
                 bc_loss = bc_loss.sum() / bsz
 
-            # KL regularization loss
             kl_loss = posteriors.kl()
             kl_loss = kl_loss.sum() / bsz
 
-            # Generator loss (−L_adv(D(E(x)))): Forces discriminator logits to be high when reconstructions are provided
             d_valid = 0 if global_step < self.discriminator_iter_start else 1
             d_weight = torch.tensor(0.0)
             g_loss = torch.tensor(0.0)
@@ -390,7 +332,6 @@ class LPIPSWithDiscriminator(nn.Module):
             return loss, log
 
         elif optimizer_idx == 1:
-            # Discriminator loss (log D_phi(x)): Forces discriminator logits to be high (+1) for inputs and low (-1) for reconstructions
             d_valid = 0 if global_step < self.discriminator_iter_start else 1
             if d_valid:
                 if len(inputs.size()) == 5:

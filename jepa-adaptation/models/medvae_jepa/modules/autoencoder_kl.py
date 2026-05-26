@@ -1,7 +1,7 @@
 import torch
 
-from medvae.utils.vae.diffusionmodels import Decoder, Encoder
-from medvae.utils.vae.distributions import DiagonalGaussianDistribution
+from .diffusionmodels import Decoder, Encoder
+from .distributions import DiagonalGaussianDistribution
 
 
 class AutoencoderKL(torch.nn.Module):

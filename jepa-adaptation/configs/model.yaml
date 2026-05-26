@@ -1,0 +1,30 @@
+autoencoder:
+  spatial_dims: 2
+  embed_dim: 4
+  ckpt_path: null
+  state_dict: true
+  ignore_keys: []
+  apply_channel_ds: true
+  ddconfig:
+    double_z: true
+    z_channels: 4
+    resolution: 256
+    in_channels: 1
+    out_ch: 1
+    ch: 128
+    ch_mult: [1, 2, 4, 4]
+    num_res_blocks: 2
+    attn_resolutions: []
+    dropout: 0.0
+
+jepa:
+  latent_dim: 4
+  patch_size: 32
+  target_mask_ratio: 0.4
+  predictor_hidden_dim: 128
+  predictor_depth: 3
+  ema_momentum: 0.996
+  loss_type: smooth_l1
+  normalize_loss: true
+  sample_posterior: false
+  freeze_decoder: true
