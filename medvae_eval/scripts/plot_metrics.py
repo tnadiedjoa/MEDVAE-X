@@ -55,7 +55,7 @@ if __name__ == "__main__":
     metrics_dict = {
         "arniqa": merged_df["arniqa_score"].tolist(),
         "psnr": merged_df["psnr"].tolist(),
-        "ms_ssim": merged_df["ms_ssim"].tolist()
+        "ms_ssim": merged_df["ms_ssim"].tolist(),
     }
     plot_metrics(metrics_dict, "../outputs/metrics/plot_metrics.png")
     plot_correlation_matrix(merged_df, "../outputs/metrics/correlation_matrix.png")
