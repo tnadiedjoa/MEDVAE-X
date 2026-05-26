@@ -20,8 +20,6 @@ def _norm(spatial_dims):
 
 
 class JEPAPredictor(nn.Module):
-    """Small convolutional predictor from context latents to target latents."""
-
     def __init__(
         self,
         latent_dim,

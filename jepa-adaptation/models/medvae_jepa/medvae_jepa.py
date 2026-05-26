@@ -8,8 +8,6 @@ from .modules.target_encoder import TargetEncoder
 
 
 class MedVAE_JEPA(nn.Module):
-    """JEPA adaptation wrapper for Med-VAE stage 2."""
-
     def __init__(
         self,
         autoencoder,
