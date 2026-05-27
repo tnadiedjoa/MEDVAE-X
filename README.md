@@ -27,8 +27,9 @@ prediction loss between predicted target latents and frozen target encoder
 latents. The adapted encoder can then be evaluated on downstream medical image
 tasks.
 
-### Progress summary — 2026-05-26
+### 2026-05-26
 
+- Integrated MedMNIST dataset for pretraining (which contains 8 2d images datasets ~ 450k images).
 - Completed the full pretraining pipeline: phase 1 (VAE reconstruction) and phase 2 (JEPA latent prediction) trainers are implemented in `utils/vae_trainer.py` and `utils/jepa_trainer.py`, driven by a unified entry-point `pretraining.py`.
 - Added a downstream evaluation pipeline (`downstream.py`, `utils/downstream_wrapper.py`) supporting linear probing on top of the frozen JEPA-adapted encoder.
 - Added SLURM job scripts (`jobs/`) for cluster execution of all training phases and downstream evaluation.
