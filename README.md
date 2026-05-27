@@ -27,8 +27,9 @@ prediction loss between predicted target latents and frozen target encoder
 latents. The adapted encoder can then be evaluated on downstream medical image
 tasks.
 
-### Progress summary — 2026-05-26
+### 2026-05-26
 
+- Integrated MedMNIST dataset for pretraining (which contains 8 2d images datasets ~ 450k images).
 - Completed the full pretraining pipeline: phase 1 (VAE reconstruction) and phase 2 (JEPA latent prediction) trainers are implemented in `utils/vae_trainer.py` and `utils/jepa_trainer.py`, driven by a unified entry-point `pretraining.py`.
 - Added a downstream evaluation pipeline (`downstream.py`, `utils/downstream_wrapper.py`) supporting linear probing on top of the frozen JEPA-adapted encoder.
 - Added SLURM job scripts (`jobs/`) for cluster execution of all training phases and downstream evaluation.
@@ -46,3 +47,12 @@ To test this, we design three comparable pipelines. The first trains a standard 
 All three pipelines are evaluated using the mean Dice score across the 26 arterial classes on a held-out test set. The gap between the second and third conditions directly quantifies the benefit of fine-tuning MedVAE on a previously unseen medical modality.
 
 ![fine-tune pipeline](finetune/images/pipeline.jpg)
+*Figure: Experimental pipelines for evaluating MedVAE adaptation on coronary angiography segmentation.*
+
+## Input quality analysis for MedVAE reconstruction (CORLOU Elias & NADIEDJOA Théophile)
+
+This work investigates whether the quality of the input medical images impacts MedVAE reconstruction performance. As a first exploratory step, we evaluated the clean ARCADE dataset using the no-reference metric ARNIQA, alongside a composite image quality score based on several classical sharpness and perceptual metrics. Reconstruction quality was then measured with PSNR and MS-SSIM after MedVAE inference. Initial correlation analyses did not reveal clear or reliable trends, likely due to the domain mismatch of ARNIQA, which is trained on natural images rather than medical data. The next step is therefore to apply controlled synthetic degradations (noise, blur, compression) to the dataset in order to study how reconstruction performance evolves with progressively degraded inputs. Additional implementation details and analyses are available in `medvae_eval/metrics_recap.md`
+
+![Input quality analysis pipeline](medvae_eval/pipeline_figure/pipeline_2.jpg)
+
+*Figure: Input quality analysis pipeline, inspired by the original Med-VAE pipeline figure.*
