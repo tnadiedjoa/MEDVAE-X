@@ -1,3 +1,16 @@
+Interesting metrics :
+
 rms_contrast
 laplacian_var
 immerkaer_noise
+
+
+Interesting research papers for metrics : 
+
+1) A study on the adequacy of common IQA measures for medical images" (arXiv, 2024)
+2) A No-Reference Medical Image Quality Assessment Method Based on Automated Distortion Recognition Technology: Application to Preprocessing in MRI-guided Radiotherapy (2024)
+3) Deep learning-based no-reference image quality assessment framework for Cryptosporidium spp. and Giardia spp (2026)
+
+Interesting research papers for DSA : 
+4) Reduction of Patient Motion Artifacts in Digital Subtraction Angiography: Evaluation of a Fast and Fully Automatic Technique
+5) PatchDSA: improving digital subtraction angiography with patch-based phase-matching in natural breathing scenarios
