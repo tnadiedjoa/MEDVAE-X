@@ -204,9 +204,13 @@ def plot_predictions(
     print(f"Checkpoint chargé : epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")
 
     # Charge le test set
+    root = data_cfg.get("data_root", "")
+    def full(p):
+        return os.path.join(root, p) if root else p
+
     test_dataset = ArcadeDataset(
-        images_dir=data_cfg["val_images"],
-        annotations=data_cfg["val_ann"],
+        images_dir=full(data_cfg["val_images"]),
+        annotations=full(data_cfg["val_ann"]),
     )
 
     # Tirage aléatoire reproductible
