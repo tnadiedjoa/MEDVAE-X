@@ -1,7 +1,13 @@
 import argparse
 import json
 import os
+import random
+
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import torch
+import yaml
 
 
 def load_history(path: str) -> dict:
@@ -10,6 +16,7 @@ def load_history(path: str) -> dict:
 
 
 def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
+
     os.makedirs(save_dir, exist_ok=True)
 
     # Couleurs distinctes par condition
@@ -21,7 +28,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     def get_epochs(history, split):
         return [epoch["epoch"] for epoch in history[split]]
 
-    # Figure 1 : Loss totale 
+    # Loss totale (Dice + CE)
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     fig.suptitle("Loss totale (Dice + CE)", fontsize=14, fontweight="bold")
 
@@ -44,7 +51,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     plt.close()
     print("Sauvegardé : loss_totale.png")
 
-    #  Figure 2 : Dice Loss 
+    # Dice loss
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     fig.suptitle("Dice Loss", fontsize=14, fontweight="bold")
 
@@ -66,7 +73,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     plt.close()
     print("Sauvegardé : dice_loss.png")
 
-    # Figure 3 : Dice mean (métrique principale) 
+    # Dice Mean (métrique principale)
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     fig.suptitle("Dice Mean — métrique principale", fontsize=14, fontweight="bold")
 
@@ -89,7 +96,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     plt.close()
     print("Sauvegardé : dice_mean.png")
 
-    # ── Figure 4 : Learning rate ────────────────────────────────────────
+    # learning rate
     fig, ax = plt.subplots(figsize=(8, 4))
     fig.suptitle("Learning Rate", fontsize=14, fontweight="bold")
 
@@ -107,7 +114,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     plt.close()
     print("Sauvegardé : learning_rate.png")
 
-    # Figure 5 : Comparaison finale A / B / C (val Dice) 
+    # comparaison finale des 3 pipelines sur la métrique principale (Dice val)
     if len(histories) > 1:
         fig, ax = plt.subplots(figsize=(10, 5))
         fig.suptitle("Comparaison Dice val — Conditions A / B / C",
@@ -127,6 +134,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
         plt.close()
         print("Sauvegardé : comparaison_conditions.png")
 
+
 def plot_dice_per_class(results_path: str, save_dir: str) -> None:
     with open(results_path, "r") as f:
         results = json.load(f)
@@ -143,11 +151,11 @@ def plot_dice_per_class(results_path: str, save_dir: str) -> None:
     }
 
     num_classes = len(list(results.values())[0]["dice_per_class"])
-    x = range(num_classes)
+    x     = range(num_classes)
     width = 0.25
 
     fig, ax = plt.subplots(figsize=(20, 6))
-    fig.suptitle("Dice par classe", fontsize=14, fontweight="bold")
+    fig.suptitle("Dice par classe (artères coronaires)", fontsize=14, fontweight="bold")
 
     for i, (key, data) in enumerate(results.items()):
         offset = (i - len(results) / 2) * width
@@ -160,13 +168,11 @@ def plot_dice_per_class(results_path: str, save_dir: str) -> None:
             alpha=0.85,
         )
 
-    ax.set_xlabel("Classe (artère)")
-    ax.set_ylabel("Dice")
+    ax.set_xlabel("Classe (artère)"); ax.set_ylabel("Dice")
     ax.set_xticks(list(x))
     ax.set_xticklabels([f"C{i}" for i in range(num_classes)], fontsize=8)
     ax.set_ylim(0, 1)
-    ax.legend()
-    ax.grid(axis="y", alpha=0.3)
+    ax.legend(); ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, "dice_per_class.png"), dpi=150)
     plt.close()
@@ -174,55 +180,85 @@ def plot_dice_per_class(results_path: str, save_dir: str) -> None:
 
 
 def plot_predictions(
-    model,
-    dataset,
-    device: torch.device,
+    checkpoint_path: str,
+    config_path: str,
     save_dir: str,
     n_samples: int = 4,
+    seed: int = 42,
 ) -> None:
-    import random
-    import numpy as np
+    from finetune.dataset import ArcadeDataset, split_dataset
+    from finetune.models import build_unet
 
-    indices = random.sample(range(len(dataset)), min(n_samples, len(dataset)))
-    n_cols  = 2 + len(model)   # image + GT + une colonne par condition
+    # Charge la config
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    data_cfg = config["data"]
+    device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Charge le modèle
+    model = build_unet(config["model"])
+    ckpt  = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(ckpt["model"])
+    model.to(device).eval()
+    print(f"Checkpoint chargé : epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")
+
+    # Charge le test set
+    test_dataset = ArcadeDataset(
+        images_dir=data_cfg["val_images"],
+        annotations=data_cfg["val_ann"],
+    )
+
+    # Tirage aléatoire reproductible
+    random.seed(seed)
+    indices = random.sample(range(len(test_dataset)), min(n_samples, len(test_dataset)))
 
     fig, axes = plt.subplots(
-        n_samples, n_cols,
-        figsize=(4 * n_cols, 4 * n_samples)
+        n_samples, 3,
+        figsize=(12, 4 * n_samples)
     )
     # Assure que axes est toujours 2D
     if n_samples == 1:
         axes = axes[np.newaxis, :]
 
-    col_titles = ["Image", "Masque GT"] + [f"Prédit {k}" for k in model.keys()]
-    for ax, title in zip(axes[0], col_titles):
-        ax.set_title(title, fontsize=11, fontweight="bold")
+    # Titres des colonnes
+    for ax, title in zip(axes[0], ["Image originale", "Masque GT", "Masque prédit"]):
+        ax.set_title(title, fontsize=12, fontweight="bold")
 
     for row, idx in enumerate(indices):
-        image, mask = dataset[idx]
-        image_input = image.unsqueeze(0).to(device)  # (1, 1, H, W)
+        image, mask_gt = test_dataset[idx]
+        image_input    = image.unsqueeze(0).to(device)  # (1, 1, H, W)
 
-        # Image originale
-        axes[row, 0].imshow(image.squeeze().cpu(), cmap="gray")
+        with torch.no_grad():
+            logits    = model(image_input)
+            mask_pred = logits.argmax(dim=1).squeeze().cpu().numpy()
+
+        # Image originale (niveaux de gris)
+        axes[row, 0].imshow(image.squeeze().cpu().numpy(), cmap="gray")
         axes[row, 0].axis("off")
 
         # Masque GT
-        axes[row, 1].imshow(mask.cpu(), cmap="tab20", vmin=0, vmax=25)
+        axes[row, 1].imshow(image.squeeze().cpu().numpy(), cmap="gray")
+        axes[row, 1].imshow(mask_gt.numpy(), cmap="tab20",
+                            alpha=0.6, vmin=0, vmax=25)
         axes[row, 1].axis("off")
 
-        # Prédictions par condition
-        for col, (cond, m) in enumerate(model.items(), start=2):
-            m.eval()
-            with torch.no_grad():
-                logits = m(image_input)
-                pred   = logits.argmax(dim=1).squeeze().cpu()
-            axes[row, col].imshow(pred, cmap="tab20", vmin=0, vmax=25)
-            axes[row, col].axis("off")
+        # Masque prédit
+        axes[row, 2].imshow(image.squeeze().cpu().numpy(), cmap="gray")
+        axes[row, 2].imshow(mask_pred, cmap="tab20",
+                            alpha=0.6, vmin=0, vmax=25)
+        axes[row, 2].axis("off")
 
+    condition = config["experiment"]["name"]
+    fig.suptitle(f"Visualisation des segmentations — {condition}",
+                 fontsize=14, fontweight="bold")
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "predictions.png"), dpi=150)
+
+    out_path = os.path.join(save_dir, f"predictions_{condition}.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print("Sauvegardé : predictions.png")
+    print(f"Sauvegardé : predictions_{condition}.png")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -238,6 +274,23 @@ def main():
         "--save_dir", type=str, default="./figures",
         help="Dossier de sauvegarde des figures"
     )
+    # Arguments pour la visualisation des segmentations
+    parser.add_argument(
+        "--predict", action="store_true",
+        help="Active la visualisation des segmentations"
+    )
+    parser.add_argument(
+        "--checkpoint", type=str, default=None,
+        help="Chemin vers best_model.pth (requis si --predict)"
+    )
+    parser.add_argument(
+        "--config", type=str, default=None,
+        help="Chemin vers le yaml de la condition (requis si --predict)"
+    )
+    parser.add_argument(
+        "--n_samples", type=int, default=4,
+        help="Nombre d'images à visualiser (défaut : 4)"
+    )
     args = parser.parse_args()
 
     # Labels par défaut si non fournis
@@ -248,14 +301,28 @@ def main():
     if len(args.history) != len(args.labels):
         raise ValueError("Le nombre de --labels doit correspondre au nombre de --history")
 
+    # Courbes d'entraînement
     histories = [load_history(p) for p in args.history]
     plot_all(histories, args.labels, args.save_dir)
-    # Bar chart Dice par classe (lit results.json)
-    results_path = os.path.join(os.path.dirname(args.history[0]), "results.json")
+
+    # Dice par classe (si results.json existe)
+    results_path = os.path.join(
+        os.path.dirname(args.history[0]), "results.json"
+    )
     if os.path.exists(results_path):
         plot_dice_per_class(results_path, args.save_dir)
-    else:
-        print("results.json introuvable — plot_dice_per_class ignoré")
+
+    # Visualisation des segmentations
+    if args.predict:
+        if args.checkpoint is None or args.config is None:
+            raise ValueError("--checkpoint et --config sont requis avec --predict")
+        plot_predictions(
+            checkpoint_path=args.checkpoint,
+            config_path=args.config,
+            save_dir=args.save_dir,
+            n_samples=args.n_samples,
+        )
+
     print(f"\nToutes les figures sont dans : {args.save_dir}/")
 
 
