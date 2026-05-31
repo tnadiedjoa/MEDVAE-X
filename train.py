@@ -42,17 +42,26 @@ def get_device() -> torch.device:
 
 def build_dataloaders(config):
     data_cfg = config["data"]
+    root = data_cfg.get("data_root", "")
+
+    def full(p):
+        return os.path.join(root, p) if root else p
+
+    train_ann_path = full(data_cfg["train_ann"])
+    train_img_path = full(data_cfg["train_images"])
+    val_img_path   = full(data_cfg["val_images"])
+    val_ann_path   = full(data_cfg["val_ann"])
 
     # Split train/val sur le jeu d'entraînement
     train_ids, val_ids = split_dataset(
-        data_cfg["train_ann"],
+        train_ann_path,
         train_ratio=data_cfg["train_ratio"],
         seed=config["experiment"]["seed"],
     )
 
-    train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"], train_ids)
-    val_dataset   = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"], val_ids)
-    test_dataset  = ArcadeDataset(data_cfg["val_images"],   data_cfg["val_ann"])
+    train_dataset = ArcadeDataset(train_img_path, train_ann_path, train_ids)
+    val_dataset   = ArcadeDataset(train_img_path, train_ann_path, val_ids)
+    test_dataset  = ArcadeDataset(val_img_path,   val_ann_path)
 
     print(f"Train : {len(train_dataset)} images")
     print(f"Val   : {len(val_dataset)} images")
