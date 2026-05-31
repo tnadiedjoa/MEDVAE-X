@@ -305,7 +305,7 @@ def main():
     histories = [load_history(p) for p in args.history]
     plot_all(histories, args.labels, args.save_dir)
 
-    # Dice par classe (si results.json existe)
+    # Dice par classe 
     results_path = os.path.join(
         os.path.dirname(args.history[0]), "results.json"
     )
