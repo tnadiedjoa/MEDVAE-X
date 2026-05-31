@@ -9,10 +9,11 @@ experiment:
   seed: 42
 
 data:
-  train_images: "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
-  train_ann:    "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
-  val_images:   "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val/images"
-  val_ann:      "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val/annotations/seg_val.json"
+  data_root:    "/home/infres/yrothlin-24/arcade_challenge_datasets"
+  train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
+  train_ann:    "dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
+  val_images:   "dataset_final_phase/test_case_segmentation/images"
+  val_ann:      "dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
   train_ratio:  0.8
   num_classes:  26
   img_size:     512

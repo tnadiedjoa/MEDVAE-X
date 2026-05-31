@@ -1,11 +1,3 @@
-"""
-finetune/dataset.py
-
-Dataset pour la segmentation ARCADE.
-Lit les images PNG et convertit les annotations COCO (polygones)
-en masques 2D de segmentation.
-"""
-
 import os
 import json
 import random
@@ -18,18 +10,6 @@ from pycocotools import mask as coco_mask
 
 
 class ArcadeDataset(Dataset):
-    """
-    Dataset ARCADE pour la segmentation des artères coronaires.
-
-    Charge les images PNG et construit les masques de segmentation
-    à partir des annotations COCO (polygones).
-
-    Args:
-        images_dir    : chemin vers le dossier images/
-        annotations   : chemin vers le fichier JSON COCO
-        image_ids     : liste d'IDs d'images à utiliser (None = toutes)
-        img_size      : taille de redimensionnement (défaut 512)
-    """
 
     def __init__(
         self,
