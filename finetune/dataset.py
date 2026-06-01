@@ -8,6 +8,35 @@ from torch.utils.data import Dataset
 from PIL import Image
 from pycocotools import mask as coco_mask
 
+# data augmentation pour mask et image 
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+def get_train_transforms(img_size: int = 512) -> A.Compose:
+    return A.Compose([
+        A.Resize(img_size, img_size),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.2),
+        A.ShiftScaleRotate(
+            shift_limit=0.05,
+            scale_limit=0.1,
+            rotate_limit=15,
+            border_mode=0,
+            p=0.7,
+        ),
+        A.RandomBrightnessContrast(
+            brightness_limit=0.2,
+            contrast_limit=0.2,
+            p=0.5,
+        ),
+        A.GaussNoise(p=0.3),
+        A.CLAHE(clip_limit=2.0, p=0.3),
+    ])
+
+def get_val_transforms(img_size: int = 512) -> A.Compose:
+    return A.Compose([
+        A.Resize(img_size, img_size),
+    ])
 
 class ArcadeDataset(Dataset):
 
@@ -17,11 +46,14 @@ class ArcadeDataset(Dataset):
         annotations: str,
         image_ids: list = None,
         img_size: int = 512,
+        augment: bool = False,
     ):
         self.images_dir = images_dir
         self.img_size   = img_size
+        self.transforms = get_train_transforms(img_size) if augment \
+                  else get_val_transforms(img_size)
 
-        # Charge le JSON COCO
+        # Charge le JSON 
         with open(annotations, "r") as f:
             coco = json.load(f)
 
@@ -49,34 +81,30 @@ class ArcadeDataset(Dataset):
         img_id   = self.image_ids[idx]
         img_info = self.images[img_id]
 
-        # --- Charge l'image ---
+        # charge l'image en numpy ce qui est nécessaire pour les transforms d'albumentations
         img_path = os.path.join(self.images_dir, img_info["file_name"])
-        image    = Image.open(img_path).convert("L")  # niveaux de gris
-        image    = image.resize((self.img_size, self.img_size), Image.BILINEAR)
-        image    = torch.tensor(np.array(image), dtype=torch.float32) / 255.0
-        image    = image.unsqueeze(0)  # (1, H, W)
+        image    = np.array(Image.open(img_path).convert("L")) 
 
-        # --- Construit le masque ---
-        h, w  = img_info["height"], img_info["width"]
-        mask  = np.zeros((h, w), dtype=np.int64)
+        # construit le masque de segmentation à partir des annotations
+        h, w = img_info["height"], img_info["width"]
+        mask = np.zeros((h, w), dtype=np.uint8)
 
-        anns = self.annotations.get(img_id, [])
-        for ann in anns:
-            category_id = ann["category_id"]   # 1 à 26
+        for ann in self.annotations.get(img_id, []):
+            category_id  = ann["category_id"]
             segmentation = ann["segmentation"]
-
-            # Convertit le polygone en masque binaire avec pycocotools
-            rle        = coco_mask.frPyObjects(segmentation, h, w)
-            rle        = coco_mask.merge(rle)
-            binary_mask = coco_mask.decode(rle).astype(bool)
-
-            # Les pixels de cette annotation prennent la valeur category_id
+            rle          = coco_mask.frPyObjects(segmentation, h, w)
+            rle          = coco_mask.merge(rle)
+            binary_mask  = coco_mask.decode(rle).astype(bool)
             mask[binary_mask] = category_id
 
-        # Redimensionne le masque à img_size
-        mask = Image.fromarray(mask.astype(np.uint8))
-        mask = mask.resize((self.img_size, self.img_size), Image.NEAREST)
-        mask = torch.tensor(np.array(mask), dtype=torch.long)  # (H, W)
+        # applique les transforms (image + masque synchronisés)
+        augmented = self.transforms(image=image, mask=mask)
+        image     = augmented["image"]
+        mask      = augmented["mask"]
+
+        # conversion en tensors
+        image = torch.tensor(image, dtype=torch.float32).unsqueeze(0) / 255.0
+        mask  = torch.tensor(mask,  dtype=torch.long)
 
         return image, mask
 
@@ -86,17 +114,7 @@ def split_dataset(
     train_ratio: float = 0.8,
     seed: int = 42,
 ) -> tuple[list, list]:
-    """
-    Divise les IDs d'images en train et val.
-
-    Args:
-        annotations_path : chemin vers le fichier JSON COCO
-        train_ratio      : proportion des images pour le train
-        seed             : graine aléatoire pour la reproductibilité
-
-    Returns:
-        train_ids, val_ids : listes d'IDs d'images
-    """
+    
     with open(annotations_path, "r") as f:
         coco = json.load(f)
 

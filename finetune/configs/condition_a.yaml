@@ -23,7 +23,7 @@ model:
   num_classes:     26
 
 training:
-  epochs:                   2
+  epochs:                   100
   batch_size:               8
   learning_rate:            1.0e-4
   weight_decay:             1.0e-4
@@ -41,8 +41,10 @@ scheduler:
     min_lr:   1.0e-6
 
 loss:
-  dice_weight: 0.5
-  ce_weight:   0.5
+  dice_weight: 0.4
+  ce_weight:   0.4
+  cl_weight:   0.2
+  skel_iters:  5
 
 logging:
   save_dir: "./checkpoints"   # dossier pour best_model.pth, history.json, test_results.json

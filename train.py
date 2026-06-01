@@ -59,9 +59,9 @@ def build_dataloaders(config):
         seed=config["experiment"]["seed"],
     )
 
-    train_dataset = ArcadeDataset(train_img_path, train_ann_path, train_ids)
-    val_dataset   = ArcadeDataset(train_img_path, train_ann_path, val_ids)
-    test_dataset  = ArcadeDataset(val_img_path,   val_ann_path)
+    train_dataset = ArcadeDataset(train_img_path, train_ann_path, train_ids, augment=True)
+    val_dataset   = ArcadeDataset(train_img_path, train_ann_path, val_ids, augment=False)
+    test_dataset  = ArcadeDataset(val_img_path,   val_ann_path, augment=False)
 
     print(f"Train : {len(train_dataset)} images")
     print(f"Val   : {len(val_dataset)} images")
