@@ -41,6 +41,8 @@ class Trainer:
             num_classes=data_cfg["num_classes"],
             dice_weight=loss_cfg["dice_weight"],
             ce_weight=loss_cfg["ce_weight"],
+            cl_weight=loss_cfg.get("cl_weight", 0.2),
+            skel_iters=loss_cfg.get("skel_iters", 5),
             ignore_index=loss_cfg.get("ignore_index", None),
         )
 
@@ -85,6 +87,7 @@ class Trainer:
                 "dice_mean": train_results["dice_mean"],
                 "iou_mean":  train_results["iou_mean"],
                 "lr":        self.optimizer.param_groups[0]["lr"],
+                "cl_loss": train_results["cl_loss"],   
             })
             self.history["val"].append({
                 "epoch":     epoch,
@@ -93,6 +96,7 @@ class Trainer:
                 "ce_loss":   val_results["ce_loss"],
                 "dice_mean": val_results["dice_mean"],
                 "iou_mean":  val_results["iou_mean"],
+                "cl_loss": val_results["cl_loss"],
             })
 
             # Affichage console
@@ -130,6 +134,7 @@ class Trainer:
         total_loss = 0.0
         total_dice = 0.0
         total_ce   = 0.0
+        total_cl   = 0.0
 
         for images, masks in loader:
             images = images.to(self.device)
@@ -148,6 +153,7 @@ class Trainer:
             total_loss += loss_dict["loss"]
             total_dice += loss_dict["dice_loss"]
             total_ce   += loss_dict["ce_loss"]
+            total_cl += loss_dict["cl_loss"]   # ajoute cette ligne
 
         n = len(loader)
         metric_results = self.train_metrics.compute()
@@ -158,6 +164,7 @@ class Trainer:
             "ce_loss":   total_ce   / n,
             "dice_mean": metric_results["dice_mean"],
             "iou_mean":  metric_results["iou_mean"],
+            "cl_loss": total_cl / n,           
         }
 
 
@@ -168,6 +175,7 @@ class Trainer:
         total_loss = 0.0
         total_dice = 0.0
         total_ce   = 0.0
+        total_cl   = 0.0
 
         with torch.no_grad():
             for images, masks in loader:
@@ -181,6 +189,7 @@ class Trainer:
                 total_loss += loss_dict["loss"]
                 total_dice += loss_dict["dice_loss"]
                 total_ce   += loss_dict["ce_loss"]
+                total_cl += loss_dict["cl_loss"]   # ajoute cette ligne
 
         n = len(loader)
         metric_results = self.val_metrics.compute()
@@ -191,6 +200,7 @@ class Trainer:
             "ce_loss":   total_ce   / n,
             "dice_mean": metric_results["dice_mean"],
             "iou_mean":  metric_results["iou_mean"],
+            "cl_loss": total_cl / n,
         }
 
 
