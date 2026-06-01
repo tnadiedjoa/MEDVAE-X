@@ -4,19 +4,7 @@ import torch.nn as nn
 
 
 class UNet(nn.Module):
-    """
-    Wrapper autour du U-Net de SMP.
-
-    Args:
-        encoder_name    : backbone de l'encodeur, ex. "resnet34", "resnet50",
-                          "efficientnet-b4". Voir smp.encoders.get_encoder_names().
-        encoder_weights : poids initiaux du backbone. "imagenet" pour du transfer
-                          learning, None pour initialisation aléatoire.
-        in_channels     : nombre de canaux en entrée. 1 pour les images en
-                          niveaux de gris (ARCADE).
-        num_classes     : nombre de classes de sortie. 26 pour ARCADE.
-    """
-
+    """ UNet avec un backbone pré-entraîné de segmentation_models_pytorch. """
     def __init__(
         self,
         encoder_name: str = "resnet34",
