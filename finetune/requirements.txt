@@ -1,6 +1,7 @@
 # Deep learning
 torch>=2.0.0
 torchvision>=0.15.0
+albumentations>=1.3.0
 
 # Segmentation
 segmentation-models-pytorch>=0.3.3

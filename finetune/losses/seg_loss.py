@@ -75,9 +75,10 @@ class SegLoss(nn.Module):
         ce   = self.ce_loss(logits, targets)
 
         # cl dice sur les probabilités vs target one-hot
-        probs     = torch.softmax(logits, dim=1)
-        target_oh = F.one_hot(targets, self.num_classes).permute(0,3,1,2).float()
-        cl        = cl_dice_loss(probs, target_oh, self.skel_iters)
+        # on ignore la classe 0 (background) pour le cl dice 
+        probs_fg     = torch.softmax(logits, dim=1)[:, 1:, :, :]
+        target_oh_fg = F.one_hot(targets, self.num_classes).permute(0,3,1,2).float()[:, 1:, :, :]
+        cl           = cl_dice_loss(probs_fg, target_oh_fg, self.skel_iters)
 
         total = self.dice_weight * dice + self.ce_weight * ce + self.cl_weight * cl
 
