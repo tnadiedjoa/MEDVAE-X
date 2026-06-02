@@ -44,7 +44,7 @@ loss:
   dice_weight: 0.4
   ce_weight:   0.4
   cl_weight:   0.2
-  skel_iters:  5
+  skel_iters:  3
 
 logging:
   save_dir: "./checkpoints"   # dossier pour best_model.pth, history.json, test_results.json
