@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────
+#  Condition B — MedVAE pré-entraîné (sans fine-tuning)
+#  Encodeur MedVAE gelé + tête de segmentation légère
+# ─────────────────────────────────────────────────────────
+
+experiment:
+  name: "condition_b_medvae"
+  condition: "B"
+  seed: 42
+
+data:
+  train_images: "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
+  train_ann:    "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
+  val_images:   "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val/images"
+  val_ann:      "arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_val/annotations/seg_val.json"
+  train_ratio:  0.8
+  num_classes:  26
+  img_size:     512
+  num_workers:  4
+  pin_memory:   true
+
+# Encodeur MedVAE — poids gelés, pas entraîné
+encoder:
+  model_name: "medvae_4_1_2d"   # f=16, 1 canal latent
+  modality:   "xray"
+
+# Tête de segmentation légère
+model:
+  architecture:   "seg_head"
+  latent_channels: 1            # correspond à medvae_4_1_2d (C=1)
+  num_classes:     26
+  base_channels:   64
+  n_upsample:      4            # 32 → 64 → 128 → 256 → 512 (4 upsampling ×2)
+
+training:
+  epochs:                   100
+  batch_size:               8
+  learning_rate:            1.0e-4
+  weight_decay:             1.0e-4
+  early_stopping_patience:  15
+  grad_clip:                1.0
+
+scheduler:
+  name: "cosine"
+  cosine:
+    T_max:   100
+    eta_min: 1.0e-6
+  plateau:
+    factor:   0.5
+    patience: 7
+    min_lr:   1.0e-6
+
+loss:
+  dice_weight: 0.5
+  ce_weight:   0.5
+
+logging:
+  save_dir: "finetune/checkpoints"
