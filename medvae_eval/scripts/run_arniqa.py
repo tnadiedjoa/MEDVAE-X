@@ -6,7 +6,7 @@ from PIL import Image
 import torchvision.transforms as T
 import glob
 
-DATASET_PATH = "../../arcade_challenge_datasets"
+DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
 image_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))
 OUTPUT_CSV = "../outputs/metrics/arniqa_scores.csv"
 
