@@ -101,13 +101,17 @@ Deux indicateurs spatiaux dérivés des données du Notebook 2 :
 | `spatial_homogeneity` | `1 - σ_tenengrad / (μ_tenengrad + ε)` | 1 = qualité uniforme, 0 = zones floues locales |
 | `directional_balance` | `min(H, V, D1, D2) / (max(H, V, D1, D2) + ε)` | 1 = isotrope, 0 = flou directionnel (mouvement) |
 
+### Séparation train/val (anti-leakage)
+
+Une colonne `split` est ajoutée au chargement des métriques, déduite du chemin de l'image (`seg_train` → `"train"`, `seg_val` → `"val"`). **Toutes les opérations statistiques (clipping, normalisation, PCA, seuils) sont fitted uniquement sur les images TRAIN**, puis appliquées (transform) sur l'ensemble du dataset.
+
 ### Deux méthodes de scoring comparées
 
 | Méthode | Principe | Avantage |
 |---|---|---|
-| **A — Score pondéré** | Combinaison linéaire de 6 features normalisées (min-max) avec poids manuels (tenengrad=0.30, laplacian=0.25, rms_contrast=0.15, entropy_inv=0.15, spatial_homogeneity=0.10, directional_balance=0.05) | Interprétable physiquement |
-| **B — PCA (PC1)** | Premier composant principal normalisé à [0, 1], signe corrigé par corrélation avec Tenengrad | Objectif, data-driven, pas de choix arbitraire de poids |
-| **C — Hybride** (optionnel) | Moyenne de A + B + PC1-ResNet-18 | Plus riche si features ResNet disponibles |
+| **A — Score pondéré** | Combinaison linéaire de 6 features normalisées (min-max **fitted sur TRAIN**) avec poids manuels (tenengrad=0.30, laplacian=0.25, rms_contrast=0.15, entropy_inv=0.15, spatial_homogeneity=0.10, directional_balance=0.05) | Interprétable physiquement |
+| **B — PCA (PC1)** | Premier composant principal normalisé à [0, 1] (**PCA fitted sur TRAIN**), signe corrigé par corrélation avec Tenengrad (sur TRAIN) | Objectif, data-driven, pas de choix arbitraire de poids |
+| **C — Hybride** (optionnel) | Moyenne de A + B + PC1-ResNet-18 (**PCA ResNet fitted sur TRAIN**) | Plus riche si features ResNet disponibles |
 
 ### Sélection automatique du score final
 
@@ -117,7 +121,7 @@ Deux indicateurs spatiaux dérivés des données du Notebook 2 :
 
 ### Labels catégoriels
 
-Le score continu est discrétisé en 3 classes par tertiles :
+Le score continu est discrétisé en 3 classes par tertiles **calculés sur TRAIN uniquement** :
 
 | Label | Tertile | Signification |
 |---|---|---|
@@ -136,7 +140,7 @@ Le score continu est discrétisé en 3 classes par tertiles :
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/labels_quality.csv` | image_id, path, quality_score, quality_label, score_weighted, score_pca [, score_resnet, score_hybrid] |
+| `outputs/labels_quality.csv` | image_id, path, **split**, quality_score, quality_label, score_weighted, score_pca [, score_resnet, score_hybrid] |
 | `outputs/03_engineered_features.png` | Distribution des features spatial_homogeneity et directional_balance |
 | `outputs/03_score_weighted.png` | Distribution du score pondéré + contribution de chaque feature |
 | `outputs/03_pca_biplot.png` | Loadings PC1 + biplot PC1 vs PC2 |
@@ -169,7 +173,7 @@ h ← (1 + γᵢ) · h + βᵢ
 
 ### Étapes
 
-1. **Dataset** — `QualityAwareArcadeDataset` retourne `(image, quality_score)` au lieu de `(image, mask)`. Images redimensionnées à 64×64, recadrées dans [-1, 1].
+1. **Dataset** — `QualityAwareArcadeDataset` retourne `(image, quality_score)` au lieu de `(image, mask)`. Images redimensionnées à 64×64, recadrées dans [-1, 1]. **Anti-leakage : le DataLoader d'entraînement utilise uniquement les images TRAIN** (colonne `split` du CSV), avec un DataLoader de validation séparé.
 2. **Architecture** — `QualityAwareAutoencoderKL` wrappant `AutoencoderKL2D` avec un `FiLMConditioner`. Zero-init sur toutes les heads → pas d'effet au démarrage.
 3. **Vérification** — Forward pass, flux de gradient (∂loss/∂c ≠ 0), comptage de paramètres.
 4. **Schéma architectural** — Figure annotée du pipeline x → Encoder → z → Decoder → x̂ avec injection FiLM.
