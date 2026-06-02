@@ -32,13 +32,11 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 5. **Distribution des métriques** — Histogrammes des 3 métriques sur l'échantillon.
 6. **Normalisation MSCN** (Mean Subtracted Contrast Normalized) — `Î(i,j) = (I(i,j) - μ(i,j)) / (σ(i,j) + C)` — supprime les biais d'illumination non-uniforme et les biais globaux de contraste entre patients.
 7. **Validation de MSCN** — Comparaison visuelle avant/après, histogrammes de distribution, et vérification que les métriques différencient encore les images post-MSCN.
-8. **Export** — CSV `outputs/sample_metrics_raw.csv` avec métriques + label binaire provisoire (bottom-25% Laplacian var → `bad`).
 
 ### Sorties
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/sample_metrics_raw.csv` | Métriques brutes + label qualité provisoire (20 images) |
 | `outputs/01_panorama_sample.png` | Mosaïque de l'échantillon |
 | `outputs/01_good_vs_bad.png` | Comparaison image nette vs floue |
 | `outputs/01_metrics_distribution.png` | Histogrammes des 3 métriques |
