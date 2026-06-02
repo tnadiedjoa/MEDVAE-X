@@ -9,9 +9,8 @@ import yaml
 from torch.utils.data import DataLoader
 
 from finetune.dataset import ArcadeDataset, split_dataset
-from finetune.models import build_unet
+from finetune.models import build_unet, build_seg_head
 from finetune.trainer import Trainer
-
 
 
 def load_config(path: str) -> dict:
@@ -38,30 +37,21 @@ def get_device() -> torch.device:
     return device
 
 
-
-
-def build_dataloaders(config):
+def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
     data_cfg = config["data"]
-    root = data_cfg.get("data_root", "")
 
-    def full(p):
-        return os.path.join(root, p) if root else p
-
-    train_ann_path = full(data_cfg["train_ann"])
-    train_img_path = full(data_cfg["train_images"])
-    val_img_path   = full(data_cfg["val_images"])
-    val_ann_path   = full(data_cfg["val_ann"])
-
-    # Split train/val sur le jeu d'entraînement
     train_ids, val_ids = split_dataset(
-        train_ann_path,
+        data_cfg["train_ann"],
         train_ratio=data_cfg["train_ratio"],
         seed=config["experiment"]["seed"],
     )
 
-    train_dataset = ArcadeDataset(train_img_path, train_ann_path, train_ids, augment=True)
-    val_dataset   = ArcadeDataset(train_img_path, train_ann_path, val_ids, augment=False)
-    test_dataset  = ArcadeDataset(val_img_path,   val_ann_path, augment=False)
+    train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
+                                  train_ids, augment=True)
+    val_dataset   = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
+                                  val_ids,   augment=False)
+    test_dataset  = ArcadeDataset(data_cfg["val_images"],   data_cfg["val_ann"],
+                                  augment=False)
 
     print(f"Train : {len(train_dataset)} images")
     print(f"Val   : {len(val_dataset)} images")
@@ -72,11 +62,58 @@ def build_dataloaders(config):
         num_workers = data_cfg["num_workers"],
         pin_memory  = data_cfg["pin_memory"],
     )
+
     return (
         DataLoader(train_dataset, shuffle=True,  **loader_kwargs),
         DataLoader(val_dataset,   shuffle=False, **loader_kwargs),
         DataLoader(test_dataset,  shuffle=False, **loader_kwargs),
     )
+
+
+def build_model(config: dict, device: torch.device):
+    """
+    Instancie le bon modèle selon la condition :
+    - Condition A : U-Net complet
+    - Condition B/C : encodeur MedVAE gelé + tête de segmentation
+    """
+    condition = config["experiment"]["condition"]
+
+    if condition == "A":
+        model = build_unet(config["model"])
+
+    elif condition in ("B", "C"):
+        from finetune.encoder import MedVAEEncoder
+        from finetune.models import build_seg_head
+        import torch.nn as nn
+
+        encoder = MedVAEEncoder(
+            model_name=config["encoder"]["model_name"],
+            modality=config["encoder"]["modality"],
+            device=device,
+        )
+        seg_head = build_seg_head(config["model"])
+
+        # Combine encodeur + tête dans un seul module
+        class EncoderWithHead(nn.Module):
+            def __init__(self, enc, head):
+                super().__init__()
+                self.encoder  = enc
+                self.seg_head = head
+
+            def forward(self, x):
+                latent = self.encoder.encode(x)
+                return self.seg_head(latent)
+
+        model = EncoderWithHead(encoder, seg_head)
+
+    else:
+        raise ValueError(f"Condition inconnue : {condition}")
+
+    # Compte uniquement les paramètres entraînables
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Paramètres entraînables : {n_params:,}")
+
+    return model
 
 
 def main():
@@ -91,11 +128,7 @@ def main():
     device = get_device()
 
     train_loader, val_loader, test_loader = build_dataloaders(config)
-
-    model = build_unet(config["model"])
-    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Paramètres entraînables : {n_params:,}")
-
+    model   = build_model(config, device)
     trainer = Trainer(model=model, config=config, device=device)
     trainer.fit(train_loader, val_loader)
     trainer.evaluate(test_loader)
