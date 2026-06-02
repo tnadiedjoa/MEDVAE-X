@@ -26,7 +26,8 @@ for idx, img_path in enumerate(image_paths, start=1):
     with torch.no_grad():
         score = metric(img_tensor).item()
 
-    image_name = f"{idx}.png"
+    # image_name = f"{idx}.png"
+    image_name = float(idx)
     print(f"{image_name}: {score:.4f}")
     results.append({"image": image_name, "arniqa_score": score})
 
