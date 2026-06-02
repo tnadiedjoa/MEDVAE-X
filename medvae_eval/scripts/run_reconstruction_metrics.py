@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import glob
 
-DATASET_PATH = "../../arcade_challenge_datasets"
+DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
 image_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))
 OUTPUT_CSV = "../outputs/metrics/reconstruction_metrics.csv"
 
@@ -30,7 +30,7 @@ for idx, img_path in enumerate(image_paths, start=1):
     psnr_score = psnr(decoded_img, img).item()
     ms_ssim_score = ms_ssim(decoded_img, img).item()
 
-    image_name = f"{idx}.png"
+    image_name = float(idx)
     print(f"{image_name}: PSNR={psnr_score:.2f}, MS-SSIM={ms_ssim_score:.4f}")
     results.append({
         "image": image_name,
