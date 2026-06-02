@@ -47,4 +47,4 @@ loss:
   skel_iters:  3
 
 logging:
-  save_dir: "./checkpoints"   # dossier pour best_model.pth, history.json, test_results.json
+  save_dir: "finetune/checkpoints"
