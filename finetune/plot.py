@@ -275,7 +275,7 @@ def main():
         help="Labels pour la légende (un par fichier history)"
     )
     parser.add_argument(
-        "--save_dir", type=str, default="./figures",
+        "--save_dir", type=str, default="finetune/figures",
         help="Dossier de sauvegarde des figures"
     )
     # Arguments pour la visualisation des segmentations
