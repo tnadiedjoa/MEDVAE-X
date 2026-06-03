@@ -26,5 +26,5 @@ wandb/
 *.nii.gz
 *.npy
 *.npz
-
+.DS_
 .venv
