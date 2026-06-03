@@ -6,14 +6,30 @@
 
 ---
 
+## Configuration globale — `pipeline_config.py`
+
+Un **hyperparamètre unique** `APPROACH` contrôle la méthode de calcul du score de qualité `c` à travers tout le pipeline. Modifier ce paramètre et relancer NB3 → NB4 → NB5 pour comparer les approches.
+
+| Approche | Colonne | Description |
+|----------|---------|-------------|
+| **A** | `score_weighted` | Combinaison linéaire de 6 métriques IQA avec poids manuels |
+| **B** | `score_pca` | PCA (PC1 normalisé), signe corrigé par corrélation Tenengrad |
+| **C** | `score_hybrid` | Moyenne de A + B + PC1 ResNet-18 (nécessite features NB2) |
+
+Les sorties de NB4 et NB5 sont organisées par approche (`approach_A/`, `approach_B/`, etc.) pour permettre la comparaison.
+
+---
+
 ## Vue d'ensemble du pipeline
 
 ```
+pipeline_config.py → APPROACH = "A" | "B" | "C"
+    ↓
 NB1 → Exploration & MSCN
 NB2 → Cartes de qualité par patch (8 métriques × G×G)
-NB3 → Score unique c ∈ [0,1] → labels_quality.csv
-NB4 → QualityAwareAutoencoderKL (FiLM) → quality_aware_vae.pt
-NB5 → Évaluation de robustesse (baseline vs cVAE)
+NB3 → Score unique c ∈ [0,1] → labels_quality.csv  (selon APPROACH)
+NB4 → QualityAwareAutoencoderKL (FiLM) → approach_{X}/quality_aware_vae.pt
+NB5 → Évaluation de robustesse (baseline vs cVAE) → approach_{X}/résultats
 quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + score composite)
 ```
 
@@ -113,11 +129,12 @@ Une colonne `split` est ajoutée au chargement des métriques, déduite du chemi
 | **B — PCA (PC1)** | Premier composant principal normalisé à [0, 1] (**PCA fitted sur TRAIN**), signe corrigé par corrélation avec Tenengrad (sur TRAIN) | Objectif, data-driven, pas de choix arbitraire de poids |
 | **C — Hybride** (optionnel) | Moyenne de A + B + PC1-ResNet-18 (**PCA ResNet fitted sur TRAIN**) | Plus riche si features ResNet disponibles |
 
-### Sélection automatique du score final
+### Sélection du score final
 
-- Si `score_hybrid` disponible → utiliser `score_hybrid`
-- Si corrélation A↔B > 0.85 → utiliser `score_pca` (objectif)
-- Sinon → utiliser `score_weighted` (plus robuste si peu d'images)
+Le score final (`quality_score`) est déterminé par l'hyperparamètre `APPROACH` dans `pipeline_config.py` :
+- `APPROACH = "A"` → `score_weighted`
+- `APPROACH = "B"` → `score_pca`
+- `APPROACH = "C"` → `score_hybrid`
 
 ### Labels catégoriels
 
@@ -178,19 +195,21 @@ h ← (1 + γᵢ) · h + βᵢ
 3. **Vérification** — Forward pass, flux de gradient (∂loss/∂c ≠ 0), comptage de paramètres.
 4. **Schéma architectural** — Figure annotée du pipeline x → Encoder → z → Decoder → x̂ avec injection FiLM.
 5. **Visualisation pré-entraînement** — Reconstruction à différents c (identiques car zero-init).
-6. **Boucle d'entraînement** — Warm-up FiLM seul (poids de base gelés), loss ELBO = MSE + KL_weight × KL. 50 steps de démonstration.
-7. **Visualisation post-entraînement** — Reconstruction d'une image bad et good à c=0, 0.5, 1. Le score commence à moduler la sortie.
-8. **Sauvegarde du checkpoint** — `quality_aware_vae.pt` contenant model_state_dict, ddconfig, embed_dim, history.
+6. **Phase 1 — Warm-up FiLM** (2 500 steps, ~10 epochs) — Seuls les paramètres FiLM sont entraînés (base VAE gelé). Loss ELBO = MSE + KL_weight × KL. Validation toutes les 250 steps avec early stopping (patience=10).
+7. **Visualisation post-warm-up** — Reconstruction d'une image bad et good à c=0, 0.5, 1. Le score commence à moduler la sortie.
+8. **Phase 2 — Fine-tuning global** (5 000 steps, ~20 epochs) — Tous les poids sont dégelés (base VAE + FiLM). LR réduit à 1e-6 avec scheduler cosine → 1e-7. Validation et early stopping identiques.
+9. **Sauvegarde du checkpoint** — `quality_aware_vae.pt` contenant le meilleur modèle (sélectionné sur val loss), ddconfig, embed_dim, historiques des deux phases.
 
-### Sorties
+### Sorties (dans `outputs/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/quality_aware_vae.pt` | Checkpoint du cVAE (modèle + config + historique) |
-| `outputs/04_architecture_cvae.png` | Schéma de l'architecture FiLM |
-| `outputs/04_conditioning_before_training.png` | Reconstructions à c variés (zero-init) |
-| `outputs/04_training_curves.png` | Courbes de loss (total, rec, KL) |
-| `outputs/04_conditioning_after_training.png` | Effet du conditionnement post-warm-up |
+| `approach_{X}/quality_aware_vae.pt` | Checkpoint du cVAE (modèle + config + historique) |
+| `approach_{X}/04_architecture_cvae.png` | Schéma de l'architecture FiLM |
+| `approach_{X}/04_conditioning_before_training.png` | Reconstructions à c variés (zero-init) |
+| `approach_{X}/04_warmup_curves.png` | Courbes de loss Phase 1 (train + val) |
+| `approach_{X}/04_conditioning_after_training.png` | Effet du conditionnement post-warm-up |
+| `approach_{X}/04_finetune_curves.png` | Courbes de loss Phase 2 (train + val) |
 
 ---
 
@@ -232,20 +251,20 @@ Propre, Bruit gaussien (σ=0.05, 0.10, 0.20), Flou de mouvement horizontal (k=5)
 
 ### Lecture des résultats
 
-- Après entraînement complet (50 000+ steps) : MSE cVAE < MSE baseline sur les images `bad`, performances comparables sur les `good`.
-- Avec 50 steps de démonstration : les deux modèles sont quasi-identiques (attendu).
+- Le cVAE est entraîné avec un warm-up FiLM (2 500 steps) + fine-tuning global (5 000 steps) avec validation et early stopping.
+- Résultat attendu : MSE cVAE < MSE baseline sur les images `bad`, performances comparables sur les `good`.
 
-### Sorties
+### Sorties (dans `outputs/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/05_evaluation_results.csv` | Métriques par image (baseline + cVAE) sur images réelles |
-| `outputs/05_synthetic_results.csv` | Métriques par image × dégradation sur images synthétiques |
-| `outputs/05_degradation_grid.png` | Grille des 7 types de dégradations |
-| `outputs/05_boxplots.png` | Box plots MSE/SSIM/HaarPSI par classe de qualité |
-| `outputs/05_synthetic_metrics.png` | Bar charts baseline vs cVAE par dégradation |
-| `outputs/05_gallery_bad.png` | Galerie qualitative sur images bad |
-| `outputs/05_gallery_synthetic.png` | Galerie sur images synthétiquement dégradées |
+| `approach_{X}/05_evaluation_results.csv` | Métriques par image (baseline + cVAE) sur images réelles |
+| `approach_{X}/05_synthetic_results.csv` | Métriques par image × dégradation sur images synthétiques |
+| `approach_{X}/05_degradation_grid.png` | Grille des 7 types de dégradations |
+| `approach_{X}/05_boxplots.png` | Box plots MSE/SSIM/HaarPSI par classe de qualité |
+| `approach_{X}/05_synthetic_metrics.png` | Bar charts baseline vs cVAE par dégradation |
+| `approach_{X}/05_gallery_bad.png` | Galerie qualitative sur images bad |
+| `approach_{X}/05_gallery_synthetic.png` | Galerie sur images synthétiquement dégradées |
 
 ---
 
