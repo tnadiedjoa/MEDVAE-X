@@ -16,6 +16,7 @@ APPROACHES = {
     "A": {
         "score_col": "score_weighted",
         "name": "Score pondéré",
+        "use_resnet": False,
         "description": (
             "Combinaison linéaire de 6 métriques IQA avec poids manuels "
             "(Tenengrad=0.30, Laplacian=0.25, RMS=0.15, Entropy=0.15, "
@@ -25,6 +26,7 @@ APPROACHES = {
     "B": {
         "score_col": "score_pca",
         "name": "PCA (PC1)",
+        "use_resnet": False,
         "description": (
             "Premier composant principal normalisé [0,1], signe corrigé "
             "par corrélation avec Tenengrad. Objectif, data-driven."
@@ -33,6 +35,7 @@ APPROACHES = {
     "C": {
         "score_col": "score_hybrid",
         "name": "Hybride (A+B+ResNet)",
+        "use_resnet": True,
         "description": (
             "Moyenne de score_weighted + score_pca + score_resnet (PC1 ResNet-18). "
             "Nécessite les features ResNet-18 du NB2."
@@ -54,6 +57,11 @@ def get_approach_config(approach=None):
 def get_score_column(approach=None):
     """Retourne le nom de la colonne de score pour l'approche."""
     return get_approach_config(approach)["score_col"]
+
+
+def use_resnet(approach=None):
+    """Retourne True si l'approche requiert les features ResNet-18."""
+    return get_approach_config(approach)["use_resnet"]
 
 
 def print_approach_summary(approach=None):
