@@ -7,7 +7,7 @@ import glob
 
 DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
 image_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))
-OUTPUT_CSV = "../outputs/metrics/reconstruction_metrics.csv"
+OUTPUT_CSV = "../outputs/metrics/FR_results.csv"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
 

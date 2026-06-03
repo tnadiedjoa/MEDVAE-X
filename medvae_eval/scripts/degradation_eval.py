@@ -17,8 +17,8 @@ from engineered_score import EngineeredScore
 DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
 OUTPUT_DIR = "../outputs/degradation"
 N_IMAGES = 100
-N_LEVELS = 50
-METRIC = "engineered"  # "arniqa" ou "engineered"
+N_LEVELS = 30
+METRIC = "arniqa"  # "arniqa" ou "engineered"
 ENGINEERED_METHOD = "weighted"  # "weighted" ou "pca" (ignoré si METRIC="arniqa")
 
 image_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))[:N_IMAGES]
