@@ -53,12 +53,12 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/01_panorama_sample.png` | Mosaïque de l'échantillon |
-| `outputs/01_good_vs_bad.png` | Comparaison image nette vs floue |
-| `outputs/01_metrics_distribution.png` | Histogrammes des 3 métriques |
-| `outputs/01_mscn_comparison.png` | Effet de la normalisation MSCN |
-| `outputs/01_histograms_mscn.png` | Distributions pixel avant/après MSCN |
-| `outputs/01_metrics_raw_vs_mscn.png` | Métriques brutes vs post-MSCN |
+| `outputs_theophile/01_Data_Exploration/01_panorama_sample.png` | Mosaïque de l'échantillon |
+| `outputs_theophile/01_Data_Exploration/01_good_vs_bad.png` | Comparaison image nette vs floue |
+| `outputs_theophile/01_Data_Exploration/01_metrics_distribution.png` | Histogrammes des 3 métriques |
+| `outputs_theophile/01_Data_Exploration/01_mscn_comparison.png` | Effet de la normalisation MSCN |
+| `outputs_theophile/01_Data_Exploration/01_histograms_mscn.png` | Distributions pixel avant/après MSCN |
+| `outputs_theophile/01_Data_Exploration/01_metrics_raw_vs_mscn.png` | Métriques brutes vs post-MSCN |
 
 ---
 
@@ -92,15 +92,15 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/patch_metrics_full.csv` | 8 métriques × (mean/std/max/min) pour chaque image |
-| `outputs/quality_maps/*.npy` | Carte de qualité `(4, 4, 8)` par image |
-| `outputs/resnet18_features.npy` | Matrice (N, 512) de features ResNet-18 |
-| `outputs/resnet18_ids.csv` | Correspondance image_id ↔ indice dans la matrice |
-| `outputs/02_qmap_demo.png` | Heatmaps de qualité par métrique (démo) |
-| `outputs/02_directional_tenengrad.png` | Analyse directionnelle H/V/D1/D2 |
-| `outputs/02_full_dataset_distributions.png` | Histogrammes des métriques (dataset complet) |
-| `outputs/02_correlation_matrix.png` | Matrice de corrélation entre métriques |
-| `outputs/02_extreme_images.png` | Images extrêmes (worst vs best Tenengrad) |
+| `outputs_theophile/02_IQA_Metrics_Extraction/patch_metrics_full.csv` | 8 métriques × (mean/std/max/min) pour chaque image |
+| `outputs_theophile/02_IQA_Metrics_Extraction/quality_maps/*.npy` | Carte de qualité `(4, 4, 8)` par image |
+| `outputs_theophile/02_IQA_Metrics_Extraction/resnet18_features.npy` | Matrice (N, 512) de features ResNet-18 |
+| `outputs_theophile/02_IQA_Metrics_Extraction/resnet18_ids.csv` | Correspondance image_id ↔ indice dans la matrice |
+| `outputs_theophile/02_IQA_Metrics_Extraction/02_qmap_demo.png` | Heatmaps de qualité par métrique (démo) |
+| `outputs_theophile/02_IQA_Metrics_Extraction/02_directional_tenengrad.png` | Analyse directionnelle H/V/D1/D2 |
+| `outputs_theophile/02_IQA_Metrics_Extraction/02_full_dataset_distributions.png` | Histogrammes des métriques (dataset complet) |
+| `outputs_theophile/02_IQA_Metrics_Extraction/02_correlation_matrix.png` | Matrice de corrélation entre métriques |
+| `outputs_theophile/02_IQA_Metrics_Extraction/02_extreme_images.png` | Images extrêmes (worst vs best Tenengrad) |
 
 ---
 
@@ -157,14 +157,14 @@ Le score continu est discrétisé en 3 classes par tertiles **calculés sur TRAI
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/labels_quality.csv` | image_id, path, **split**, quality_score, quality_label, score_weighted, score_pca [, score_resnet, score_hybrid] |
-| `outputs/03_engineered_features.png` | Distribution des features spatial_homogeneity et directional_balance |
-| `outputs/03_score_weighted.png` | Distribution du score pondéré + contribution de chaque feature |
-| `outputs/03_pca_biplot.png` | Loadings PC1 + biplot PC1 vs PC2 |
-| `outputs/03_score_comparison.png` | Corrélation et différence entre Méthode A et Méthode B |
-| `outputs/03_label_distribution.png` | Distribution du score final avec seuils + camembert des labels |
-| `outputs/03_gallery_sorted_by_score.png` | Galerie triée par quality_score |
-| `outputs/03_examples_per_class.png` | 3 exemples par classe (bad / medium / good) |
+| `outputs_theophile/03_Inductive_Bias_Generation/labels_quality.csv` | image_id, path, **split**, quality_score, quality_label, score_weighted, score_pca [, score_resnet, score_hybrid] |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_engineered_features.png` | Distribution des features spatial_homogeneity et directional_balance |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_score_weighted.png` | Distribution du score pondéré + contribution de chaque feature |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_pca_biplot.png` | Loadings PC1 + biplot PC1 vs PC2 |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_score_comparison.png` | Corrélation et différence entre Méthode A et Méthode B |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_label_distribution.png` | Distribution du score final avec seuils + camembert des labels |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_gallery_sorted_by_score.png` | Galerie triée par quality_score |
+| `outputs_theophile/03_Inductive_Bias_Generation/03_examples_per_class.png` | 3 exemples par classe (bad / medium / good) |
 
 ---
 
@@ -200,7 +200,7 @@ h ← (1 + γᵢ) · h + βᵢ
 8. **Phase 2 — Fine-tuning global** (5 000 steps, ~20 epochs) — Tous les poids sont dégelés (base VAE + FiLM). LR réduit à 1e-6 avec scheduler cosine → 1e-7. Validation et early stopping identiques.
 9. **Sauvegarde du checkpoint** — `quality_aware_vae.pt` contenant le meilleur modèle (sélectionné sur val loss), ddconfig, embed_dim, historiques des deux phases.
 
-### Sorties (dans `outputs/approach_{APPROACH}/`)
+### Sorties (dans `outputs_theophile/04_MedVAE_Architecture_Mod/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -251,10 +251,11 @@ Propre, Bruit gaussien (σ=0.05, 0.10, 0.20), Flou de mouvement horizontal (k=5)
 
 ### Lecture des résultats
 
-- Le cVAE est entraîné avec un warm-up FiLM (2 500 steps) + fine-tuning global (5 000 steps) avec validation et early stopping.
+- Le cVAE est entraîné avec un warm-up FiLM (2 500 steps) + fine-tuning global (5 000 steps) = **7 500 steps** au total, avec validation et early stopping.
 - Résultat attendu : MSE cVAE < MSE baseline sur les images `bad`, performances comparables sur les `good`.
+- **Note :** avec un nombre réduit de steps (ex : 50 steps de démonstration dans NB4), les deux modèles sont quasi-identiques — c'est attendu et normal.
 
-### Sorties (dans `outputs/approach_{APPROACH}/`)
+### Sorties (dans `outputs_theophile/05_Evaluation_of_Robustness/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -320,10 +321,39 @@ Moyenne non pondérée de 7 métriques normalisées (min-max) :
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs/metrics/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
-| `outputs/quality_distributions.png` | Histogrammes des 11 métriques |
-| `outputs/quality_correlation.png` | Matrice de corrélation |
-| `outputs/quality_comparison.png` | 5 low quality vs 5 high quality |
-| `outputs/quality_composite.png` | Distribution du score composite |
+| `outputs_theophile/quality_metrics/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
+| `outputs_theophile/quality_metrics/quality_distributions.png` | Histogrammes des 11 métriques |
+| `outputs_theophile/quality_metrics/quality_correlation.png` | Matrice de corrélation |
+| `outputs_theophile/quality_metrics/quality_comparison.png` | 5 low quality vs 5 high quality |
+| `outputs_theophile/quality_metrics/quality_composite.png` | Distribution du score composite |
+
+---
+
+## Fichier utilitaire — `medvae_standalone.py`
+
+**Objectif :** Ré-implémentation locale et autonome de l'architecture MedVAE de Stanford (MIMI). Élimine la dépendance au dossier `jepa-adaptation/` et rend les notebooks portables.
+
+### Composants
+
+| Classe / Fonction | Rôle |
+|---|---|
+| `DiagonalGaussianDistribution` | Distribution postérieure du VAE (μ, log-σ²). Méthodes : `sample()` (reparamétérisation), `kl()` (divergence KL vs N(0,I)), `mode()` (déterministe). Log-variance clampée à [-30, 20]. |
+| `nonlinearity(x)` | Activation Swish/SiLU |
+| `Normalize(in_channels)` | GroupNorm (32 groupes) |
+| `Upsample` / `Downsample` | Redimensionnement spatial 2× (nearest + conv optionnel) |
+| `ResnetBlock` | Bloc résiduel avec GroupNorm + Swish + Conv |
+| `AttnBlock` | Self-attention multi-tête |
+| `Encoder` | Chemin descendant : Conv → ResBlocks → latent |
+| `Decoder` | Chemin montant : latent → ResBlocks → Conv → reconstruction |
+| `AutoencoderKL` | VAE complet combinant Encoder + Decoder + quant_conv |
+
+### Utilisation dans les notebooks
+
+```python
+from medvae_standalone import AutoencoderKL, DiagonalGaussianDistribution
+base_ae = AutoencoderKL(ddconfig=DDCONFIG, embed_dim=EMBED_DIM, ckpt_path=PHASE1_CKPT)
+```
+
+Ce fichier est importé par **NB4** et **NB5** pour charger les poids pré-entraînés Stanford (`vae_4x_4c_2D.ckpt`) et construire le cVAE quality-aware.
 
 ---
