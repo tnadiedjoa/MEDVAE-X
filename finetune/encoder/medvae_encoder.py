@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from medvae.utils.model_utils import MVAE
+from medvae import MVAE
 
 
 class MedVAEEncoder(nn.Module):
