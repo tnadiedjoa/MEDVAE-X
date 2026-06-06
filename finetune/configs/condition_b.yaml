@@ -31,7 +31,7 @@ model:
   latent_channels: 1            # correspond à medvae_4_1_2d (C=1)
   num_classes:     26
   base_channels:   64
-  n_upsample:      4            # 32 → 64 → 128 → 256 → 512 (4 upsampling ×2)
+  n_upsample:      2            # 128 → 256 → 512 (2 upsampling ×2, f=4 par dim)
 
 training:
   epochs:                   100
