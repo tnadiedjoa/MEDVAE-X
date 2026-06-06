@@ -60,7 +60,7 @@ class Trainer:
         self.grad_clip = train_cfg.get("grad_clip", 1.0)
 
         # AMP
-        self.scaler = GradScaler(device="cuda")
+        self.scaler = GradScaler(device="cuda", enabled=True)
 
         # Dossiers de sauvegarde 
         self.save_dir = log_cfg["save_dir"]
@@ -146,7 +146,7 @@ class Trainer:
 
             self.optimizer.zero_grad()
 
-            with autocast(device_type="cuda"):
+            with autocast(device_type="cuda", dtype=torch.bfloat16):
                 logits = self.model(images)
                 loss, loss_dict = self.criterion(logits, masks)
 
@@ -189,7 +189,7 @@ class Trainer:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
 
-                with autocast(device_type="cuda"):
+                with autocast(device_type="cuda", dtype=torch.bfloat16):
                     logits = self.model(images)
                     _, loss_dict = self.criterion(logits, masks)
                 self.val_metrics.update(logits, masks)
@@ -226,7 +226,7 @@ class Trainer:
             for images, masks in test_loader:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
-                with autocast(device_type="cuda"):
+                with autocast(device_type="cuda", dtype=torch.bfloat16):
                     logits = self.model(images)
                 test_metrics.update(logits, masks)
 
