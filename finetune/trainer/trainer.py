@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+from torch.amp import GradScaler, autocast
 
 from finetune.losses.seg_loss import SegLoss
 from finetune.metrics.seg_metrics import SegMetrics
@@ -55,8 +56,11 @@ class Trainer:
         self.best_dice     = 0.0
         self.epochs_no_imp = 0
 
-        # Gradient clipping 
+        # Gradient clipping
         self.grad_clip = train_cfg.get("grad_clip", 1.0)
+
+        # AMP
+        self.scaler = GradScaler(device="cuda")
 
         # Dossiers de sauvegarde 
         self.save_dir = log_cfg["save_dir"]
@@ -141,13 +145,16 @@ class Trainer:
             masks  = masks.to(self.device)
 
             self.optimizer.zero_grad()
-            logits = self.model(images)
 
-            loss, loss_dict = self.criterion(logits, masks)
-            loss.backward()
+            with autocast(device_type="cuda"):
+                logits = self.model(images)
+                loss, loss_dict = self.criterion(logits, masks)
 
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            self.optimizer.step()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             self.train_metrics.update(logits.detach(), masks)
             total_loss += loss_dict["loss"]
@@ -182,8 +189,9 @@ class Trainer:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
 
-                logits = self.model(images)
-                _, loss_dict = self.criterion(logits, masks)
+                with autocast(device_type="cuda"):
+                    logits = self.model(images)
+                    _, loss_dict = self.criterion(logits, masks)
                 self.val_metrics.update(logits, masks)
 
                 total_loss += loss_dict["loss"]
@@ -218,7 +226,8 @@ class Trainer:
             for images, masks in test_loader:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
-                logits = self.model(images)
+                with autocast(device_type="cuda"):
+                    logits = self.model(images)
                 test_metrics.update(logits, masks)
 
         results = test_metrics.compute()
