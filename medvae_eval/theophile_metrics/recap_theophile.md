@@ -83,7 +83,7 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 3. **Normalisation MSCN** — Appliquée avant le calcul des métriques.
 4. **Carte de qualité 2D** — Tableau `(4, 4, 8)` par image, contenant les 8 métriques pour chaque patch.
 5. **Analyse directionnelle** — Visualisation du Tenengrad H/V/D1/D2 pour détecter les flous de mouvement (le battement cardiaque dégrade surtout la direction verticale).
-6. **Extraction de features ResNet-18** (optionnel) — Vecteur 512D par image via un ResNet-18 pré-entraîné figé (couche `AdaptiveAvgPool2d`), utilisable comme biais inductif enrichi.
+6. **Extraction de features ResNet-18** — Vecteur 512D par image via un ResNet-18 pré-entraîné figé (couche `AdaptiveAvgPool2d`), utilisable comme biais inductif enrichi.
 7. **Traitement du dataset complet** — Parallélisé (4 threads). Les patchs « noirs » (bords de la radio, intensité moyenne < 2%) sont exclus. Agrégation des patchs valides en mean/std/max/min par métrique.
 8. **Analyse statistique** — Distributions des 8 métriques sur tout le dataset, matrice de corrélation pour identifier les redondances.
 9. **Export** — CSV + cartes de qualité `.npy`.
@@ -127,7 +127,7 @@ Une colonne `split` est ajoutée au chargement des métriques, déduite du chemi
 |---|---|---|
 | **A — Score pondéré** | Combinaison linéaire de 6 features normalisées (min-max **fitted sur TRAIN**) avec poids manuels (tenengrad=0.30, laplacian=0.25, rms_contrast=0.15, entropy_inv=0.15, spatial_homogeneity=0.10, directional_balance=0.05) | Interprétable physiquement |
 | **B — PCA (PC1)** | Premier composant principal normalisé à [0, 1] (**PCA fitted sur TRAIN**), signe corrigé par corrélation avec Tenengrad (sur TRAIN) | Objectif, data-driven, pas de choix arbitraire de poids |
-| **C — Hybride** (optionnel) | Moyenne de A + B + PC1-ResNet-18 (**PCA ResNet fitted sur TRAIN**) | Plus riche si features ResNet disponibles |
+| **C — Hybride** | Moyenne de A + B + PC1-ResNet-18 (**PCA ResNet fitted sur TRAIN**) | Plus riche si features ResNet disponibles |
 
 ### Sélection du score final
 
