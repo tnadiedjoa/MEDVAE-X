@@ -1,14 +1,18 @@
 """
 Configuration partagée du pipeline biais inductif.
 Modifier APPROACH pour changer la méthode de calcul du score de qualité c.
-Puis relancer NB3 → NB4 → NB5.
+
+Notebooks à relancer après changement d'approche :
+  - Approches A ou B : relancer NB3 → NB4 → NB5.
+  - Approche C (hybride avec ResNet) : relancer NB2 → NB3 → NB4 → NB5
+    (NB2 doit être relancé car l'approche C nécessite l'extraction des features ResNet-18).
 """
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║  HYPERPARAMÈTRE PRINCIPAL — Approche de calcul du score c  ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-APPROACH = "A"
+APPROACH = "B"
 
 # ── Définition des approches ──────────────────────────────────
 
