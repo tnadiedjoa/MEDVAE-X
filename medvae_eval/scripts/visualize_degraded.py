@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import glob
 import random
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
 OUTPUT_PATH  = "../outputs/degradation/degradation_visual.png"
 N_IMAGES     = 5
 NOISE_SIGMA  = 50
