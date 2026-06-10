@@ -1,11 +1,22 @@
 # ─────────────────────────────────────────────────────────
-#  Condition B — MedVAE pré-entraîné (sans fine-tuning)
-#  Encodeur MedVAE gelé + tête de segmentation légère
+#  Condition D — U-Net entraîné sur images reconstruites par MedVAE
+#
+#  Pipeline : image → MedVAE(encode→decode, gelé) → U-Net (entraînable)
+#
+#  Question scientifique :
+#    Un U-Net adapté à la qualité de reconstruction MedVAE fait-il mieux
+#    qu'un U-Net (condition A) testé à froid sur ces mêmes reconstructions ?
+#    → mesure du gain de l'adaptation vs. la dégradation brute due à la compression
+#
+#  Comparaison clé :
+#    A  : U-Net(original)        → Dice de référence
+#    D  : U-Net(MedVAE-reconstruit) → Dice avec adaptation
+#    A* : U-Net(A) évalué sur images MedVAE → Dice sans adaptation  (run à la main)
 # ─────────────────────────────────────────────────────────
 
 experiment:
-  name: "condition_b_medvae"
-  condition: "B"
+  name: "condition_d_unet_medvae_reconstructed"
+  condition: "D"
   seed: 42
 
 data:
@@ -20,18 +31,18 @@ data:
   num_workers:  4
   pin_memory:   true
 
-# Encodeur MedVAE — poids gelés, pas entraîné
+# MedVAE gelé — utilisé uniquement comme préprocesseur (encode→decode)
 encoder:
-  model_name: "medvae_4_1_2d"   # f=16, 1 canal latent
+  model_name: "medvae_4_1_2d"
   modality:   "xray"
 
-# Tête de segmentation légère
+# U-Net — même architecture que condition A
 model:
-  architecture:   "seg_head"
-  latent_channels: 1            # correspond à medvae_4_1_2d (C=1)
+  architecture:    "unet"
+  encoder_name:    "resnet34"
+  encoder_weights: "imagenet"
+  in_channels:     1
   num_classes:     26
-  base_channels:   64
-  n_upsample:      2            # 128 → 256 → 512 (2 upsampling ×2, f=4 par dim)
 
 training:
   epochs:                   100

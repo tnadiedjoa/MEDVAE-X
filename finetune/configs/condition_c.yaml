@@ -1,11 +1,14 @@
 # ─────────────────────────────────────────────────────────
-#  Condition B — MedVAE pré-entraîné (sans fine-tuning)
-#  Encodeur MedVAE gelé + tête de segmentation légère
+#  Condition C — MedVAE fine-tuné sur ARCADE
+#  Encodeur MedVAE fine-tuné (gelé) + tête de segmentation
+#
+#  Pour passer en condition B : mettre checkpoint_path à null
+#  Pour passer en condition C : renseigner checkpoint_path
 # ─────────────────────────────────────────────────────────
 
 experiment:
-  name: "condition_b_medvae"
-  condition: "B"
+  name: "condition_c_medvae_finetuned"
+  condition: "C"
   seed: 42
 
 data:
@@ -20,18 +23,21 @@ data:
   num_workers:  4
   pin_memory:   true
 
-# Encodeur MedVAE — poids gelés, pas entraîné
+# Encodeur MedVAE
+# checkpoint_path: null        → poids HuggingFace pré-entraînés (= condition B)
+# checkpoint_path: "path.ckpt" → poids fine-tunés sur ARCADE    (= condition C)
 encoder:
-  model_name: "medvae_4_1_2d"   # f=16, 1 canal latent
-  modality:   "xray"
+  model_name:      "medvae_4_1_2d"   # f=4 par dim spatiale, 1 canal latent
+  modality:        "xray"
+  checkpoint_path: "finetune/checkpoints/medvae_finetuned/best_medvae_finetuned.pth"
 
-# Tête de segmentation légère
+# Tête de segmentation légère (identique à condition B)
 model:
-  architecture:   "seg_head"
-  latent_channels: 1            # correspond à medvae_4_1_2d (C=1)
+  architecture:    "seg_head"
+  latent_channels: 1            # 1 canal latent (medvae_4_1_2d)
   num_classes:     26
   base_channels:   64
-  n_upsample:      2            # 128 → 256 → 512 (2 upsampling ×2, f=4 par dim)
+  n_upsample:      2            # 128 → 256 → 512 (f=4 spatial, 2 × ×2)
 
 training:
   epochs:                   100
