@@ -117,7 +117,7 @@ def plot_all(histories: list[dict], labels: list[str], save_dir: str) -> None:
     # comparaison finale des 3 pipelines sur la métrique principale (Dice val)
     if len(histories) > 1:
         fig, ax = plt.subplots(figsize=(10, 5))
-        fig.suptitle("Comparaison Dice val — Conditions A / B / C",
+        fig.suptitle("Comparaison Dice val — Conditions A / B / C / D",
                      fontsize=14, fontweight="bold")
 
         for i, (history, label) in enumerate(zip(histories, labels)):
@@ -143,11 +143,13 @@ def plot_dice_per_class(results_path: str, save_dir: str) -> None:
         "condition_a": "#2E86C1",
         "condition_b": "#E74C3C",
         "condition_c": "#27AE60",
+        "condition_d": "#8E44AD",
     }
     labels = {
-        "condition_a": "Condition A",
-        "condition_b": "Condition B",
-        "condition_c": "Condition C",
+        "condition_a": "Condition A — U-Net original",
+        "condition_b": "Condition B — MedVAE gelé + tête",
+        "condition_c": "Condition C — MedVAE fine-tuné + tête",
+        "condition_d": "Condition D — U-Net sur reconstruction MedVAE",
     }
 
     num_classes = len(list(results.values())[0]["dice_per_class"])
@@ -186,31 +188,26 @@ def plot_predictions(
     n_samples: int = 4,
     seed: int = 42,
 ) -> None:
-    from finetune.dataset import ArcadeDataset, split_dataset
-    from finetune.models import build_unet
+    from finetune.dataset import ArcadeDataset
+    from finetune.train import build_model
 
-    # Charge la config
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     data_cfg = config["data"]
     device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Charge le modèle
-    model = build_unet(config["model"])
+    # Reconstruit l'architecture exacte de la condition, puis charge les poids
+    model = build_model(config, device)
     ckpt  = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(ckpt["model"])
     model.to(device).eval()
     print(f"Checkpoint chargé : epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")
 
-    # Charge le test set
-    root = data_cfg.get("data_root", "")
-    def full(p):
-        return os.path.join(root, p) if root else p
-
+    # Charge le test set (les chemins sont absolus dans tous les yamls)
     test_dataset = ArcadeDataset(
-        images_dir=full(data_cfg["val_images"]),
-        annotations=full(data_cfg["val_ann"]),
+        images_dir=data_cfg["val_images"],
+        annotations=data_cfg["val_ann"],
     )
 
     # Tirage aléatoire reproductible
