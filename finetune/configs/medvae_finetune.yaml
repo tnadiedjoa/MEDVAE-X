@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────
+#  Fine-tuning de MedVAE sur les images ARCADE
+#
+#  Lancer depuis la racine projet_IM06/ :
+#    python finetune/finetune_medvae.py --config finetune/configs/medvae_finetune.yaml
+#
+#  Le checkpoint produit (best_medvae_finetuned.pth) est ensuite
+#  renseigné dans condition_c.yaml → encoder.checkpoint_path
+# ─────────────────────────────────────────────────────────
+
+encoder:
+  model_name: "medvae_4_1_2d"
+  modality:   "xray"
+
+data:
+  train_images: "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
+  img_size:     512
+  val_ratio:    0.1        # 10 % des images train → validation
+  num_workers:  4
+  pin_memory:   true
+
+training:
+  epochs:                   50
+  batch_size:               8
+  learning_rate:            4.5e-6   # petit LR : fine-tuning, pas training from scratch
+  weight_decay:             0.0
+  lr_min:                   1.0e-7
+  early_stopping_patience:  10
+  grad_clip:                1.0
+
+logging:
+  save_dir: "finetune/checkpoints/medvae_finetuned"
