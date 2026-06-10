@@ -83,17 +83,16 @@ def build_model(config: dict, device: torch.device):
 
     elif condition in ("B", "C"):
         from finetune.encoder import MedVAEEncoder
-        from finetune.models import build_seg_head
         import torch.nn as nn
 
         encoder = MedVAEEncoder(
             model_name=config["encoder"]["model_name"],
             modality=config["encoder"]["modality"],
             device=device,
+            checkpoint_path=config["encoder"].get("checkpoint_path", None),
         )
         seg_head = build_seg_head(config["model"])
 
-        # Combine encodeur + tête dans un seul module
         class EncoderWithHead(nn.Module):
             def __init__(self, enc, head):
                 super().__init__()
@@ -105,6 +104,35 @@ def build_model(config: dict, device: torch.device):
                 return self.seg_head(latent)
 
         model = EncoderWithHead(encoder, seg_head)
+
+    elif condition == "D":
+        from finetune.encoder import MedVAEAutoencoder
+        import torch.nn as nn
+
+        # MedVAE gelé : préprocesse les images (encode→decode) avant le U-Net
+        autoencoder = MedVAEAutoencoder(
+            model_name=config["encoder"]["model_name"],
+            modality=config["encoder"]["modality"],
+            device=device,
+        )
+        unet = build_unet(config["model"])
+
+        class AutoencoderUNet(nn.Module):
+            """
+            Préprocesse chaque image via MedVAE (encode→decode) puis la
+            segmente avec un U-Net entraînable. Le U-Net s'adapte ainsi
+            à la qualité de reconstruction MedVAE pendant l'entraînement.
+            """
+            def __init__(self, ae, unet):
+                super().__init__()
+                self.autoencoder = ae
+                self.unet        = unet
+
+            def forward(self, x):
+                reconstructed = self.autoencoder(x)  # [B,1,512,512] in [0,1]
+                return self.unet(reconstructed)
+
+        model = AutoencoderUNet(autoencoder, unet)
 
     else:
         raise ValueError(f"Condition inconnue : {condition}")

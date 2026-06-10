@@ -27,9 +27,9 @@ class Trainer:
         data_cfg  = config["data"]
         log_cfg   = config["logging"]
 
-        # Optimizer 
+        # Optimizer — uniquement les params entraînables (encodeur gelé exclu)
         self.optimizer = AdamW(
-            self.model.parameters(),
+            filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=train_cfg["learning_rate"],
             weight_decay=train_cfg["weight_decay"],
         )
@@ -59,8 +59,9 @@ class Trainer:
         # Gradient clipping
         self.grad_clip = train_cfg.get("grad_clip", 1.0)
 
-        # AMP
-        self.scaler = GradScaler(device="cuda", enabled=True)
+        # AMP — activé uniquement sur GPU
+        self.use_amp = device.type == "cuda"
+        self.scaler  = GradScaler(device=device.type, enabled=self.use_amp)
 
         # Dossiers de sauvegarde 
         self.save_dir = log_cfg["save_dir"]
@@ -146,7 +147,7 @@ class Trainer:
 
             self.optimizer.zero_grad()
 
-            with autocast(device_type="cuda", dtype=torch.bfloat16):
+            with autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
                 logits = self.model(images)
                 loss, loss_dict = self.criterion(logits, masks)
 
@@ -189,7 +190,7 @@ class Trainer:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
 
-                with autocast(device_type="cuda", dtype=torch.bfloat16):
+                with autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
                     logits = self.model(images)
                     _, loss_dict = self.criterion(logits, masks)
                 self.val_metrics.update(logits, masks)
@@ -213,7 +214,8 @@ class Trainer:
 
 
     def evaluate(self, test_loader: DataLoader) -> dict:
-        ckpt_path = os.path.join(self.save_dir, "best_model.pth")
+        name = self.config["experiment"]["name"]
+        ckpt_path = os.path.join(self.save_dir, f"best_model_{name}.pth")
         self._load_checkpoint(ckpt_path)
 
         self.model.eval()
@@ -226,7 +228,7 @@ class Trainer:
             for images, masks in test_loader:
                 images = images.to(self.device)
                 masks  = masks.to(self.device)
-                with autocast(device_type="cuda", dtype=torch.bfloat16):
+                with autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
                     logits = self.model(images)
                 test_metrics.update(logits, masks)
 
@@ -290,7 +292,8 @@ class Trainer:
             self.scheduler.step(val_dice)
 
     def _save_checkpoint(self, epoch: int, dice: float) -> None:
-        path = os.path.join(self.save_dir, "best_model.pth")
+        name = self.config["experiment"]["name"]
+        path = os.path.join(self.save_dir, f"best_model_{name}.pth")
         torch.save({
             "epoch":     epoch,
             "dice":      dice,
