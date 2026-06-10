@@ -13,8 +13,8 @@ import glob
 from tqdm import tqdm
 from engineered_score import EngineeredScore
 
-# DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
+DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
 OUTPUT_DIR = "../outputs/degradation"
 N_IMAGES = 100
 N_LEVELS = 30
