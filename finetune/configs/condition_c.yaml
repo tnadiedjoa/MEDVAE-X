@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────
+#  Condition C — MedVAE fine-tuné sur ARCADE
+#  Encodeur MedVAE fine-tuné (gelé) + tête de segmentation
+#
+#  Pour passer en condition B : mettre checkpoint_path à null
+#  Pour passer en condition C : renseigner checkpoint_path
+# ─────────────────────────────────────────────────────────
+
+experiment:
+  name: "condition_c_medvae_finetuned"
+  condition: "C"
+  seed: 42
+
+data:
+  data_root:    "/home/infres/yrothlin-24/arcade_challenge_datasets"
+  train_images: "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
+  train_ann:    "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
+  val_images:   "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_case_segmentation/images"
+  val_ann:      "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
+  train_ratio:  0.8
+  num_classes:  26
+  img_size:     512
+  num_workers:  4
+  pin_memory:   true
+
+# Encodeur MedVAE
+# checkpoint_path: null        → poids HuggingFace pré-entraînés (= condition B)
+# checkpoint_path: "path.ckpt" → poids fine-tunés sur ARCADE    (= condition C)
+encoder:
+  model_name:      "medvae_4_1_2d"   # f=4 par dim spatiale, 1 canal latent
+  modality:        "xray"
+  checkpoint_path: "checkpoints/medvae_finetuned/best_model.ckpt"
+
+# Tête de segmentation légère (identique à condition B)
+model:
+  architecture:    "seg_head"
+  latent_channels: 1            # 1 canal latent (medvae_4_1_2d)
+  num_classes:     26
+  base_channels:   64
+  n_upsample:      2            # 128 → 256 → 512 (f=4 spatial, 2 × ×2)
+
+training:
+  epochs:                   100
+  batch_size:               8
+  learning_rate:            1.0e-4
+  weight_decay:             1.0e-4
+  early_stopping_patience:  15
+  grad_clip:                1.0
+
+scheduler:
+  name: "cosine"
+  cosine:
+    T_max:   100
+    eta_min: 1.0e-6
+  plateau:
+    factor:   0.5
+    patience: 7
+    min_lr:   1.0e-6
+
+loss:
+  dice_weight: 0.5
+  ce_weight:   0.5
+
+logging:
+  save_dir: "finetune/checkpoints"

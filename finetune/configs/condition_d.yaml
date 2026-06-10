@@ -1,0 +1,72 @@
+# ─────────────────────────────────────────────────────────
+#  Condition D — U-Net entraîné sur images reconstruites par MedVAE
+#
+#  Pipeline : image → MedVAE(encode→decode, gelé) → U-Net (entraînable)
+#
+#  Question scientifique :
+#    Un U-Net adapté à la qualité de reconstruction MedVAE fait-il mieux
+#    qu'un U-Net (condition A) testé à froid sur ces mêmes reconstructions ?
+#    → mesure du gain de l'adaptation vs. la dégradation brute due à la compression
+#
+#  Comparaison clé :
+#    A  : U-Net(original)        → Dice de référence
+#    D  : U-Net(MedVAE-reconstruit) → Dice avec adaptation
+#    A* : U-Net(A) évalué sur images MedVAE → Dice sans adaptation  (run à la main)
+# ─────────────────────────────────────────────────────────
+
+experiment:
+  name: "condition_d_unet_medvae_reconstructed"
+  condition: "D"
+  seed: 42
+
+data:
+  data_root:    "/home/infres/yrothlin-24/arcade_challenge_datasets"
+  train_images: "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
+  train_ann:    "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
+  val_images:   "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_case_segmentation/images"
+  val_ann:      "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
+  train_ratio:  0.8
+  num_classes:  26
+  img_size:     512
+  num_workers:  4
+  pin_memory:   true
+
+# MedVAE gelé — utilisé uniquement comme préprocesseur (encode→decode)
+encoder:
+  model_name: "medvae_4_1_2d"
+  modality:   "xray"
+
+# U-Net — même architecture que condition A
+model:
+  architecture:    "unet"
+  encoder_name:    "resnet34"
+  encoder_weights: "imagenet"
+  in_channels:     1
+  num_classes:     26
+
+training:
+  epochs:                   100
+  batch_size:               8
+  learning_rate:            1.0e-4
+  weight_decay:             1.0e-4
+  early_stopping_patience:  15
+  grad_clip:                1.0
+
+scheduler:
+  name: "cosine"
+  cosine:
+    T_max:   100
+    eta_min: 1.0e-6
+  plateau:
+    factor:   0.5
+    patience: 7
+    min_lr:   1.0e-6
+
+loss:
+  dice_weight: 0.4
+  ce_weight:   0.4
+  cl_weight:   0.2
+  skel_iters:  3
+
+logging:
+  save_dir: "finetune/checkpoints"
