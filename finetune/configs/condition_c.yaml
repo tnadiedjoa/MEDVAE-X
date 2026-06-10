@@ -60,6 +60,7 @@ scheduler:
 loss:
   dice_weight: 0.5
   ce_weight:   0.5
+  cl_weight:   0.0
 
 logging:
   save_dir: "finetune/checkpoints"
