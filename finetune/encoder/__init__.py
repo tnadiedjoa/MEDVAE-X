@@ -1,2 +1,2 @@
 # finetune/encoder/__init__.py
-from .medvae_encoder import MedVAEEncoder
+from .medvae_encoder import MedVAEEncoder, MedVAEAutoencoder
