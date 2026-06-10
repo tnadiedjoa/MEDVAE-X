@@ -140,16 +140,18 @@ def plot_dice_per_class(results_path: str, save_dir: str) -> None:
         results = json.load(f)
 
     colors = {
-        "condition_a": "#2E86C1",
-        "condition_b": "#E74C3C",
-        "condition_c": "#27AE60",
-        "condition_d": "#8E44AD",
+        "condition_a":     "#2E86C1",
+        "condition_astar": "#85C1E9",
+        "condition_b":     "#E74C3C",
+        "condition_c":     "#27AE60",
+        "condition_d":     "#8E44AD",
     }
     labels = {
-        "condition_a": "Condition A — U-Net original",
-        "condition_b": "Condition B — MedVAE gelé + tête",
-        "condition_c": "Condition C — MedVAE fine-tuné + tête",
-        "condition_d": "Condition D — U-Net sur reconstruction MedVAE",
+        "condition_a":     "Condition A — U-Net original",
+        "condition_astar": "Condition A* — U-Net A sur MedVAE reconstruit (sans adaptation)",
+        "condition_b":     "Condition B — MedVAE gelé + tête",
+        "condition_c":     "Condition C — MedVAE fine-tuné + tête",
+        "condition_d":     "Condition D — U-Net adapté à la reconstruction MedVAE",
     }
 
     num_classes = len(list(results.values())[0]["dice_per_class"])
