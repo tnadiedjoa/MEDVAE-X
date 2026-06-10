@@ -47,10 +47,12 @@ class MedVAEEncoder(nn.Module):
         print(f"Chargement du checkpoint fine-tuné : {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device)
 
-        # Supporte les checkpoints PyTorch Lightning et PyTorch natifs
+        # Supporte les checkpoints PyTorch Lightning, Phase1Trainer et PyTorch natifs
         if isinstance(ckpt, dict):
             if "state_dict" in ckpt:
                 state = ckpt["state_dict"]
+            elif "autoencoder" in ckpt:   # format Phase1Trainer (jepa-adaptation)
+                state = ckpt["autoencoder"]
             elif "model" in ckpt:
                 state = ckpt["model"]
             else:
