@@ -29,7 +29,7 @@ data:
 encoder:
   model_name:      "medvae_4_1_2d"   # f=4 par dim spatiale, 1 canal latent
   modality:        "xray"
-  checkpoint_path: "checkpoints/medvae_finetuned/best_model.ckpt"
+  checkpoint_path: "finetune/checkpoints/medvae_finetuned/best_medvae_finetuned.pth"
 
 # Tête de segmentation légère (identique à condition B)
 model:
