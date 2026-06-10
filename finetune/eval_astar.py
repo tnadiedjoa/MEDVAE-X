@@ -66,7 +66,7 @@ def main():
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=config["training"]["batch_size"],
+        batch_size=4,  # MedVAE attention OOM à batch_size=8
         shuffle=False,
         num_workers=data_cfg["num_workers"],
         pin_memory=data_cfg["pin_memory"],
