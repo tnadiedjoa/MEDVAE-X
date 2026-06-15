@@ -14,7 +14,10 @@ Lancer depuis la racine projet_IM06/ :
 import argparse
 import json
 import os
+import random
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import yaml
 from torch.amp import autocast
@@ -26,6 +29,50 @@ from finetune.metrics.seg_metrics import SegMetrics
 from finetune.models import build_unet
 
 
+def plot_predictions_astar(unet, autoencoder, test_dataset, device, save_dir,
+                           n_samples=4, seed=42):
+    random.seed(seed)
+    indices = random.sample(range(len(test_dataset)), min(n_samples, len(test_dataset)))
+
+    fig, axes = plt.subplots(n_samples, 3, figsize=(12, 4 * n_samples))
+    if n_samples == 1:
+        axes = axes[np.newaxis, :]
+
+    for ax, title in zip(axes[0], ["Image originale", "Masque GT", "Masque prédit (A*)"]):
+        ax.set_title(title, fontsize=12, fontweight="bold")
+
+    use_amp = device.type == "cuda"
+    for row, idx in enumerate(indices):
+        image, mask_gt = test_dataset[idx]
+        image_input = image.unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            reconstructed = autoencoder(image_input)
+            with autocast(device_type=device.type, dtype=torch.bfloat16, enabled=use_amp):
+                logits = unet(reconstructed)
+            mask_pred = logits.argmax(dim=1).squeeze().cpu().numpy()
+
+        axes[row, 0].imshow(image.squeeze().cpu().numpy(), cmap="gray")
+        axes[row, 0].axis("off")
+
+        axes[row, 1].imshow(image.squeeze().cpu().numpy(), cmap="gray")
+        axes[row, 1].imshow(mask_gt.numpy(), cmap="tab20", alpha=0.6, vmin=0, vmax=25)
+        axes[row, 1].axis("off")
+
+        axes[row, 2].imshow(reconstructed.squeeze().cpu().numpy(), cmap="gray")
+        axes[row, 2].imshow(mask_pred, cmap="tab20", alpha=0.6, vmin=0, vmax=25)
+        axes[row, 2].axis("off")
+
+    fig.suptitle("Condition A* — U-Net A sur images MedVAE reconstituées",
+                 fontsize=14, fontweight="bold")
+    plt.tight_layout()
+    os.makedirs(save_dir, exist_ok=True)
+    out_path = os.path.join(save_dir, "predictions_condition_astar.png")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Sauvegardé : {out_path}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_a",     required=True,
@@ -34,6 +81,11 @@ def main():
                         help="Checkpoint condition A (best_model_condition_a_unet.pth)")
     parser.add_argument("--medvae_model",  default="medvae_4_1_2d")
     parser.add_argument("--medvae_modality", default="xray")
+    parser.add_argument("--predict", action="store_true",
+                        help="Génère la visualisation des prédictions A*")
+    parser.add_argument("--save_dir", default="finetune/figures",
+                        help="Dossier de sauvegarde des figures (défaut : finetune/figures)")
+    parser.add_argument("--n_samples", type=int, default=4)
     args = parser.parse_args()
 
     with open(args.config_a) as f:
@@ -116,6 +168,16 @@ def main():
     with open(results_path, "w") as f:
         json.dump(all_results, f, indent=2)
     print(f"\nRésultats sauvegardés dans : {results_path}")
+
+    if args.predict:
+        plot_predictions_astar(
+            unet=unet,
+            autoencoder=autoencoder,
+            test_dataset=test_dataset,
+            device=device,
+            save_dir=args.save_dir,
+            n_samples=args.n_samples,
+        )
 
 
 if __name__ == "__main__":
