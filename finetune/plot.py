@@ -294,29 +294,36 @@ def main():
         "--n_samples", type=int, default=4,
         help="Nombre d'images à visualiser (défaut : 4)"
     )
+    parser.add_argument(
+        "--predict-only", action="store_true",
+        help="Génère uniquement les visualisations de prédiction (pas les courbes)"
+    )
     args = parser.parse_args()
 
-    # Labels par défaut si non fournis
-    if args.labels is None:
-        args.labels = [os.path.basename(p).replace("_history.json", "")
-                       for p in args.history]
+    predict_only = getattr(args, "predict_only", False)
 
-    if len(args.history) != len(args.labels):
-        raise ValueError("Le nombre de --labels doit correspondre au nombre de --history")
+    if not predict_only:
+        # Labels par défaut si non fournis
+        if args.labels is None:
+            args.labels = [os.path.basename(p).replace("_history.json", "")
+                           for p in args.history]
 
-    # Courbes d'entraînement
-    histories = [load_history(p) for p in args.history]
-    plot_all(histories, args.labels, args.save_dir)
+        if len(args.history) != len(args.labels):
+            raise ValueError("Le nombre de --labels doit correspondre au nombre de --history")
 
-    # Dice par classe 
-    results_path = os.path.join(
-        os.path.dirname(args.history[0]), "results.json"
-    )
-    if os.path.exists(results_path):
-        plot_dice_per_class(results_path, args.save_dir)
+        # Courbes d'entraînement
+        histories = [load_history(p) for p in args.history]
+        plot_all(histories, args.labels, args.save_dir)
+
+        # Dice par classe
+        results_path = os.path.join(
+            os.path.dirname(args.history[0]), "results.json"
+        )
+        if os.path.exists(results_path):
+            plot_dice_per_class(results_path, args.save_dir)
 
     # Visualisation des segmentations
-    if args.predict:
+    if args.predict or predict_only:
         if args.checkpoint is None or args.config is None:
             raise ValueError("--checkpoint et --config sont requis avec --predict")
         plot_predictions(
