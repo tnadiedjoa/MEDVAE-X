@@ -1,0 +1,38 @@
+data:
+  root: ~/.medmnist
+  size: 224
+  as_rgb: false
+  download: true
+  fraction: 0.5
+  seed: 42
+  loader:
+    batch_size: 32
+    num_workers: 4
+    pin_memory: true
+
+training:
+  device: auto
+  seed: 42
+  amp: true
+  epochs: 15
+  output_dir: jepa_adaptation/outputs/stage1
+  log_every: 200
+  save_every: 5
+
+  optimizer:
+    name: adamw
+    lr: 4.5e-5
+    weight_decay: 0.0
+
+  disc_optimizer:
+    name: adamw
+    lr: 4.5e-6
+    weight_decay: 0.0
+
+  loss:
+    disc_start: 5001
+    kl_weight: 1.0e-6
+    disc_weight: 0.5
+    perceptual_weight: 1.0
+    num_channels: 3
+    learn_logvar: false
