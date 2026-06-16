@@ -1,0 +1,120 @@
+import torch
+from medvae import MVAE
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+import cv2
+import glob
+from tqdm import tqdm
+from masked_psnr import MaskedPSNR
+
+DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
+OUTPUT_DIR = "../outputs/degradation"
+N_IMAGES = 50
+N_LEVELS = 20
+SEED = 42
+DEGRADATION = "poisson"  # "poisson" ou "jpeg" ou "blur"
+
+POISSON_SCALES = np.linspace(1.0, 0.05, N_LEVELS)
+JPEG_QUALITIES = (95 - np.linspace(0, 1, N_LEVELS) * 90).astype(int)
+BLUR_KERNELS = np.linspace(1, 31, N_LEVELS).round().astype(int)
+BLUR_KERNELS = np.where(BLUR_KERNELS % 2 == 0, BLUR_KERNELS + 1, BLUR_KERNELS)
+
+all_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))
+rng = np.random.default_rng(SEED)
+image_paths = list(rng.choice(all_paths, size=min(N_IMAGES, len(all_paths)), replace=False))
+Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
+print(device, flush=True)
+
+print("Chargement MedVAE...", flush=True)
+model = MVAE(model_name="medvae_4_1_2d", modality="xray").to(device)
+model.requires_grad_(False)
+model.eval()
+print("MedVAE OK", flush=True)
+
+masked_recon = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_degra = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+
+print(f"{len(image_paths)} images, démarrage du sweep ({DEGRADATION})...", flush=True)
+results = []
+
+for level in range(N_LEVELS):
+    scale   = float(POISSON_SCALES[level])
+    quality = int(JPEG_QUALITIES[level])
+    kernel = int(BLUR_KERNELS[level])
+
+    recon_scores = []
+    degra_scores = []
+    cleanrec_scores = []
+
+    for img_path in tqdm(image_paths, desc=f"level {level:02d}"):
+        file_name = Path(img_path).name
+        img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        clean = torch.as_tensor(img_gray, dtype=torch.float32, device=device) / 255.0
+
+        if DEGRADATION == "poisson":
+            arr = img_gray.astype(np.float32) * scale
+            noisy = np.random.poisson(np.clip(arr, 0, None)).astype(np.float32) / max(scale, 1e-6)
+            img_deg = np.clip(noisy, 0, 255).astype(np.uint8)
+        elif DEGRADATION == "blur":
+            if kernel <= 1:
+                img_deg = img_gray.copy()
+            else:
+                img_deg = cv2.GaussianBlur(img_gray, (kernel, kernel), 0)
+        else:
+            _, enc = cv2.imencode(".jpg", img_gray, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+            img_deg = cv2.imdecode(enc, cv2.IMREAD_GRAYSCALE)
+
+        deg = torch.as_tensor(img_deg, dtype=torch.float32, device=device) / 255.0
+        masked_degra.set_image(file_name)
+        degra_scores.append(masked_degra(deg, clean).item())
+
+        tmp_path = Path(OUTPUT_DIR) / "_tmp.png"
+        cv2.imwrite(str(tmp_path), img_deg)
+        img_input = model.apply_transform(str(tmp_path)).to(device)
+        with torch.no_grad():
+            decoded, _ = model(img_input, decode=True)
+        decoded = decoded.unsqueeze(0).unsqueeze(0)
+
+        masked_recon.set_image(file_name)
+        recon_scores.append(masked_recon(decoded, img_input).item())
+
+        clean_input = model.apply_transform(img_path).to(device)
+        masked_cleanrec.set_image(file_name)
+        cleanrec_scores.append(masked_cleanrec(decoded, clean_input).item())
+
+        print("clean      :", clean.min().item(), clean.max().item(), clean.shape)
+        print("img_input  :", img_input.min().item(), img_input.max().item(), img_input.shape)
+        print("decoded    :", decoded.min().item(), decoded.max().item(), decoded.shape)
+
+    param = {"poisson": scale, "jpeg": quality, "blur": kernel}[DEGRADATION]
+    results.append({
+        "level":                level,
+        "param":                param,
+        "masked_psnr_recon":    np.mean(recon_scores),
+        "masked_psnr_degra":    np.mean(degra_scores),
+        "masked_psnr_cleanrec": np.mean(cleanrec_scores),
+    })
+    print(f"level {level:02d} | param={param} | recon={results[-1]['masked_psnr_recon']:.2f} degra={results[-1]['masked_psnr_degra']:.2f} clean={results[-1]['masked_psnr_clean']:.2f}", flush=True)
+
+(Path(OUTPUT_DIR) / "_tmp.png").unlink(missing_ok=True)
+
+df = pd.DataFrame(results)
+df.to_csv(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv", index=False)
+print(f"\nSauvegardé dans {OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv")
+
+plt.figure(figsize=(6, 6))
+plt.scatter(df["masked_psnr_degra"], df["masked_psnr_recon"], c=df["level"], cmap="viridis")
+plt.xlabel("MaskedPSNR dégradée vs clean (dB)")
+plt.ylabel("MaskedPSNR décodée vs dégradée (dB)")
+plt.title(f"Reconstruction vs dégradation ({DEGRADATION})")
+plt.colorbar(label="Niveau")
+plt.grid()
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.png", dpi=150, bbox_inches="tight")
+plt.show()
