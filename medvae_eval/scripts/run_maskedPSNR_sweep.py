@@ -2,14 +2,13 @@ import torch
 from medvae import MVAE
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
 import cv2
 import glob
 from tqdm import tqdm
 from masked_psnr import MaskedPSNR
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+DATASET_PATH = "../../../data/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
 ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
 OUTPUT_DIR = "../outputs/degradation"
 N_IMAGES = 50
@@ -36,9 +35,9 @@ model.requires_grad_(False)
 model.eval()
 print("MedVAE OK", flush=True)
 
-masked_recon = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_recon = MaskedPSNR(ANN_PATH, data_range=2.0).to(device)
 masked_degra = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
-masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=2.0).to(device)
 
 print(f"{len(image_paths)} images, démarrage du sweep ({DEGRADATION})...", flush=True)
 results = []
@@ -47,6 +46,7 @@ for level in range(N_LEVELS):
     scale   = float(POISSON_SCALES[level])
     quality = int(JPEG_QUALITIES[level])
     kernel = int(BLUR_KERNELS[level])
+    length = int(MOTION_LENGTHS[level])
 
     recon_scores = []
     degra_scores = []
@@ -88,10 +88,6 @@ for level in range(N_LEVELS):
         masked_cleanrec.set_image(file_name)
         cleanrec_scores.append(masked_cleanrec(decoded, clean_input).item())
 
-        print("clean      :", clean.min().item(), clean.max().item(), clean.shape)
-        print("img_input  :", img_input.min().item(), img_input.max().item(), img_input.shape)
-        print("decoded    :", decoded.min().item(), decoded.max().item(), decoded.shape)
-
     param = {"poisson": scale, "jpeg": quality, "blur": kernel}[DEGRADATION]
     results.append({
         "level":                level,
@@ -100,21 +96,10 @@ for level in range(N_LEVELS):
         "masked_psnr_degra":    np.mean(degra_scores),
         "masked_psnr_cleanrec": np.mean(cleanrec_scores),
     })
-    print(f"level {level:02d} | param={param} | recon={results[-1]['masked_psnr_recon']:.2f} degra={results[-1]['masked_psnr_degra']:.2f} clean={results[-1]['masked_psnr_clean']:.2f}", flush=True)
+    print(f"level {level:02d} | param={param} | recon={results[-1]['masked_psnr_recon']:.2f} degra={results[-1]['masked_psnr_degra']:.2f} clean={results[-1]['masked_psnr_cleanrec']:.2f}", flush=True)
 
 (Path(OUTPUT_DIR) / "_tmp.png").unlink(missing_ok=True)
 
 df = pd.DataFrame(results)
 df.to_csv(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv", index=False)
 print(f"\nSauvegardé dans {OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv")
-
-plt.figure(figsize=(6, 6))
-plt.scatter(df["masked_psnr_degra"], df["masked_psnr_recon"], c=df["level"], cmap="viridis")
-plt.xlabel("MaskedPSNR dégradée vs clean (dB)")
-plt.ylabel("MaskedPSNR décodée vs dégradée (dB)")
-plt.title(f"Reconstruction vs dégradation ({DEGRADATION})")
-plt.colorbar(label="Niveau")
-plt.grid()
-plt.tight_layout()
-plt.savefig(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.png", dpi=150, bbox_inches="tight")
-plt.show()
