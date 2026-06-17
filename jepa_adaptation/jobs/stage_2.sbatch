@@ -26,6 +26,8 @@ if [ ! -f "$CKPT" ]; then
     exit 1
 fi
 
+echo "=== stage 2 — source: ARCADE — $(date) ==="
+
 python jepa_adaptation/stage2_training.py \
     --config jepa_adaptation/configs/stage_2.yaml \
     --model-config jepa_adaptation/configs/model.yaml
