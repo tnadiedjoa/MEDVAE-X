@@ -1,11 +1,3 @@
-# ─────────────────────────────────────────────────────────
-#  Condition C — MedVAE fine-tuné sur ARCADE
-#  Encodeur MedVAE fine-tuné (gelé) + tête de segmentation
-#
-#  Pour passer en condition B : mettre checkpoint_path à null
-#  Pour passer en condition C : renseigner checkpoint_path
-# ─────────────────────────────────────────────────────────
-
 experiment:
   name: "condition_c_medvae_finetuned"
   condition: "C"
@@ -24,8 +16,7 @@ data:
   pin_memory:   true
 
 # Encodeur MedVAE
-# checkpoint_path: null        → poids HuggingFace pré-entraînés (= condition B)
-# checkpoint_path: "path.ckpt" → poids fine-tunés sur ARCADE    (= condition C)
+# checkpoint_path: "path.ckpt" correspond aux poids fine-tunés sur ARCADE    
 encoder:
   model_name:      "medvae_4_1_2d"   # f=4 par dim spatiale, 1 canal latent
   modality:        "xray"
