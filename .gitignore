@@ -29,3 +29,8 @@ wandb/
 .DS_
 .venv
 .vscode/
+.cache/
+
+report_theo/
+report_yanic/
+report_elias/

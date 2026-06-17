@@ -22,6 +22,7 @@ eval "$($MICROMAMBA shell hook --shell bash)"
 micromamba activate IM05
 
 nvidia-smi --query-gpu=name,driver_version --format=csv,noheader
+echo "=== stage 1 — source: ARCADE — $(date) ==="
 
 python jepa_adaptation/stage1_training.py \
     --config jepa_adaptation/configs/stage_1.yaml \
