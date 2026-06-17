@@ -1,0 +1,82 @@
+\documentclass[tikz,border=8pt]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usetikzlibrary{arrows.meta,calc,positioning}
+\renewcommand{\familydefault}{\sfdefault}
+
+\definecolor{medBlue}   {HTML}{4A86B8}
+\definecolor{frozenBlue}{HTML}{8FB8D6}
+\definecolor{panelGray} {HTML}{CFCFCF}
+\definecolor{stackGray} {HTML}{BFBFBF}
+
+\tikzset{
+  font=\sffamily,
+  arrow/.style={-{Latex[length=2.2mm,width=1.8mm]},draw=black,line width=1.1pt},
+  panel/.style={rounded corners=8pt,draw=panelGray,dashed,line width=1.35pt,fill=white},
+  model/.style={rectangle,rounded corners=2pt,draw=none,fill=medBlue,text=white,
+    minimum width=2.8cm,minimum height=1.4cm,align=center,
+    inner xsep=6pt,font=\bfseries\small},
+  modelfrozen/.style={rectangle,rounded corners=2pt,
+    draw=frozenBlue,dashed,line width=1.2pt,fill=frozenBlue!30,text=black!70,
+    minimum width=2.8cm,minimum height=1.4cm,align=center,
+    inner xsep=6pt,font=\bfseries\small},
+  dimtext/.style={font=\sffamily\scriptsize\itshape,text=black!60,align=center},
+}
+
+\newcommand{\imagestack}[3]{%
+  \begin{scope}
+    \node[rectangle,draw=black,line width=0.6pt,fill=stackGray,
+          minimum width=2.2cm,minimum height=2.2cm] at ($#2+(0.22,0.22)$) {};
+    \node[rectangle,draw=black,line width=0.6pt,fill=stackGray!70,
+          minimum width=2.2cm,minimum height=2.2cm] at ($#2+(0.11,0.11)$) {};
+    \node[rectangle,draw=black,line width=0.8pt,
+          minimum width=2.2cm,minimum height=2.2cm,
+          align=center,inner sep=0pt] (#1) at #2 {#3};
+  \end{scope}}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% ── Panel ────────────────────────────────────────────────
+\node[panel,minimum width=18.5cm,minimum height=7.2cm,anchor=north west] at (-.3,7.5){};
+
+% ── Title ────────────────────────────────────────────────
+\node[font=\sffamily\bfseries\Large,align=center] at (8.9,6.6)
+  {Condition A* — U-Net (condition A) évalué\\sur images reconstruites par MedVAE};
+
+% ── No training banner ───────────────────────────────────
+\node[rectangle,rounded corners=3pt,fill=black!8,draw=black!30,
+      line width=0.9pt,minimum width=7.5cm,minimum height=0.6cm,
+      font=\sffamily\scriptsize\itshape,align=center,text=black!60] at (8.9,5.6)
+  {Aucun entraînement — évaluation uniquement (hors distribution)};
+
+% ── Pipeline ─────────────────────────────────────────────
+\imagestack{inp}{(1.5,4.0)}
+  {\includegraphics[width=2.2cm,height=2.2cm]{entrée.png}}
+
+\node[modelfrozen] (medvae) at (5.5,4.0)
+  {MedVAE\\{\scriptsize encode $\rightarrow$ decode}\\{\scriptsize \textit{gelé}}};
+
+\imagestack{recon}{(9.3,4.0)}
+  {\includegraphics[width=2.2cm,height=2.2cm]{entrée.png}}
+
+\node[modelfrozen] (unet) at (13.1,4.0)
+  {U-Net A\\{\scriptsize ResNet34}\\{\scriptsize \textit{gelé — poids condition A}}};
+
+\imagestack{out}{(16.9,4.0)}
+  {\includegraphics[width=2.2cm,height=2.2cm]{sortie.png}}
+
+% ── Arrows ───────────────────────────────────────────────
+\draw[arrow] (inp.east)    -- (medvae.west);
+\draw[arrow] (medvae.east) -- (recon.west);
+\draw[arrow] (recon.east)  -- (unet.west);
+\draw[arrow] (unet.east)   -- (out.west);
+
+% ── Dimension labels ─────────────────────────────────────
+\node[dimtext] at (1.5,2.5)  {Angiographie X\\512 × 512 — 1 canal};
+\node[dimtext] at (9.3,2.5)  {Image reconstruite\\512 × 512 — 1 canal};
+\node[dimtext] at (16.9,2.5) {Masque prédit\\512 × 512 — 26 classes};
+
+\end{tikzpicture}
+\end{document}
