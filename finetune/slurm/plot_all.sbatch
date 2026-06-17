@@ -6,10 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 
-# ── À adapter ────────────────────────────────────────────────────────────
 PROJECT_DIR="/home/infres/tpalagi-24/projet_IM06"
 
-# ─────────────────────────────────────────────────────────────────────────
 
 cd "$PROJECT_DIR"
 
