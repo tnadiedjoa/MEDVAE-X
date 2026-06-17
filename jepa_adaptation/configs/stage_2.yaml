@@ -1,0 +1,34 @@
+data:
+  root: ~/.medmnist
+  size: 224
+  as_rgb: false
+  download: true
+  fraction: 0.4
+  seed: 42
+  loader:
+    batch_size: 16
+    num_workers: 4
+    pin_memory: true
+
+training:
+  device: auto
+  seed: 42
+  amp: true
+  epochs: 30
+  output_dir: jepa_adaptation/outputs/stage2
+  log_every: 50
+  save_every: 5
+  max_grad_norm: 1.0
+  stage1_ckpt: jepa_adaptation/outputs/stage1/best.pt
+
+  optimizer:
+    name: adamw
+    lr: 1.0e-4
+    weight_decay: 1.0e-4
+
+  loss:
+    loss_type: smooth_l1
+    normalize: false
+    sigreg_weight: 0.0
+    num_projections: 64
+    max_tokens: 512
