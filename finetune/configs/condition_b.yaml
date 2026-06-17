@@ -1,8 +1,3 @@
-# ─────────────────────────────────────────────────────────
-#  Condition B — MedVAE pré-entraîné (sans fine-tuning)
-#  Encodeur MedVAE gelé + tête de segmentation légère
-# ─────────────────────────────────────────────────────────
-
 experiment:
   name: "condition_b_medvae"
   condition: "B"
@@ -20,7 +15,7 @@ data:
   num_workers:  4
   pin_memory:   true
 
-# Encodeur MedVAE — poids gelés, pas entraîné
+# Encodeur MedVAE, poids gelés, pas entraîné
 encoder:
   model_name: "medvae_4_1_2d"   # f=16, 1 canal latent
   modality:   "xray"
