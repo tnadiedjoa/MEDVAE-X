@@ -1,16 +1,3 @@
-"""
-Condition A* : U-Net de la condition A évalué sur des images
-reconstruites par MedVAE (encode→decode), sans réentraînement.
-
-Mesure la dégradation brute de la compression sur un U-Net non adapté.
-Comparer avec condition D (U-Net adapté) pour quantifier le gain de l'adaptation.
-
-Lancer depuis la racine projet_IM06/ :
-  python -m finetune.eval_astar \
-    --config_a finetune/configs/condition_a.yaml \
-    --checkpoint_a finetune/checkpoints/best_model_condition_a_unet.pth
-"""
-
 import argparse
 import json
 import os
@@ -103,14 +90,14 @@ def main():
         p.requires_grad = False
     print(f"Checkpoint A chargé : epoch {ckpt['epoch']}, Dice A = {ckpt['dice']:.4f}")
 
-    # ── MedVAE gelé comme préprocesseur ──────────────────────────────────
+    # MedVAE gelé comme préprocesseur 
     autoencoder = MedVAEAutoencoder(
         model_name=args.medvae_model,
         modality=args.medvae_modality,
         device=device,
     )
 
-    # ── Test dataset ─────────────────────────────────────────────────────
+    # Test dataset 
     data_cfg = config["data"]
     test_dataset = ArcadeDataset(
         images_dir=data_cfg["val_images"],
@@ -125,7 +112,7 @@ def main():
     )
     print(f"Test set : {len(test_dataset)} images")
 
-    # ── Évaluation ───────────────────────────────────────────────────────
+    # Évaluation
     use_amp = device.type == "cuda"
     metrics = SegMetrics(num_classes=data_cfg["num_classes"], device=device)
 
@@ -148,7 +135,7 @@ def main():
     print(f"\nRappel : Dice A (images originales) = {ckpt['dice']:.4f}")
     print(f"  → dégradation brute MedVAE : {ckpt['dice'] - results['dice_mean']:.4f}")
 
-    # ── Sauvegarde dans results.json (même fichier que les autres conditions)
+    # Sauvegarde dans results.json (même fichier que les autres conditions)
     save_dir = config["logging"]["save_dir"]
     os.makedirs(save_dir, exist_ok=True)
     results_path = os.path.join(save_dir, "results.json")

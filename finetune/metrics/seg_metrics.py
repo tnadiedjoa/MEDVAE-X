@@ -17,8 +17,8 @@ class SegMetrics(nn.Module):
         self.num_classes = num_classes
 
         # Dice score = F1 score en segmentation
-        # average="none"  → un score par classe
-        # average="macro" → moyenne sur toutes les classes
+        # average="none" : un score par classe
+        # average="macro" : moyenne sur toutes les classes
         self.dice_per_class = MulticlassF1Score(
             num_classes=num_classes,
             average="none",          # retourne un vecteur de taille num_classes
