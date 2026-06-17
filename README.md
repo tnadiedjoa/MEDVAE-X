@@ -18,7 +18,7 @@ a context encoder processes visible image patches, a frozen target encoder
 provides target latent representations, and a predictor is trained with a latent
 prediction loss.
 
-![JEPA adaptation pipeline](jepa-adaptation/pipeline_figure/pipeline.png)
+![JEPA adaptation pipeline](jepa_adaptation/pipeline_figure/pipeline.png)
 *Figure: JEPA adaptation pipeline, inspired by the original Med-VAE pipeline figure.*
 
 In practice, the Med-VAE encoder is reused as the backbone of the JEPA adapted
