@@ -81,21 +81,21 @@ class MVAE(torch.nn.Module):
 
         if decode:
             dec, latent = result
-            # This is the decoded image and the latent representation of the image
+            \
             return dec.squeeze().squeeze(), latent.squeeze().squeeze()
         else:
-            # This is the latent representation of the image
+            \
             return result.squeeze().squeeze()
 
     def _process_2d(self, img, decode: bool = False):
         """Handle 2D image processing."""
         if decode:
             dec, _, latent = self.model(img, decode=True)
-            # This is the decoded image and the latent representation of the image
+            \
             return dec.squeeze().squeeze(), latent.squeeze().squeeze()
         else:
             _, _, latent = self.model(img, decode=False)
-            # This is the latent representation of the image
+            \
             return latent.squeeze().squeeze()
 
     def encode(self, img: torch.tensor):
@@ -129,16 +129,15 @@ class MVAE(torch.nn.Module):
                 dec = self.model.decode(patch)
                 return dec
 
-            # Extract compression factor from model name (e.g., "medvae_4_1_3d" -> 4)
             compression_factor = int(self.model_name.split("_")[1])
 
-            # Calculate ROI size for the original dimensions
+            \
             roi_size = roi_size_calc(
                 [x * compression_factor for x in latent.shape[-3:]],
                 target_gpu_dim=self.gpu_dim,
             )
 
-            # Scale down the ROI size to match the latent space
+            \
             roi_size = [size // compression_factor for size in roi_size]
 
             dec = sliding_window_inference(

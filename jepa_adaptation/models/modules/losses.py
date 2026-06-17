@@ -18,11 +18,11 @@ def hinge_loss(logits_real, logits_fake):
 
 
 class LPIPS(nn.Module):
-    # Learned perceptual metric
+    \
     def __init__(self, use_dropout=True):
         super().__init__()
         self.scaling_layer = ScalingLayer()
-        self.chns = [64, 128, 256, 512, 512]  # vg16 features
+        self.chns = [64, 128, 256, 512, 512]                 
         self.net = vgg16(requires_grad=False)
         self.lin0 = NetLinLayer(self.chns[0], use_dropout=use_dropout)
         self.lin1 = NetLinLayer(self.chns[1], use_dropout=use_dropout)
@@ -170,7 +170,7 @@ def spatial_average(x, keepdim=True):
 def get_ckpt_path(name, root, check=False):
     vgg_url = "https://heibox.uni-heidelberg.de/f/607503859c864bc1b30b/?dl=1"
     vgg_ckpt = "vgg.pth"
-    # vgg_md5 = "d507d7349b931f0638a25a48a722f98a"
+    \
     path = os.path.join(root, vgg_ckpt)
     if not os.path.exists(path):
         print(f"Downloading {name} model from {vgg_url} to {path}")
