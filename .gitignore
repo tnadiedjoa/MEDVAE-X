@@ -28,3 +28,4 @@ wandb/
 *.npz
 .DS_
 .venv
+.vscode/
