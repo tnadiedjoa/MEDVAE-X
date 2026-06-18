@@ -5,9 +5,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{cite}
-\usepackage{balance}
 \usepackage{float}
-\usepackage{dblfloatfix}
 \usepackage{subcaption}
 \usepackage{placeins}
 
@@ -38,7 +36,6 @@ Starting from MedVAE and ARCADE, we identify and investigate four complementary 
 
 We each took on one of these axes --- Elias Corlou the robustness analysis, Théophile Nadiedjoa the image-quality conditioning, Yanic Rothlingshofer the JEPA adaptation, and Théo Palagi the segmentation study --- and we present our four contributions in the corresponding sections before bringing them together in a common discussion of perspectives and a shared conclusion.
 
-% ============================================================
 \newpage
 \section{Robustness of MedVAE to Input Degradations}
 \label{sec:medvae-robustness}
@@ -74,7 +71,6 @@ highlight qualitatively distinct regimes that reveal the low-pass and
 denoising character of MedVAE, as well as its limitations against
 structured artefacts.
 
-% ============================================================
 \subsection{Evaluation Framework}
 \label{sec:cadre}
 
@@ -133,7 +129,6 @@ computed in this masked version. The full calculation details, equation,
 and an illustration on a real example are given in
 Appendix~\ref{app:mpsnr}.
 
-% ============================================================
 \subsection{Method}
 \label{sec:methode}
 
@@ -156,7 +151,6 @@ sweep loop, producing the reconstruction of each degraded input. The
 intentionally modest sample sizes ($50$ images, $20$ levels) are
 constrained by available compute.
 
-% ---------- Figure pleine largeur : pipeline ----------
 \begin{figure*}[t]
   \centering
   \includegraphics[width=0.92\textwidth]{figures/elias/pipeline.pdf}
@@ -199,14 +193,13 @@ $8\times8$ block artefacts.
 values). The lowest level, with a unit kernel, corresponds to the
 clean image.
 
-\section{Results and Interpretation}
+\subsection{Results and Interpretation}
 \label{sec:resultats}
 
 For each degradation type, we plot the evolution of the metrics as a function of intensity level (Fig.~\ref{fig:sweep-all}). The \emph{degradation amplitude} curve, $\mathrm{mPSNR}(\text{clean}, \text{degraded})$, decreases by construction and serves as the controlled x-axis. The curve of interest is the \emph{reconstruction fidelity}, $\mathrm{mPSNR}(\text{degraded}, \text{reconstructed})$, which characterises MedVAE's behaviour. A third curve, $\mathrm{mPSNR}(\text{clean}, \text{reconstructed})$, is plotted only for Poisson noise, where it tests the denoising hypothesis (Section~\ref{sec:poisson}).
 
 The overall conclusion is that MedVAE's response depends not only on the intensity of the degradation but on its \emph{spectral nature}: depending on whether the perturbation removes or adds high frequencies, and whether those high frequencies are structured or not, the reconstruction fidelity varies in opposite directions. This behaviour is consistent with the spectral bias of neural networks~\cite{rahaman2019spectral} and with the well-known low-pass character of autoencoders. The correlation values associated with these observations are summarised in Table~\ref{tab:stats-correlation}.
 
-% ---------- Figure globale sur deux colonnes ----------
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/elias/metrics_by_level_all_masked.pdf}
@@ -214,7 +207,6 @@ The overall conclusion is that MedVAE's response depends not only on the intensi
   \label{fig:sweep-all}
 \end{figure*}
 
-% ---------- Tableau des statistiques ----------
 \begin{table}[h]
 \centering
 \footnotesize
@@ -265,7 +257,6 @@ The cross-study of these three perturbations sheds light on MedVAE's internal me
 
 These characteristics call for several clinical evaluation perspectives. First, it will be necessary to quantify the impact of this low-pass dynamic on stenosis detection, the central task of the ARCADE dataset, as these pathologies constitute fine structures particularly sensitive to smoothing. Furthermore, the exploration of the latent space (detailed in Section~\ref{sec:jepa}) reveals that MedVAE massively encodes luminosity and contrast gradients. Evaluating its robustness to alterations of the grey-level dynamic range (gamma variations, underexposure) therefore constitutes a natural next step. Finally, the protocol would benefit from integrating motion blur: induced by cardiac and respiratory dynamics~\cite{topol1995luminology}, this directional blur constitutes an omnipresent clinical artefact in coronary angiography, whose spectral signature is far more complex than the isotropic blur modelled here.
 
-% =======================
 
 
 
@@ -464,7 +455,6 @@ annotations). This restriction makes it possible to check that any
 observed result is not a mere artefact of the background, clinically
 irrelevant and potentially misleading since a global PSNR can
 \emph{increase} as the image degrades
-% TODO merge: replace with \ref{...} to the MedVAE robustness section
 (cf. the MedVAE robustness analysis presented earlier)
 (Figure~\ref{fig:evalpipe}).
 
@@ -500,7 +490,6 @@ this does not change when restricting the error to vessels: mPSNR confirms
 the same ranking for all three approaches, with a systematic gap of $2$ to
 $5$~dB relative to classic PSNR (vessels, thin and low-contrast, remain
 intrinsically harder to reconstruct than the background,
-% TODO merge: replace with \ref{...} to the MedVAE robustness section
 consistent with the MedVAE robustness analysis presented earlier). The
 per-class breakdown (Table~\ref{tab:mpsnr-class}) confirms that this
 baseline $>$ cVAE ranking is uniform across all 9
@@ -644,7 +633,6 @@ segmentation or detection task to check whether FiLM conditioning, even
 if slightly unfavourable for raw reconstruction, does not bring a benefit
 on a task-oriented metric.
 
-%=====================================
 \newpage
 \section{JEPA Adaptation of MedVAE Stage 2}
 \label{sec:jepa}
@@ -908,7 +896,6 @@ Across four complementary axes, we probed how a generic large-scale medical comp
 Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful enough to be reused in pixel space, but its latent space is not yet semantically organised nor acquisition-aware enough to be segmented or conditioned directly. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging --- coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata --- so that semantic structure, robustness, and reconstruction fidelity are learned jointly rather than traded off against one another.
 
 \newpage
-\balance
 \bibliographystyle{plain}
 \bibliography{references}
 
@@ -951,7 +938,6 @@ Taken together, our results sketch a coherent picture: MedVAE's compression is a
 \label{fig:pred_d}
 \end{figure}
 
-% ------------------------------------------------------------
 \newpage
 \section{Vessel-Masked PSNR: Details}
 \label{app:mpsnr}
@@ -964,7 +950,6 @@ The masked PSNR ($\mathrm{mPSNR}$) restricts the error computation to vessel pix
 \end{equation}
 where $D$ is the intensity range ($D = 1$ for images normalised in $[0,1]$).
 
-% ---------- Figure : schéma du PSNR masqué ----------
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.65\linewidth]{figures/elias/mpsnr.pdf}
@@ -975,12 +960,10 @@ where $D$ is the intensity range ($D = 1$ for images normalised in $[0,1]$).
 \end{figure}
 
 
-% ------------------------------------------------------------
 \newpage
 \section{Visualisation of Synthetic Degradations}
 \label{app:degradations}
 
-% ---------- Figure pleine largeur : grille de dégradations ----------
 \begin{figure*}[h]
   \centering
   \includegraphics[width=0.95\textwidth]{figures/elias/degradation_visual.png}
