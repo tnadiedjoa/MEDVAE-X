@@ -117,7 +117,17 @@
       "Bash(python3 -c \"import fitz; d=fitz.open\\('/tmp/preview_en.pdf'\\); print\\('pages',len\\(d\\)\\)\")",
       "Bash(rm -f /tmp/preview_en* /tmp/*.pdf /tmp/*.png)",
       "Bash(python3 /tmp/render.py pipeline_A_features.pdf /tmp/check_A.png)",
-      "Bash(kpsewhich placeins.sty)"
+      "Bash(kpsewhich placeins.sty)",
+      "Bash(git rebase *)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git --version)",
+      "Bash(grep -rn *)",
+      "Bash(GIT_TRACE=1 git rebase --continue)",
+      "Bash(awk '{print $3}')",
+      "Bash(awk '$3!=0')",
+      "Bash(git commit *)",
+      "Bash(git add *)"
     ],
     "additionalDirectories": [
       "/home/infres/nadiedjoa-24/projet_IM06",
