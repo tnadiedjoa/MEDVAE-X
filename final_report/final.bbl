@@ -6,6 +6,14 @@ Lorenzo Agnolucci, Leonardo Galteri, Marco Bertini, and Alberto Del~Bimbo.
 \newblock In {\em IEEE/CVF Winter Conference on Applications of Computer Vision
   (WACV)}, 2024.
 
+\bibitem{asri2026deeplearning}
+Mohd Aiman~Adha Asri, Heshalini Rajagopal, Norrima Mokhtar, Wan~Amirul
+  Wan~Mahiyiddin, Yvonne Ai~Lian Lim, Masahiro Iwahashi, Ryosuke Harakawa,
+  Fatimah Ibrahim, and Takashi Ito.
+\newblock Deep learning-based no-reference image quality assessment framework
+  for {Cryptosporidium} spp. and {Giardia} spp.
+\newblock {\em PLOS ONE}, 2026.
+
 \bibitem{assran2023selfsupervisedlearningimagesjointembedding}
 Mahmoud Assran, Quentin Duval, Ishan Misra, Piotr Bojanowski, Pascal Vincent,
   Michael Rabbat, Yann LeCun, and Nicolas Ballas.
@@ -16,6 +24,11 @@ Mahmoud Assran, Quentin Duval, Ishan Misra, Piotr Bojanowski, Pascal Vincent,
 Randall Balestriero and Yann LeCun.
 \newblock Lejepa: Provable and scalable self-supervised learning without the
   heuristics, 2025.
+
+\bibitem{breger2024adequacy}
+Anna Breger et~al.
+\newblock A study on the adequacy of common iqa measures for medical images,
+  2024.
 
 \bibitem{buslaev2020albumentations}
 Alexander Buslaev, Vladimir~I. Iglovikov, Eugene Khvedchenya, Alex Parinov,
@@ -76,6 +89,13 @@ Alif Munim, Adibvafa Fallahpour, Teodora Szasz, Ahmadreza Attarpour, River
 \newblock Echojepa: A latent predictive foundation model for echocardiography,
   2026.
 
+\bibitem{perez2018film}
+Ethan Perez, Florian Strub, Harm de~Vries, Vincent Dumoulin, and Aaron
+  Courville.
+\newblock {FiLM}: Visual reasoning with a general conditioning layer.
+\newblock In {\em Proceedings of the AAAI Conference on Artificial
+  Intelligence}, volume~32, 2018.
+
 \bibitem{popov2023arcade}
 Maxim Popov, Akmaral Amanturdieva, Nuren Zhaksylyk, et~al.
 \newblock Dataset for automatic region-based coronary artery disease
@@ -106,20 +126,34 @@ Olaf Ronneberger, Philipp Fischer, and Thomas Brox.
 \newblock U-net: Convolutional networks for biomedical image segmentation.
 \newblock In {\em MICCAI}, pages 234--241, 2015.
 
+\bibitem{sekiguchi2025patchdsa}
+Yuto Sekiguchi, Takahiro Okamoto, Takashi Matsuzawa, Koji Fujimoto, Keisuke
+  Fujiwara, Takeshi Kondo, Jun Koizumi, and Hideaki Haneishi.
+\newblock {PatchDSA}: improving digital subtraction angiography with
+  patch-based phase-matching in natural breathing scenarios.
+\newblock {\em Radiological Physics and Technology}, 18(3):698--706, 2025.
+
+\bibitem{sohn2015cvae}
+Kihyuk Sohn, Honglak Lee, and Xinchen Yan.
+\newblock Learning structured output representation using deep conditional
+  generative models.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~28, 2015.
+
 \bibitem{topol1995luminology}
 Eric~J. Topol and Steven~E. Nissen.
 \newblock Our preoccupation with coronary luminology: The illusion of spurious
   absolute measures.
 \newblock {\em Circulation}, 92(8):2333--2342, 1995.
 
-\bibitem{varma2025medvae}
+\bibitem{varma2025medvaeefficientautomatedinterpretation}
 Maya Varma, Ashwin Kumar, Rogier van~der Sluijs, Sophie Ostmeier, Louis
   Blankemeier, Pierre Chambon, Christian Bluethgen, Jip Prince, Curtis
   Langlotz, and Akshay Chaudhari.
 \newblock Medvae: Efficient automated interpretation of medical images with
   large-scale generalizable autoencoders, 2025.
 
-\bibitem{varma2025medvaeefficientautomatedinterpretation}
+\bibitem{varma2025medvae}
 Maya Varma, Ashwin Kumar, Rogier van~der Sluijs, Sophie Ostmeier, Louis
   Blankemeier, Pierre Chambon, Christian Bluethgen, Jip Prince, Curtis
   Langlotz, and Akshay Chaudhari.
@@ -131,5 +165,12 @@ Pascal Vincent, Hugo Larochelle, Yoshua Bengio, and Pierre-Antoine Manzagol.
 \newblock Extracting and composing robust features with denoising autoencoders.
 \newblock In {\em Proceedings of the 25th International Conference on Machine
   Learning (ICML)}, pages 1096--1103, 2008.
+
+\bibitem{wang2024noreference}
+Zhenyu Wang, Shuai Chen, Jianjun Dai, Song Qin, Yuhua Cao, Rui Zhao, Genggeng
+  Wu, Yuxin Tang, and Jian Chen.
+\newblock A no-reference medical image quality assessment method based on
+  automated distortion recognition technology: application to preprocessing in
+  mri-guided radiotherapy, 2024.
 
 \end{thebibliography}

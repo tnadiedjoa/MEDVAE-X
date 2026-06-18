@@ -9,6 +9,7 @@
 \usepackage{float}
 \usepackage{dblfloatfix}
 \usepackage{subcaption}
+\usepackage{placeins}
 
 \begin{document}
 \pagestyle{plain}
@@ -29,15 +30,21 @@
 
 \section{Introduction}
 
+Deep learning on medical images is constrained by the high resolution required to preserve diagnostic detail, which inflates the computational and memory cost of every model. Large-scale variational autoencoders (VAE) offer a way out by compressing images into compact latent representations. We focus on MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation}, a representative example: trained on more than one million medical images, it learns a generic, reusable compression of medical images --- in the variant we use, reducing a $512\times512$ image by a factor of $16$ into a single-channel $128\times128$ latent --- while seeking to preserve clinically relevant structures, and is itself built in two stages: a first stage dedicated to faithful reconstruction, and a second stage meant to enrich the latent space with semantic knowledge. Such generalist models raise a natural question, which we take as our starting point: to what extent does a generic medical compressor remain trustworthy and useful once confronted with a specific, demanding clinical domain?
+
+We study this question on coronary angiography, using the public ARCADE dataset~\cite{popov2024arcade}, which provides $1\,200$ annotated X-ray angiographies ($512\times512$, grayscale) together with COCO segmentation annotations of the coronary tree. We deliberately chose an unfavourable setting for a generic compressor: the structures of interest are thin, tubular, and low-contrast, the acquisitions suffer from quantum noise, compression, and motion artefacts, and the relevant signal occupies only a tiny fraction of the image. This domain therefore stresses every property we would expect from a medical foundation model: robustness to degraded inputs, a semantically structured latent space, and the preservation of fine anatomical information.
+
+Starting from MedVAE and ARCADE, we identify and investigate four complementary axes. \textbf{(i) Robustness to input degradations} (Section~\ref{sec:medvae-robustness}): we characterise how MedVAE's reconstruction fidelity behaves when we degrade the input with Poisson noise, JPEG compression, or blur, revealing its low-pass and denoising character and its vulnerability to structured artefacts. \textbf{(ii) Image-quality inductive bias} (Section~\ref{sec:theophile}): we ask whether explicitly conditioning the autoencoder on an estimated quality score, injected through FiLM modulation, lets it adapt to the degradation level actually present at its input. \textbf{(iii) Semantic structuring of the latent space} (Section~\ref{sec:jepa}): we replace MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective trained directly on coronary angiographies, removing any dependency on an external model. \textbf{(iv) Latent representation for segmentation} (Section~\ref{sec:segmentation}): we test whether the compressed representation preserves enough anatomical information to support fine multi-class coronary segmentation, and at which point of the pipeline the compression should be integrated.
+
+We each took on one of these axes --- Elias Corlou the robustness analysis, Théophile Nadiedjoa the image-quality conditioning, Yanic Rothlingshofer the JEPA adaptation, and Théo Palagi the segmentation study --- and we present our four contributions in the corresponding sections before bringing them together in a common discussion of perspectives and a shared conclusion.
+
 % ============================================================
+\newpage
 \section{Robustness of MedVAE to Input Degradations}
 \label{sec:medvae-robustness}
 
-MedVAE~\cite{varma2025medvae} is a large-scale perceptual autoencoder
-designed to compress medical images into reduced latent representations
-while preserving clinically relevant structures during reconstruction.
-The model was trained on more than one million images and evaluated, in
-its original paper, by PSNR and MS-SSIM as well as by expert reader
+MedVAE was evaluated, in its original paper~\cite{varma2025medvae}, on
+clean inputs --- by PSNR and MS-SSIM as well as by expert reader
 studies. One question remains open for real-world deployment:
 \emph{how does MedVAE's reconstruction quality behave when the input
 image is not clean, but degraded?} In coronary angiography, this
@@ -46,8 +53,8 @@ significant quantum noise, and clinical images undergo compression,
 motion blur, and various artefacts~\cite{cesarelli2013xray}.
 
 We evaluate this robustness on the ARCADE
-dataset~\cite{popov2023arcade}, comprising annotated coronary
-angiographies. The framework is entirely \emph{full-reference}: for
+dataset~\cite{popov2023arcade}. The framework is entirely
+\emph{full-reference}: for
 each image we simultaneously have the clean image, a controlled
 degraded version, and the reconstruction produced by MedVAE from the
 degraded input. This configuration allows everything to be quantified
@@ -256,13 +263,393 @@ These two regimes correspond to two distinct physical behaviours. At high and me
 
 The cross-study of these three perturbations sheds light on MedVAE's internal mechanics. The model fundamentally acts as an intelligent low-pass filter and a non-linear denoiser: it is optimised to faithfully reproduce low frequencies (Gaussian blur) and to reject stochastic high frequencies (Poisson noise). Its major limitation however lies in its vulnerability to \emph{structured} out-of-distribution high frequencies (JPEG artefacts), which it can neither ignore nor reconstruct, thereby corrupting the output image.
 
-These characteristics call for several clinical evaluation perspectives. First, it will be necessary to quantify the impact of this low-pass dynamic on stenosis detection, the central task of the ARCADE dataset, as these pathologies constitute fine structures particularly sensitive to smoothing. Furthermore, the exploration of the latent space (detailed in Section ??) reveals that MedVAE massively encodes luminosity and contrast gradients. Evaluating its robustness to alterations of the grey-level dynamic range (gamma variations, underexposure) therefore constitutes a natural next step. Finally, the protocol would benefit from integrating motion blur: induced by cardiac and respiratory dynamics~\cite{topol1995luminology}, this directional blur constitutes an omnipresent clinical artefact in coronary angiography, whose spectral signature is far more complex than the isotropic blur modelled here.
+These characteristics call for several clinical evaluation perspectives. First, it will be necessary to quantify the impact of this low-pass dynamic on stenosis detection, the central task of the ARCADE dataset, as these pathologies constitute fine structures particularly sensitive to smoothing. Furthermore, the exploration of the latent space (detailed in Section~\ref{sec:jepa}) reveals that MedVAE massively encodes luminosity and contrast gradients. Evaluating its robustness to alterations of the grey-level dynamic range (gamma variations, underexposure) therefore constitutes a natural next step. Finally, the protocol would benefit from integrating motion blur: induced by cardiac and respiratory dynamics~\cite{topol1995luminology}, this directional blur constitutes an omnipresent clinical artefact in coronary angiography, whose spectral signature is far more complex than the isotropic blur modelled here.
 
-% ============================================================
+% =======================
+
+
+
+\newpage
+\section{Image-quality inductive bias for MedVAE}
+\label{sec:theophile}
+
+\subsection{Motivation}
+
+The previous section showed that MedVAE behaves as an intelligent low-pass
+filter and a non-linear denoiser, but that it has no explicit way of
+knowing \emph{how much} the image it is given is degraded: it applies the
+same transformation to a clean or a heavily noisy angiography. Yet this
+information is available \emph{a priori} and can be estimated by
+no-reference quality metrics (NR-IQA). We hypothesise that explicitly
+conditioning the autoencoder on a quality score $c \in [0,1]$ improves its
+reconstruction, by letting it adapt its behaviour to the degradation level
+actually present at the input. Three questions follow: how to compute $c$
+objectively and reproducibly in the absence of human annotation on
+ARCADE; how to inject it into MedVAE without retraining the model from
+scratch; and whether any observed gain is attributable to the informative
+content of $c$ or to a mere additional-capacity effect. This last
+question is far from trivial: any conditioning mechanism adds parameters
+and changes the training dynamics, so an apparent gain could simply
+reflect increased capacity rather than a genuine exploitation of the
+quality signal, hence the need for a dedicated ablation
+(section~\ref{sec:ablation}). For the first question, three independent
+methods for computing $c$ (approaches A, B, C) are compared in parallel,
+and the entire downstream pipeline (conditioning, training, evaluation,
+ablation) is run separately for each, which makes it possible to
+distinguish an effect specific to a given method of computing $c$ from a
+more general effect of the FiLM conditioning itself.
+
+\subsection{Construction of the quality score}
+\label{sec:score}
+
+On the segmentation subset of ARCADE (1000 train / 200 validation images,
+$512\times512$, grayscale), each image is split into a $4\times4$ grid of
+patches, a local granularity motivated by the spatially non-uniform
+nature of artefacts in cardiac imaging (motion, noise)
+\cite{sekiguchi2025patchdsa}, normalised by \emph{Mean Subtracted Contrast
+Normalization} ($\hat{I}=(I-\mu)/(\sigma+C)$, $7\times7$ window), then
+characterised by 8 metrics per patch: Laplacian variance, RMS contrast,
+Shannon entropy, and the Tenengrad gradient broken down into 4
+directions, a directional analysis suited to the tubular structure of
+vessels \cite{wang2024noreference} (which allows detection of anisotropic
+cardiac motion blur). These metrics are aggregated into 36 features per
+image. A pre-trained ResNet-18 (frozen weights) extracts in parallel a
+512-dimensional feature vector, used only by the learned approach: the
+two branches of this feature pipeline (Figure~\ref{fig:featpipe}) never
+converge directly, they simply feed different score-computation methods
+(section~\ref{sec:score}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\columnwidth]{figures/theophile/pipeline_A_features.pdf}
+  \caption{Construction of quality features: per-patch IQA metrics and
+  ResNet-18 features.}
+  \label{fig:featpipe}
+\end{figure}
+
+These features are then merged into a single score $c$, with $1$
+corresponding to a clinically usable image, using three independent
+methods (Figure~\ref{fig:scorepipe}), all fitted exclusively on the TRAIN
+subset. Approach B applies a PCA (after standardisation) on 6 selected
+features (the 36 above plus two spatial-homogeneity and directional-balance
+features); the first axis explains 56.1\,\% of the variance, and its sign
+is corrected by correlation with Tenengrad ($r=0.952$). Approach A
+linearly weights the same 6 features by the absolute normalised loadings
+of this same PC1. Approach C, lacking human annotation on ARCADE, learns
+a score on a \emph{synthetic proxy}, an indirect supervision strategy
+already used to calibrate NR-IQA scores on biomedical images without
+perceptual ground truth \cite{asri2026deeplearning}: each TRAIN image is
+artificially degraded (noise, blur, JPEG) with a target
+$y=1-\text{known severity}$, and a lightweight MLP
+($512{\to}128{\to}32{\to}1$) is trained by MSE on the ResNet-18 features of
+this synthetic set (validation MSE $1.58\times10^{-3}$), then applied to
+the real images.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/theophile/pipeline_B_score.pdf}
+  \caption{The three approaches for computing the quality score $c$.}
+  \label{fig:scorepipe}
+\end{figure*}
+
+A and B, built on the same metrics, are strongly correlated ($r=0.884$);
+C, in contrast, is nearly independent of both
+($r(A,C)=0.003$, $r(B,C)=0.015$, Table~\ref{tab:corr}) and its
+distribution is much more tightly concentrated near 1 (mean 0.890) than A
+(0.448) or B (0.483): the MLP learned on deep features captures a notion
+of quality that differs from a combination of classical metrics. The
+active score is finally discretised into three classes
+\emph{bad}/\emph{medium}/\emph{good} by tertiles (TRAIN). Figure~\ref{fig:gallery}
+illustrates this progression on real images sorted by increasing score:
+the least sharp and noisiest angiographies (left) progressively give way
+to contrasted acquisitions where the vascular tree is clearly defined
+(right), which qualitatively confirms that the score captures a notion of
+image quality consistent with a clinical reading.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/theophile/result_gallery_score.png}
+  \caption{ARCADE images sorted by increasing quality score (approach A,
+  weighted): from least sharp (left) to most contrasted (right).}
+  \label{fig:gallery}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+     & A (weighted) & B (PCA) & C (learned) \\
+    \midrule
+    A (weighted) & 1 & 0.884 & 0.003 \\
+    B (PCA)      &   & 1     & 0.015 \\
+    C (learned)  &   &       & 1 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Pearson correlation between the three scores (1200 images).}
+  \label{tab:corr}
+\end{table}
+
+\FloatBarrier
+\subsection{FiLM conditioning and training}
+\label{sec:film}
+
+To condition MedVAE \cite{varma2025medvae} (pre-trained
+\texttt{AutoencoderKL} \cite{kingma2014vae}, variant
+\texttt{medvae\_4\_1\_2d}, 57.06M parameters) on $c$ without modifying its
+input topology, we use \emph{Feature-wise Linear Modulation}
+(FiLM \cite{perez2018film}) rather than channel concatenation: a shared
+MLP encodes $c$ into a 128-dimensional embedding, and 19 linear heads (one
+per \texttt{ResnetBlock} of the encoder, bottleneck, and decoder) produce
+affine parameters applied through a hook on each block,
+$h \leftarrow (1+\gamma_i(c)) \cdot h + \beta_i(c)$, with zero
+initialisation (the conditioned model is therefore identical to the
+original model before any training). This initialisation choice matters:
+it guarantees that any performance difference observed after training
+stems from what the network has learned to do with $c$, and not from a
+random perturbation of the pre-trained weights. FiLM is further preferred
+over input-channel concatenation because it leaves the encoder's topology
+intact and concentrates the conditioning effect on clearly identifiable
+parameters, which facilitates the ablation in
+section~\ref{sec:ablation}. This mechanism adds 1.70M parameters
+(2.98\,\%). Training proceeds in two phases on the 1000 TRAIN images
+resized to $64\times64$: a warm-up where only FiLM is trained (2500
+steps, low learning rate) to avoid destabilising the pre-trained decoder
+with still poorly calibrated affine parameters, then a global fine-tuning
+where all weights are unfrozen (5000 steps, cosine annealing) to let the
+rest of the network adapt to the FiLM modulation. A strictly identical
+baseline VAE without FiLM is trained in parallel on the same budget of
+7500 steps, in order to isolate the conditioning's own effect from that of
+additional fine-tuning (Figure~\ref{fig:filmpipe}).
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/theophile/pipeline_C_film.pdf}
+  \caption{FiLM conditioning (19 blocks) and two-phase training, with
+  baseline ablation.}
+  \label{fig:filmpipe}
+\end{figure*}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    Approach & cVAE($c$) & Baseline & Relative gain \\
+    \midrule
+    A (weighted) & 0.00735 & 0.01345 & $-45.3\%$ \\
+    B (PCA)      & 0.00749 & 0.01348 & $-44.5\%$ \\
+    C (learned)  & 0.00925 & 0.01345 & $-31.2\%$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Final validation ELBO loss ($64\times64$, internal to
+  training), conditioned cVAE vs baseline, per approach.}
+  \label{tab:trainloss}
+\end{table}
+
+On this internal loss, the conditioned cVAE is markedly better than the
+baseline for all three approaches (Table~\ref{tab:trainloss}), a result
+that seems to validate the initial hypothesis, but which only measures
+optimisation on the reduced fine-tuning format, not reconstruction
+fidelity on independent test images at full resolution.
+
+\FloatBarrier
+\subsection{Evaluation of reconstruction fidelity}
+\label{sec:eval}
+
+On a test set of 60 images (20 per class, unseen during training), we
+compare the reconstruction of the cVAE and the baseline using four
+metrics (MSE, SSIM, PSNR, HaarPSI, the latter being recommended for
+medical images \cite{breger2024adequacy}), both on the full image and on
+a masked PSNR restricted to vessel pixels (mPSNR, rasterised COCO
+annotations). This restriction makes it possible to check that any
+observed result is not a mere artefact of the background, clinically
+irrelevant and potentially misleading since a global PSNR can
+\emph{increase} as the image degrades
+% TODO merge: replace with \ref{...} to the MedVAE robustness section
+(cf. the MedVAE robustness analysis presented earlier)
+(Figure~\ref{fig:evalpipe}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.82\columnwidth]{figures/theophile/pipeline_D_evaluation.pdf}
+  \caption{Evaluation protocol: baseline vs cVAE, classic and masked
+  (vessel) PSNR.}
+  \label{fig:evalpipe}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    Approach & MSE & SSIM & PSNR & HaarPSI \\
+    \midrule
+    A (weighted) & $+21.1\%$ & $-1.6\%$ & $-2.4\%$ & $-1.6\%$ \\
+    B (PCA)      & $+26.1\%$ & $-1.7\%$ & $-2.7\%$ & $-1.9\%$ \\
+    C (learned)  & $+48.8\%$ & $-1.8\%$ & $-4.4\%$ & $-2.1\%$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Relative change of cVAE vs baseline (60 real images; MSE:
+  positive = worse; others: negative = worse). All differences are
+  significant (Wilcoxon $p<0.0001$).}
+  \label{tab:eval}
+\end{table}
+
+The result runs counter to the initial hypothesis: across all three
+approaches and all four metrics, without exception, the unconditioned
+baseline reconstructs better than the cVAE (Table~\ref{tab:eval}), and
+this does not change when restricting the error to vessels: mPSNR confirms
+the same ranking for all three approaches, with a systematic gap of $2$ to
+$5$~dB relative to classic PSNR (vessels, thin and low-contrast, remain
+intrinsically harder to reconstruct than the background,
+% TODO merge: replace with \ref{...} to the MedVAE robustness section
+consistent with the MedVAE robustness analysis presented earlier). The
+per-class breakdown (Table~\ref{tab:mpsnr-class}) confirms that this
+baseline $>$ cVAE ranking is uniform across all 9
+approach$\times$class combinations (bad/medium/good), without a single
+exception, and is confirmed under controlled synthetic degradations
+(noise, motion blur): the baseline matches or exceeds the cVAE on almost
+all levels tested. The internal validation loss
+(Table~\ref{tab:trainloss}), more favourable to the cVAE, therefore turns
+out to be a misleading indicator of actual performance.
+
+\begin{table}[htbp]
+  \centering
+  \footnotesize
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    & \multicolumn{2}{c}{A (weighted)} & \multicolumn{2}{c}{B (PCA)} & \multicolumn{2}{c}{C (learned)} \\
+    Class & base & cVAE & base & cVAE & base & cVAE \\
+    \midrule
+    bad    & 31.42 & 29.96 & 32.07 & 30.55 & 30.57 & 29.42 \\
+    medium & 30.62 & 29.72 & 31.33 & 29.57 & 30.87 & 29.34 \\
+    good   & 30.97 & 29.89 & 29.72 & 28.48 & 31.37 & 29.75 \\
+    \bottomrule
+  \end{tabular}
+  \caption{mPSNR (dB), baseline vs cVAE, per approach and quality class
+  (60 test images). The baseline wins on all 9 combinations, without a
+  single exception.}
+  \label{tab:mpsnr-class}
+\end{table}
+
+This regularity also holds within each class: the dispersion of the
+baseline/cVAE gap remains comparable between the two models across all
+three metrics, so this is not an effect driven by a few outlier images,
+but a systematic shift of the entire distribution.
+
+\FloatBarrier
+\subsection{Ablation with a constant signal}
+\label{sec:ablation}
+
+The previous result calls for checking whether the network nonetheless
+exploits the informative content of $c$, even without deriving a net
+gain from it. A second cVAE is trained with exactly the same
+architecture, the same data, and the same budget, but presenting a
+constant $c=0.5$ for all images; at inference, both models receive the
+true score of each test image, and only the value \emph{seen during
+training} differs between the two (Figure~\ref{fig:ablationpipe}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.78\columnwidth]{figures/theophile/pipeline_E_ablation.pdf}
+  \caption{Ablation with a constant signal $c$: same architecture, same
+  data, only the supervision of $c$ changes.}
+  \label{fig:ablationpipe}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+     & real $c$ wins & $c{=}0.5$ wins & Not sig. \\
+    \midrule
+    A (weighted) & 0/4 & 2/4 & 2/4 \\
+    B (PCA)      & 2/4 & 0/4 & 2/4 \\
+    C (learned)  & 4/4 & 0/4 & 0/4 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Number of metrics (out of 4) where cVAE(real $c$) significantly
+  beats cVAE($c{=}0.5$) (Wilcoxon $p<0.05$, 60 images).}
+  \label{tab:ablation}
+\end{table}
+
+This more nuanced result depends strongly on the approach
+(Table~\ref{tab:ablation}): only C unambiguously demonstrates that signal
+$c$ is exploited, on all four metrics ($p<10^{-4}$), a finding also
+confirmed by mPSNR across all three classes without exception. For B, the
+effect is partial (MSE and PSNR significant, not SSIM/HaarPSI), and the
+per-class mPSNR shows verdict reversals depending on the metric. For A,
+the effect is even reversed on two perceptual metrics: a constant
+$c=0.5$ performs better than the true weighted score.
+
+Figure~\ref{fig:delta} details, for approach C, the per-image gap between
+cVAE(real $c$) and cVAE($c{=}0.5$) as a function of the tested image's
+quality score: the advantage of real conditioning grows with $c$, and
+reverses slightly for the most degraded images (\emph{bad}), where a
+constant $c=0.5$, close to the median, acts almost as a reasonable default
+signal. The network has therefore indeed learned a response that
+\emph{depends} on $c$, and not merely a response to the presence of a
+non-zero embedding.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/theophile/result_delta_ablation.png}
+  \caption{Per-image gap (MSE, SSIM, HaarPSI) between cVAE(real $c$) and
+  cVAE($c{=}0.5$) as a function of the quality score, approach C.}
+  \label{fig:delta}
+\end{figure}
+
+\FloatBarrier
+\subsection{Discussion}
+\label{sec:discussion-theophile}
+
+Taken together, these experiments tell a richer story than a simple
+validation of the initial hypothesis. FiLM conditioning, correctly
+measured on an independent test set and in pixel space, slightly degrades
+reconstruction fidelity relative to an unconditioned VAE trained with the
+same budget. This result is robust, significant across three approaches
+and four metrics, and survives the restriction to vessel pixels. The
+ablation nuances this negative finding: for approach C, the network
+unambiguously exploits the informative content of $c$, so the observed
+degradation is not due to inert conditioning, but rather to a genuine
+architectural trade-off, where the additional FiLM capacity and per-layer
+modulation appear to perturb the decoder's optimisation more than they
+enrich it, within the budget used. For A and B, the effect of $c$ is
+weaker or even reversed, suggesting that their scores, linear combinations
+of sharpness and contrast metrics, provide information already largely
+accessible to the network through its own convolutions.
+
+The near-independence between score C and scores A/B
+(Table~\ref{tab:corr}, $r\approx0$) calls for caution when interpreting
+the learned score: trained on a synthetic severity proxy rather than a
+human ground truth, it could encode a signal partially different from
+true perceptual quality. That this signal is exploited by the network
+without nonetheless improving reconstruction is consistent with this
+reading: the network learns \emph{something} useful from $c_C$, but not
+necessarily a better reconstruction strategy.
+
+Several limitations of this protocol deserve mention. First, the training
+budget (7500 steps, $64\times64$ resolution) remains modest relative to
+the size of MedVAE (57M parameters): an architectural FiLM trade-off that
+penalises the decoder at this stage could lessen, or even reverse, with a
+longer budget or a more gradual warm-up. Second, the absence of human
+quality annotation on ARCADE forced us to validate the three scores
+indirectly (mutual consistency, correlation with reference metrics)
+rather than against a perceptual ground truth; a study with clinicians
+would help determine whether the learned score (C), the only one truly
+exploited by the network, captures a clinically meaningful notion of
+quality or an artefact of the synthetic proxy used to supervise it.
+Finally, the criterion used here (pixel/structural fidelity) does not
+directly measure downstream clinical utility (e.g. readability of the
+vascular tree for diagnosis); future work could couple this protocol to a
+segmentation or detection task to check whether FiLM conditioning, even
+if slightly unfavourable for raw reconstruction, does not bring a benefit
+on a task-oriented metric.
+
+%=====================================
 \newpage
 \section{JEPA Adaptation of MedVAE Stage 2}
+\label{sec:jepa}
 
-MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation} is a generalised variational autoencoder (VAE) for medical imaging, trained in two stages: the first learns faithful reconstruction, the second enriches the latent space with semantic knowledge. Medical imaging raises specific challenges --- monochrome images, scarce annotations, heterogeneous modalities --- that make learning robust representations particularly difficult.
+As introduced above, MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation} is trained in two stages, the second of which enriches the latent space with semantic knowledge --- the stage we revisit here. Medical imaging raises specific challenges --- monochrome images, scarce annotations, heterogeneous modalities --- that make learning robust representations particularly difficult.
 
 \subsection{Motivations}
 
@@ -381,14 +768,10 @@ To go beyond the limitations of the 1-channel bottleneck, we analyse the feature
 
 
 \newpage
-\section{Section 2: Théophile}
-
-
-
-\newpage
 \section{MedVAE as a Latent Representation for Coronary Segmentation}
+\label{sec:segmentation}
 
-The high resolution of medical images is necessary to preserve diagnostic details, but it strongly increases the computational and storage cost of deep learning models. An attractive solution consists of compressing images using generic large-scale pre-trained variational autoencoders (VAE) \cite{kingma2014vae}. MedVAE \cite{varma2025medvaeefficientautomatedinterpretation}, trained on more than one million medical images, illustrates this approach: it reduces an image by a factor of 16 (a reduction of 4 per spatial dimension, bringing a $512 \times 512$ image to a single-channel $128 \times 128$ latent) while seeking to preserve clinically relevant features.
+The high resolution of medical images is necessary to preserve diagnostic details, but it strongly increases the computational and storage cost of deep learning models. An attractive solution consists of compressing images using generic large-scale pre-trained variational autoencoders (VAE) \cite{kingma2014vae}, of which MedVAE \cite{varma2025medvaeefficientautomatedinterpretation} is a representative example.
 
 This compression remains however intrinsically destructive, and nothing guarantees that it preserves information useful for all downstream tasks. The benefits of MedVAE have been established primarily on classification and detection tasks, which rely on global features. Fine coronary artery segmentation constitutes on the contrary an unfavourable case. Indeed, the structures to be delineated are thin, tubular, and low-contrast, the number of classes is high (26 classes: background and 25 arterial segments), and their distribution is heavily imbalanced. The central question we pose is therefore: \textbf{does lossy medical compression preserve sufficient anatomical information to enable multi-class coronary segmentation? A second methodological question arises alongside: at which point in the processing pipeline must the compression be integrated for this information to remain exploitable?}
 
@@ -520,7 +903,9 @@ Ultimately, the value of such a foundation model can only be established by eval
 
 \section{Conclusion}
 
+Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Our robustness analysis showed that MedVAE acts essentially as an intelligent low-pass filter and a non-linear denoiser: it faithfully reproduces blurred (low-frequency) inputs and rejects stochastic Poisson noise in the right direction, but collapses on structured out-of-distribution high frequencies such as JPEG block artefacts, its response being governed by the spectral nature of the degradation rather than its sole intensity. Building on this, we tested whether conditioning the autoencoder on an estimated quality score via FiLM could make it degradation-aware; measuring this rigorously on an independent test set in pixel space, we found that the conditioning slightly degrades reconstruction fidelity relative to an equally fine-tuned baseline, even though our ablation confirms that the network genuinely exploits the quality signal --- pointing to an architectural trade-off rather than an inert mechanism. We then replaced MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA patch-prediction objective: it produces a markedly more compact latent space (90\% of variance on $25$ dimensions) with a discriminative gain over the unspecialised model, but at a heavy cost in reconstruction once we keep the decoder frozen. Finally, we established that a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation when exploited in pixel space --- compression alone is neutral, and adapting to its artefacts even yields a targeted gain on the thinnest, rarest vessels --- whereas the single-channel latent is, as such, unfit for direct dense prediction.
 
+Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful enough to be reused in pixel space, but its latent space is not yet semantically organised nor acquisition-aware enough to be segmented or conditioned directly. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging --- coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata --- so that semantic structure, robustness, and reconstruction fidelity are learned jointly rather than traded off against one another.
 
 \newpage
 \balance
