@@ -1,0 +1,19 @@
+comparaison,classe,PSNR classique (base),PSNR classique (cvae),gagnant (classique),Masked PSNR (base),Masked PSNR (cvae),gagnant (masked),conclusion changée ?
+baseline_A vs cvae_A,bad,33.87,33.133,baseline_A,31.417,29.961,baseline_A,non
+baseline_A vs cvae_A,medium,34.302,33.466,baseline_A,30.615,29.715,baseline_A,non
+baseline_A vs cvae_A,good,32.11,31.323,baseline_A,30.965,29.886,baseline_A,non
+baseline_B vs cvae_B,bad,33.826,33.316,baseline_B,32.071,30.551,baseline_B,non
+baseline_B vs cvae_B,medium,34.257,33.434,baseline_B,31.325,29.565,baseline_B,non
+baseline_B vs cvae_B,good,31.891,30.543,baseline_B,29.718,28.477,baseline_B,non
+baseline_C vs cvae_C,bad,33.201,31.382,baseline_C,30.565,29.422,baseline_C,non
+baseline_C vs cvae_C,medium,34.018,32.768,baseline_C,30.868,29.336,baseline_C,non
+baseline_C vs cvae_C,good,34.05,32.711,baseline_C,31.366,29.746,baseline_C,non
+cvae_A vs cvae_constA,bad,33.133,32.997,cvae_A,29.961,30.037,cvae_constA,OUI
+cvae_A vs cvae_constA,medium,33.466,33.513,cvae_constA,29.715,29.796,cvae_constA,non
+cvae_A vs cvae_constA,good,31.323,31.347,cvae_constA,29.886,29.709,cvae_A,OUI
+cvae_B vs cvae_constB,bad,33.316,32.669,cvae_B,30.551,30.657,cvae_constB,OUI
+cvae_B vs cvae_constB,medium,33.434,33.37,cvae_B,29.565,29.767,cvae_constB,OUI
+cvae_B vs cvae_constB,good,30.543,30.007,cvae_B,28.477,28.136,cvae_B,non
+cvae_C vs cvae_constC,bad,31.382,31.23,cvae_C,29.422,28.64,cvae_C,non
+cvae_C vs cvae_constC,medium,32.768,30.428,cvae_C,29.336,27.805,cvae_C,non
+cvae_C vs cvae_constC,good,32.711,30.27,cvae_C,29.746,27.623,cvae_C,non

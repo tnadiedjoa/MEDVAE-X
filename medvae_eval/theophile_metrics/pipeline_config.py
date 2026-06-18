@@ -3,28 +3,29 @@ Configuration partagée du pipeline biais inductif.
 Modifier APPROACH pour changer la méthode de calcul du score de qualité c.
 
 Notebooks à relancer après changement d'approche :
-  - Approches A ou B : relancer NB3 → NB4 → NB5.
-  - Approche C (hybride avec ResNet) : relancer NB2 → NB3 → NB4 → NB5
-    (NB2 doit être relancé car l'approche C nécessite l'extraction des features ResNet-18).
+  - Approche A (score pondéré, poids = loadings PCA) ou B (PCA PC1) : relancer NB3 → NB4 → NB5.
+  - Approche C (score appris MLP + ResNet-18) : relancer NB2 → NB3 → NB4 → NB5
+    (NB2 doit être relancé/disponible car l'approche C nécessite les features ResNet-18).
 """
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║  HYPERPARAMÈTRE PRINCIPAL — Approche de calcul du score c  ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-APPROACH = "B"
+APPROACH = "C"
 
 # ── Définition des approches ──────────────────────────────────
 
 APPROACHES = {
     "A": {
         "score_col": "score_weighted",
-        "name": "Score pondéré",
+        "name": "Score pondéré (poids PCA)",
         "use_resnet": False,
         "description": (
-            "Combinaison linéaire de 6 métriques IQA avec poids manuels "
-            "(Tenengrad=0.30, Laplacian=0.25, RMS=0.15, Entropy=0.15, "
-            "Homogénéité=0.10, Balance=0.05)"
+            "Combinaison linéaire de 6 métriques IQA normalisées Min-Max, "
+            "pondérées par les loadings absolus du PC1 (|loading| / Σ|loading|, "
+            "fittés sur TRAIN). Poids objectifs et reproductibles, plus de "
+            "valeurs manuelles arbitraires."
         ),
     },
     "B": {
@@ -37,12 +38,15 @@ APPROACHES = {
         ),
     },
     "C": {
-        "score_col": "score_hybrid",
-        "name": "Hybride (A+B+ResNet)",
+        "score_col": "score_dl",
+        "name": "Score appris (MLP + ResNet-18)",
         "use_resnet": True,
         "description": (
-            "Moyenne de score_weighted + score_pca + score_resnet (PC1 ResNet-18). "
-            "Nécessite les features ResNet-18 du NB2."
+            "MLP (512→128→32→1) entraîné par MSE sur les features ResNet-18 "
+            "figées d'images TRAIN dégradées synthétiquement (bruit/flou/JPEG), "
+            "avec une cible de qualité = 1 - sévérité connue. Score appliqué "
+            "ensuite aux features ResNet-18 réelles (NB2). Supervision = proxy "
+            "synthétique (ARCADE n'a pas d'annotation qualité réelle)."
         ),
     },
 }
