@@ -127,7 +127,10 @@
       "Bash(awk '{print $3}')",
       "Bash(awk '$3!=0')",
       "Bash(git commit *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "WebFetch(domain:github.com)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)"
     ],
     "additionalDirectories": [
       "/home/infres/nadiedjoa-24/projet_IM06",
