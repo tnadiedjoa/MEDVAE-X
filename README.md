@@ -1,4 +1,4 @@
-# projet_IM06
+# MedVAE: Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation
 
 
 ## JEPA adaptation of phase 2 medvae training (ROTHLINGSHOFER Yanic)
@@ -51,8 +51,12 @@ All three pipelines are evaluated using the mean Dice score across the 26 arteri
 
 ## Input quality analysis for MedVAE reconstruction (CORLOU Elias & NADIEDJOA Théophile)
 
-This work investigates whether the quality of the input medical images impacts MedVAE reconstruction performance. As a first exploratory step, we evaluated the clean ARCADE dataset using the no-reference metric ARNIQA, alongside a composite image quality score based on several classical sharpness and perceptual metrics. Reconstruction quality was then measured with PSNR and MS-SSIM after MedVAE inference. Initial correlation analyses did not reveal clear or reliable trends, likely due to the domain mismatch of ARNIQA, which is trained on natural images rather than medical data. The next step is therefore to apply controlled synthetic degradations (noise, blur, compression) to the dataset in order to study how reconstruction performance evolves with progressively degraded inputs. Additional implementation details and analyses are available in `medvae_eval/metrics_recap.md`
+This work evaluates how MedVAE's reconstruction fidelity behaves when the input image is degraded rather than clean, a question directly motivated by low-dose acquisition noise, compression, and motion artefacts in coronary angiography. An initial exploration using no-reference quality metrics (ARNIQA, then a custom engineered score) was discarded: on clean images the intrinsic quality variance is too small to be exploitable, and under controlled degradation these scores are dominated by blur, which makes them non-monotone and unsuitable as a clean quality axis.
 
-![Input quality analysis pipeline](medvae_eval/pipeline_figure/pipeline_2.jpg)
+We instead adopt a fully full-reference protocol: since the clean image, its degraded version, and MedVAE's reconstruction are all available simultaneously, reconstruction fidelity can be measured by direct comparison rather than through a no-reference proxy. Using a vessel-masked PSNR (mPSNR, restricted to ARCADE's coronary annotations), we run independent sweeps over ~50 levels for three degradation types — Poisson noise, Gaussian blur, and JPEG compression — and correlate mPSNR(degraded, reconstruction) against the degradation amplitude mPSNR(clean, degraded).
 
-*Figure: Input quality analysis pipeline, inspired by the original Med-VAE pipeline figure.*
+The results reveal that MedVAE's behaviour depends on the spectral nature of the degradation, not just its intensity. Gaussian blur shows a strong anti-correlation (r ≈ −0.998): blurred inputs reconstruct better, consistent with the model's spectral bias towards low frequencies. Poisson noise shows a strong positive correlation (r ≈ +0.998): MedVAE's latent bottleneck discards stochastic high-frequency noise, acting as a genuine but only partial denoiser. JPEG compression is non-monotone, combining a "blur-like" regime that initially helps reconstruction with a low-quality regime where structured block artefacts collapse it; global correlation is misleading (r ≈ +0.03) but each regime taken separately is nearly perfectly correlated. Overall, MedVAE acts as an intelligent low-pass filter and non-linear denoiser, but remains vulnerable to structured out-of-distribution high frequencies it can neither encode nor ignore.
+
+![quality pipeline](medvae_eval/pipeline_figure/pipeline_3.jpg)
+
+*Figure: Controlled full-reference degradation pipeline for the MedVAE robustness analysis.*
