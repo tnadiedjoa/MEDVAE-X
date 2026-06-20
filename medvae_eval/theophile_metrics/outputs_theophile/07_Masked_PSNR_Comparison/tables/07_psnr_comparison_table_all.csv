@@ -1,0 +1,13 @@
+comparaison,model,psnr_classique,masked_psnr,delta (masked - classique)
+baseline_A vs cvae_A,baseline_A,33.428,30.999,-2.428
+baseline_A vs cvae_A,cvae_A,32.641,29.854,-2.787
+baseline_B vs cvae_B,baseline_B,33.324,31.038,-2.286
+baseline_B vs cvae_B,cvae_B,32.431,29.531,-2.9
+baseline_C vs cvae_C,baseline_C,33.756,30.933,-2.823
+baseline_C vs cvae_C,cvae_C,32.287,29.501,-2.786
+cvae_A vs cvae_constA,cvae_A,32.641,29.854,-2.787
+cvae_A vs cvae_constA,cvae_constA,32.619,29.847,-2.772
+cvae_B vs cvae_constB,cvae_B,32.431,29.531,-2.9
+cvae_B vs cvae_constB,cvae_constB,32.015,29.52,-2.495
+cvae_C vs cvae_constC,cvae_C,32.287,29.501,-2.786
+cvae_C vs cvae_constC,cvae_constC,30.643,28.022,-2.62

@@ -64,18 +64,27 @@ def _resize_mask(mask, latent):
 
 
 class ContextEncoder(nn.Module):
-    def __init__(self, autoencoder, patch_size=16, sample_posterior=False, freeze_decoder=True):
+    def __init__(self, autoencoder, patch_size=16, sample_posterior=False,
+                 freeze_decoder=True, freeze_encoder=False, use_penultimate=True):
         super().__init__()
         self.autoencoder = autoencoder
         self.patch_size = patch_size
         self.sample_posterior = sample_posterior
+        self.use_penultimate = use_penultimate
 
         if freeze_decoder and hasattr(self.autoencoder, "decoder"):
             self.autoencoder.decoder.requires_grad_(False)
         if freeze_decoder and hasattr(self.autoencoder, "post_quant_conv"):
             self.autoencoder.post_quant_conv.requires_grad_(False)
+        if freeze_encoder and hasattr(self.autoencoder, "encoder"):
+            self.autoencoder.encoder.requires_grad_(False)
+        if freeze_encoder and hasattr(self.autoencoder, "quant_conv"):
+            self.autoencoder.quant_conv.requires_grad_(False)
 
     def encode(self, x):
+        if self.use_penultimate:
+            feat, posterior, z = self.autoencoder.encode_penultimate(x)
+            return feat, posterior, z
         z, posterior, latent = self.autoencoder.compute_latent_proj(
             x, sample_posterior=self.sample_posterior
         )
@@ -183,18 +192,32 @@ class MVAE_JEPA(nn.Module):
         ema_momentum=0.996,
         sample_posterior=False,
         freeze_decoder=True,
+        freeze_encoder=False,
+        use_penultimate=True,
     ):
         super().__init__()
         autoencoder = mvae.model
         spatial_dims = 3 if getattr(mvae, "is_3d", False) else 2
-        latent_dim = latent_dim or autoencoder.embed_dim
 
         self.context_encoder = ContextEncoder(
             autoencoder=autoencoder,
             patch_size=patch_size,
             sample_posterior=sample_posterior,
             freeze_decoder=freeze_decoder,
+            freeze_encoder=freeze_encoder,
+            use_penultimate=use_penultimate,
         )
+
+        if latent_dim is None:
+            if use_penultimate:
+                \
+                with torch.no_grad():
+                    dummy = torch.zeros(1, autoencoder.encoder.in_channels, 64, 64)
+                    feat, _, _ = autoencoder.encode_penultimate(dummy)
+                latent_dim = feat.shape[1]
+                print(f"[MVAE_JEPA] use_penultimate=True → latent_dim auto-détecté = {latent_dim}")
+            else:
+                latent_dim = autoencoder.embed_dim
         self.target_encoder = TargetEncoder(self.context_encoder)
         self.predictor = JEPAPredictor(
             latent_dim=latent_dim,
@@ -227,7 +250,8 @@ class MVAE_JEPA(nn.Module):
             target_mask = sampled_target if target_mask is None else target_mask
 
         context_outputs = self.context_encoder(x, keep_mask=context_mask)
-        target_outputs = self.target_encoder(x, keep_mask=target_mask)
+        \
+        target_outputs = self.target_encoder(x, keep_mask=None)
         predicted_target = self.predictor(
             context_outputs["latent"], target_mask=target_mask
         )

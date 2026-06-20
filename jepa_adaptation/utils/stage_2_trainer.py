@@ -55,12 +55,15 @@ class TrainerStage2:
         self.best_val = float("inf")
         self.global_step = 0
 
+        ae = self.model.context_encoder.autoencoder
         print_model_summary({
-            "context_encoder": self.model.context_encoder,
-            "predictor": self.model.predictor,
-            "target_encoder": self.model.target_encoder,
-            "mvae_jepa": self.model,
+            "ae.encoder":      ae.encoder,
+            "ae.decoder":      ae.decoder,
+            "ae.channel_ds":   getattr(ae, "channel_ds", None),
+            "ae.channel_proj": getattr(ae, "channel_proj", None),
+            "predictor":       self.model.predictor,
         })
+        \
         print_loader_sizes(self.train_loader, self.val_loader)
 
     def _build_criterion(self):
