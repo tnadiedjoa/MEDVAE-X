@@ -49,7 +49,7 @@ def fine_tune(config: dict) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")
 
-    # ── Charge MedVAE depuis HuggingFace ─────────────────────────────────
+    # Charge MedVAE depuis HuggingFace 
     print(f"Chargement de MedVAE ({enc_cfg['model_name']})...")
     mvae = MVAE(model_name=enc_cfg["model_name"], modality=enc_cfg["modality"]).to(device)
 
@@ -61,7 +61,7 @@ def fine_tune(config: dict) -> None:
     n_params = sum(p.numel() for p in mvae.parameters())
     print(f"MedVAE prêt — {n_params:,} paramètres entraînables")
 
-    # ── Dataset ──────────────────────────────────────────────────────────
+    # Dataset
     full_ds = ArcadeImageDataset(
         images_dir=data_cfg["train_images"],
         img_size=data_cfg.get("img_size", 512),
@@ -82,7 +82,7 @@ def fine_tune(config: dict) -> None:
     train_loader = DataLoader(train_ds, shuffle=True,  **loader_kw)
     val_loader   = DataLoader(val_ds,   shuffle=False, **loader_kw)
 
-    # ── Optimizer & scheduler ────────────────────────────────────────────
+    # Optimizer & scheduler
     optimizer = AdamW(
         mvae.parameters(),
         lr=train_cfg["learning_rate"],
@@ -94,7 +94,7 @@ def fine_tune(config: dict) -> None:
         eta_min=train_cfg.get("lr_min", 1e-7),
     )
 
-    # ── Sauvegarde ───────────────────────────────────────────────────────
+    # Sauvegarde 
     save_dir = log_cfg["save_dir"]
     os.makedirs(save_dir, exist_ok=True)
     ckpt_path = os.path.join(save_dir, "best_medvae_finetuned.pth")
@@ -104,10 +104,10 @@ def fine_tune(config: dict) -> None:
     no_imp    = 0
     history   = {"train": [], "val": []}
 
-    # ── Boucle d'entraînement ────────────────────────────────────────────
+    # Boucle d'entraînement 
     for epoch in range(1, train_cfg["epochs"] + 1):
 
-        # — train —
+        # train 
         mvae.train()
         train_loss = 0.0
         for images in train_loader:
@@ -127,7 +127,7 @@ def fine_tune(config: dict) -> None:
 
         train_loss /= len(train_loader)
 
-        # — val —
+        # val
         mvae.eval()
         val_loss = 0.0
         with torch.no_grad():
@@ -163,7 +163,7 @@ def fine_tune(config: dict) -> None:
                 print(f"\nEarly stopping à l'epoch {epoch}.")
                 break
 
-    # — historique —
+    # historique 
     hist_path = os.path.join(save_dir, "medvae_finetune_history.json")
     with open(hist_path, "w") as f:
         json.dump(history, f, indent=2)

@@ -10,7 +10,7 @@ from pycocotools import mask as coco_mask
 
 # data augmentation pour mask et image 
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
+from albumentations.pytorch import ToTensorV2 
 
 def get_train_transforms(img_size: int = 512) -> A.Compose:
     return A.Compose([

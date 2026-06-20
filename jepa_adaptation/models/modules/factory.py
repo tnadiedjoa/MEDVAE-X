@@ -78,7 +78,7 @@ def build_model(
             ddconfig=conf.model.params.ddconfig,
             embed_dim=conf.model.params.embed_dim,
         )
-        # If training, freeze the encoder and decoder and inject the lora
+        \
         if training:
             print(
                 "Trainable Params before LORA:",
@@ -148,18 +148,17 @@ def create_model_and_transform(
     model_name: str,
     modality: str,
 ):
-    # Check if model_name is in FILE_DICT_ASSOCIATIONS
+    \
     if model_name not in FILE_DICT_ASSOCIATIONS:
         raise ValueError(f"Model name {model_name} not found in FILE_DICT_ASSOCIATIONS")
 
-    # Download the model_weights
     config_fpath = download_model_weights(FILE_DICT_ASSOCIATIONS[model_name]["config"])
     ckpt_fpath = download_model_weights(FILE_DICT_ASSOCIATIONS[model_name]["ckpt"])
 
-    # Build the model
+    \
     model = build_model(model_name, config_fpath, ckpt_fpath)
 
-    # Get the transform
+    \
     transform = build_transform(model_name, modality)
 
     return model, transform
@@ -176,15 +175,14 @@ def create_model(
     training: bool = True,
     state_dict: bool = True,
 ):
-    # Check if model_name is in FILE_DICT_ASSOCIATIONS
+    \
     if model_name not in FILE_DICT_ASSOCIATIONS:
         raise ValueError(f"Model name {model_name} not found in FILE_DICT_ASSOCIATIONS")
 
-    # Download the model_weights
     config_fpath = download_model_weights(FILE_DICT_ASSOCIATIONS[model_name]["config"])
     ckpt_fpath = download_model_weights(FILE_DICT_ASSOCIATIONS[model_name]["ckpt"])
 
-    # Build the model
+    \
     model = build_model(
         model_name,
         config_fpath,

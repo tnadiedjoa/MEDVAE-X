@@ -5,7 +5,7 @@ from medvae import MVAE
 
 class MedVAEEncoder(nn.Module):
     """
-    Encodeur MedVAE gelé — utilisé comme feature extractor.
+    Encodeur MedVAE gelé utilisé comme extracteur de feature.
 
     Condition B : poids pré-entraînés HuggingFace (checkpoint_path=None).
     Condition C : poids fine-tunés sur ARCADE chargés depuis checkpoint_path.

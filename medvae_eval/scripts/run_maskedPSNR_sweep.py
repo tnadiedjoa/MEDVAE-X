@@ -9,7 +9,7 @@ import glob
 from tqdm import tqdm
 from masked_psnr import MaskedPSNR
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+DATASET_PATH = "../../../data/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
 ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
 OUTPUT_DIR = "../outputs/degradation"
 N_IMAGES = 50

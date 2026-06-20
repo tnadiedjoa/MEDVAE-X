@@ -30,7 +30,7 @@ class NLayerDiscriminator(nn.Module):
             norm_layer = ActNorm
         if isinstance(
             norm_layer, functools.partial
-        ):  # no need to use bias as BatchNorm2d has affine parameters
+        ):                                                            
             use_bias = norm_layer.func != nn.BatchNorm2d
         else:
             use_bias = norm_layer != nn.BatchNorm2d
@@ -43,7 +43,7 @@ class NLayerDiscriminator(nn.Module):
         ]
         nf_mult = 1
         nf_mult_prev = 1
-        for n in range(1, n_layers):  # gradually increase the number of filters
+        for n in range(1, n_layers):                                            
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
             sequence += [
@@ -76,7 +76,7 @@ class NLayerDiscriminator(nn.Module):
 
         sequence += [
             nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)
-        ]  # output 1 channel prediction map
+        ]                                   
         self.main = nn.Sequential(*sequence)
 
     def forward(self, input):

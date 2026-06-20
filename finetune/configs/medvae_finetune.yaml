@@ -1,13 +1,3 @@
-# ─────────────────────────────────────────────────────────
-#  Fine-tuning de MedVAE sur les images ARCADE
-#
-#  Lancer depuis la racine projet_IM06/ :
-#    python finetune/finetune_medvae.py --config finetune/configs/medvae_finetune.yaml
-#
-#  Le checkpoint produit (best_medvae_finetuned.pth) est ensuite
-#  renseigné dans condition_c.yaml → encoder.checkpoint_path
-# ─────────────────────────────────────────────────────────
-
 encoder:
   model_name: "medvae_4_1_2d"
   modality:   "xray"

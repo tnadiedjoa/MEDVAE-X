@@ -10,6 +10,7 @@ bootstrap()
 
 from models.medvae import MVAE
 from datasets.stage_1_dataset import build_stage_1_dataset
+from datasets.arcade_dataset import get_pretraining_datasets
 from utils.stage_1_trainer import TrainerStage1
 
 
@@ -17,9 +18,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="jepa_adaptation/configs/stage_1.yaml")
     parser.add_argument("--model-config", default="jepa_adaptation/configs/model.yaml")
+    parser.add_argument("--epochs", type=int, default=None)
     args = parser.parse_args()
 
     cfg = load_config(args.config, args.model_config)
+    if args.epochs is not None:
+        cfg.setdefault("training", {})["epochs"] = args.epochs
     data_cfg = cfg.get("data", {})
     model_cfg = cfg.get("model", {})
 
@@ -32,16 +36,25 @@ def main():
         ckpt_path=model_cfg.get("ckpt_path"),
     )
 
-    common = dict(
-        root=data_cfg.get("root", "~/.medmnist"),
-        size=int(data_cfg.get("size", 224)),
-        as_rgb=bool(data_cfg.get("as_rgb", False)),
-        download=bool(data_cfg.get("download", True)),
-        fraction=float(data_cfg.get("fraction", 1.0)),
-        seed=int(data_cfg.get("seed", 42)),
-    )
-    train_ds = build_stage_1_dataset(split="train", **common)
-    val_ds = build_stage_1_dataset(split="val", **common)
+    source = data_cfg.get("source", "medmnist")
+    if source == "arcade":
+        train_ds, val_ds = get_pretraining_datasets(
+            img_size=int(data_cfg.get("img_size", 512)),
+            val_ratio=float(data_cfg.get("val_ratio", 0.1)),
+            seed=int(data_cfg.get("seed", 42)),
+            augment=bool(data_cfg.get("augment", True)),
+        )
+    else:
+        common = dict(
+            root=data_cfg.get("root", "~/.medmnist"),
+            size=int(data_cfg.get("size", 224)),
+            as_rgb=bool(data_cfg.get("as_rgb", False)),
+            download=bool(data_cfg.get("download", True)),
+            fraction=float(data_cfg.get("fraction", 1.0)),
+            seed=int(data_cfg.get("seed", 42)),
+        )
+        train_ds = build_stage_1_dataset(split="train", **common)
+        val_ds   = build_stage_1_dataset(split="val",   **common)
 
     TrainerStage1(mvae, cfg, train_ds, val_ds).fit()
 

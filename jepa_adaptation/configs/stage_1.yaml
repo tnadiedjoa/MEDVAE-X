@@ -1,12 +1,11 @@
 data:
-  root: ~/.medmnist
-  size: 224
-  as_rgb: false
-  download: true
-  fraction: 0.5
+  source: arcade      # "arcade" | "medmnist"
+  img_size: 512
+  val_ratio: 0.1
+  augment: true
   seed: 42
   loader:
-    batch_size: 32
+    batch_size: 2
     num_workers: 4
     pin_memory: true
 
