@@ -1,8 +1,8 @@
 import torch
 from medvae import MVAE
+from torchmetrics.image.arniqa import ARNIQA
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
 import cv2
 import glob
@@ -16,6 +16,7 @@ N_IMAGES = 50
 N_LEVELS = 20
 SEED = 42
 DEGRADATION = "poisson"  # "poisson" ou "jpeg" ou "blur"
+DEGRA_METRIC = "arniqa"  # "masked" (masked_psnr clean vs deg) ou "arniqa" (sur l'image dégradée)
 
 POISSON_SCALES = np.linspace(1.0, 0.05, N_LEVELS)
 JPEG_QUALITIES = (95 - np.linspace(0, 1, N_LEVELS) * 90).astype(int)
@@ -36,9 +37,11 @@ model.requires_grad_(False)
 model.eval()
 print("MedVAE OK", flush=True)
 
-masked_recon = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_recon = MaskedPSNR(ANN_PATH, data_range=2.0).to(device)
 masked_degra = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
-masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=1.0).to(device)
+masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=2.0).to(device)
+if DEGRA_METRIC == "arniqa":
+    arniqa = ARNIQA(regressor_dataset="koniq10k", normalize=True).to(device)
 
 print(f"{len(image_paths)} images, démarrage du sweep ({DEGRADATION})...", flush=True)
 results = []
@@ -70,9 +73,14 @@ for level in range(N_LEVELS):
             _, enc = cv2.imencode(".jpg", img_gray, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
             img_deg = cv2.imdecode(enc, cv2.IMREAD_GRAYSCALE)
 
-        deg = torch.as_tensor(img_deg, dtype=torch.float32, device=device) / 255.0
-        masked_degra.set_image(file_name)
-        degra_scores.append(masked_degra(deg, clean).item())
+        if DEGRA_METRIC == "arniqa":
+            deg_rgb = torch.as_tensor(cv2.cvtColor(img_deg, cv2.COLOR_GRAY2RGB), dtype=torch.float32, device=device).permute(2, 0, 1).unsqueeze(0) / 255.0
+            with torch.no_grad():
+                degra_scores.append(arniqa(deg_rgb).item())
+        else:
+            deg = torch.as_tensor(img_deg, dtype=torch.float32, device=device) / 255.0
+            masked_degra.set_image(file_name)
+            degra_scores.append(masked_degra(deg, clean).item())
 
         tmp_path = Path(OUTPUT_DIR) / "_tmp.png"
         cv2.imwrite(str(tmp_path), img_deg)
@@ -88,10 +96,6 @@ for level in range(N_LEVELS):
         masked_cleanrec.set_image(file_name)
         cleanrec_scores.append(masked_cleanrec(decoded, clean_input).item())
 
-        print("clean      :", clean.min().item(), clean.max().item(), clean.shape)
-        print("img_input  :", img_input.min().item(), img_input.max().item(), img_input.shape)
-        print("decoded    :", decoded.min().item(), decoded.max().item(), decoded.shape)
-
     param = {"poisson": scale, "jpeg": quality, "blur": kernel}[DEGRADATION]
     results.append({
         "level":                level,
@@ -100,21 +104,11 @@ for level in range(N_LEVELS):
         "masked_psnr_degra":    np.mean(degra_scores),
         "masked_psnr_cleanrec": np.mean(cleanrec_scores),
     })
-    print(f"level {level:02d} | param={param} | recon={results[-1]['masked_psnr_recon']:.2f} degra={results[-1]['masked_psnr_degra']:.2f} clean={results[-1]['masked_psnr_clean']:.2f}", flush=True)
+    print(f"level {level:02d} | param={param} | recon={results[-1]['masked_psnr_recon']:.2f} degra={results[-1]['masked_psnr_degra']:.2f} cleanrec={results[-1]['masked_psnr_cleanrec']:.2f}", flush=True)
 
 (Path(OUTPUT_DIR) / "_tmp.png").unlink(missing_ok=True)
 
+prefix = "arniqa" if DEGRA_METRIC == "arniqa" else "masked"
 df = pd.DataFrame(results)
-df.to_csv(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv", index=False)
-print(f"\nSauvegardé dans {OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv")
-
-plt.figure(figsize=(6, 6))
-plt.scatter(df["masked_psnr_degra"], df["masked_psnr_recon"], c=df["level"], cmap="viridis")
-plt.xlabel("MaskedPSNR dégradée vs clean (dB)")
-plt.ylabel("MaskedPSNR décodée vs dégradée (dB)")
-plt.title(f"Reconstruction vs dégradation ({DEGRADATION})")
-plt.colorbar(label="Niveau")
-plt.grid()
-plt.tight_layout()
-plt.savefig(f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.png", dpi=150, bbox_inches="tight")
-plt.show()
+df.to_csv(f"{OUTPUT_DIR}/{prefix}_sweep_{DEGRADATION}.csv", index=False)
+print(f"\nSauvegardé dans {OUTPUT_DIR}/{prefix}_sweep_{DEGRADATION}.csv")
