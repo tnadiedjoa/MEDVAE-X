@@ -59,7 +59,7 @@ class Trainer:
         # Gradient clipping
         self.grad_clip = train_cfg.get("grad_clip", 1.0)
 
-        # AMP — activé uniquement sur GPU
+        # AMP : activé uniquement sur GPU
         self.use_amp = device.type == "cuda"
         self.scaler  = GradScaler(device=device.type, enabled=self.use_amp)
 

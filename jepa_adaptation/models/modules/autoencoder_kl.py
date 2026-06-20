@@ -72,6 +72,25 @@ class AutoencoderKL(torch.nn.Module):
         posterior = DiagonalGaussianDistribution(moments)
         return posterior
 
+    def encode_penultimate(self, x):
+        """Single forward pass returning (feat, posterior, z).
+
+        feat : (B, ch*ch_mult[-1], H, W) — features avant conv_out de l'encodeur.
+        Utilisé comme cible JEPA à la place du bottleneck 1-canal.
+        """
+        feats = []
+
+        def _hook(m, inp):
+            feats.append(inp[0])
+
+        handle = self.encoder.conv_out.register_forward_pre_hook(_hook)
+        try:
+            posterior = self.encode(x)
+            z = posterior.mode()
+        finally:
+            handle.remove()
+        return feats[0], posterior, z
+
     def decode(self, z):
         z = self.post_quant_conv(z)
         dec = self.decoder(z)

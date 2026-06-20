@@ -1,8 +1,10 @@
 # Récapitulatif – Pipeline Biais Inductif & Qualité d'Image (ARCADE)
 
-> Ce dossier `theophile_metrics/` contient **6 notebooks** formant un pipeline complet :
+> Ce dossier `theophile_metrics/` contient **7 notebooks** formant un pipeline complet :
 > extraction de métriques de qualité No-Reference sur les images coronariennes ARCADE,
-> génération d'un biais inductif, modification de l'architecture MedVAE, et évaluation de robustesse.
+> génération d'un biais inductif (3 approches), modification de l'architecture MedVAE,
+> évaluation de robustesse, ablation, et comparaison avec un PSNR masqué par
+> l'anatomie vasculaire.
 
 ---
 
@@ -12,11 +14,11 @@ Un **hyperparamètre unique** `APPROACH` contrôle la méthode de calcul du scor
 
 | Approche | Colonne | Description |
 |----------|---------|-------------|
-| **A** | `score_weighted` | Combinaison linéaire de 6 métriques IQA avec poids manuels |
+| **A** | `score_weighted` | Combinaison linéaire de 6 métriques IQA normalisées Min-Max, pondérées par les **loadings absolus du PC1** (`\|loading\| / Σ\|loading\|`, fittés sur TRAIN) — poids objectifs, pas de choix manuel arbitraire |
 | **B** | `score_pca` | PCA (PC1 normalisé), signe corrigé par corrélation Tenengrad |
-| **C** | `score_hybrid` | Moyenne de A + B + PC1 ResNet-18 (nécessite features NB2) |
+| **C** | `score_dl` | **Score appris** : MLP (512→128→32→1) entraîné sur features ResNet-18 figées d'images TRAIN dégradées synthétiquement (bruit/flou/JPEG), cible = `1 - sévérité connue` |
 
-Les sorties de NB4 et NB5 sont organisées par approche (`approach_A/`, `approach_B/`, etc.) pour permettre la comparaison.
+Les sorties de NB4, NB5 et NB6 sont organisées par approche (`approach_A/`, `approach_B/`, `approach_C/`) pour permettre la comparaison. NB7 compare les 3 approches simultanément.
 
 ---
 
@@ -26,12 +28,21 @@ Les sorties de NB4 et NB5 sont organisées par approche (`approach_A/`, `approac
 pipeline_config.py → APPROACH = "A" | "B" | "C"
     ↓
 NB1 → Exploration & MSCN
-NB2 → Cartes de qualité par patch (8 métriques × G×G)
-NB3 → Score unique c ∈ [0,1] → labels_quality.csv  (selon APPROACH)
-NB4 → QualityAwareAutoencoderKL (FiLM) → approach_{X}/quality_aware_vae.pt
-NB5 → Évaluation de robustesse (baseline vs cVAE) → approach_{X}/résultats
+NB2 → Cartes de qualité par patch (8 métriques × G×G) [+ features ResNet-18 si approche C]
+NB3 → Score unique c ∈ [0,1] → labels_quality.csv (score_weighted + score_pca + score_dl)
+NB4 → QualityAwareAutoencoderKL (FiLM) → approach_{X}/checkpoints/quality_aware_vae.pt
+NB5 → Évaluation de robustesse (baseline vs cVAE) → approach_{X}/{figures,tables}
+NB6 → Ablation par c constant (à relancer pour A, B et C) → approach_{X}/{figures,tables,checkpoints}
+NB7 → Comparaison PSNR classique vs Masked PSNR (3 approches + ablation)
 quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + score composite)
 ```
+
+**Ordre de ré-exécution après changement de méthodologie (A et/ou C) :** pour repartir d'un
+état parfaitement cohérent, exécuter dans l'ordre `NB3(A)→NB4(A)→NB5(A)`,
+`NB3(C)→NB4(C)→NB5(C)`, puis `NB3(B)→NB4(B)→NB5(B)→NB6(B)`, et terminer par une dernière
+exécution de **NB3 avec `APPROACH="C"`** pour régénérer `labels_quality.csv` avec les
+3 colonnes de score simultanément (NB3 n'exporte `score_dl` que lorsque
+`APPROACH="C"`), avant de lancer NB7.
 
 ---
 
@@ -49,16 +60,16 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 6. **Normalisation MSCN** (Mean Subtracted Contrast Normalized) — `Î(i,j) = (I(i,j) - μ(i,j)) / (σ(i,j) + C)` — supprime les biais d'illumination non-uniforme et les biais globaux de contraste entre patients.
 7. **Validation de MSCN** — Comparaison visuelle avant/après, histogrammes de distribution, et vérification que les métriques différencient encore les images post-MSCN.
 
-### Sorties
+### Sorties (dans `outputs_theophile/01_Data_Exploration/figures/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs_theophile/01_Data_Exploration/01_panorama_sample.png` | Mosaïque de l'échantillon |
-| `outputs_theophile/01_Data_Exploration/01_good_vs_bad.png` | Comparaison image nette vs floue |
-| `outputs_theophile/01_Data_Exploration/01_metrics_distribution.png` | Histogrammes des 3 métriques |
-| `outputs_theophile/01_Data_Exploration/01_mscn_comparison.png` | Effet de la normalisation MSCN |
-| `outputs_theophile/01_Data_Exploration/01_histograms_mscn.png` | Distributions pixel avant/après MSCN |
-| `outputs_theophile/01_Data_Exploration/01_metrics_raw_vs_mscn.png` | Métriques brutes vs post-MSCN |
+| `01_panorama_sample.png` | Mosaïque de l'échantillon |
+| `01_good_vs_bad.png` | Comparaison image nette vs floue |
+| `01_metrics_distribution.png` | Histogrammes des 3 métriques |
+| `01_mscn_comparison.png` | Effet de la normalisation MSCN |
+| `01_histograms_mscn.png` | Distributions pixel avant/après MSCN |
+| `01_metrics_raw_vs_mscn.png` | Métriques brutes vs post-MSCN |
 
 ---
 
@@ -83,24 +94,24 @@ quality_metrics.ipynb → Pipeline autonome simplifié (11 métriques NR-IQA + s
 3. **Normalisation MSCN** — Appliquée avant le calcul des métriques.
 4. **Carte de qualité 2D** — Tableau `(4, 4, 8)` par image, contenant les 8 métriques pour chaque patch.
 5. **Analyse directionnelle** — Visualisation du Tenengrad H/V/D1/D2 pour détecter les flous de mouvement (le battement cardiaque dégrade surtout la direction verticale).
-6. **Extraction de features ResNet-18** — Vecteur 512D par image via un ResNet-18 pré-entraîné figé (couche `AdaptiveAvgPool2d`), utilisable comme biais inductif enrichi.
+6. **Extraction de features ResNet-18** — Vecteur 512D par image via un ResNet-18 pré-entraîné figé (couche `AdaptiveAvgPool2d`), utilisé comme entrée du score appris (Méthode C, NB3) — uniquement extrait si `APPROACH="C"`.
 7. **Traitement du dataset complet** — Parallélisé (4 threads). Les patchs « noirs » (bords de la radio, intensité moyenne < 2%) sont exclus. Agrégation des patchs valides en mean/std/max/min par métrique.
 8. **Analyse statistique** — Distributions des 8 métriques sur tout le dataset, matrice de corrélation pour identifier les redondances.
 9. **Export** — CSV + cartes de qualité `.npy`.
 
-### Sorties
+### Sorties (dans `outputs_theophile/02_IQA_Metrics_Extraction/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs_theophile/02_IQA_Metrics_Extraction/patch_metrics_full.csv` | 8 métriques × (mean/std/max/min) pour chaque image |
-| `outputs_theophile/02_IQA_Metrics_Extraction/quality_maps/*.npy` | Carte de qualité `(4, 4, 8)` par image |
-| `outputs_theophile/02_IQA_Metrics_Extraction/resnet18_features.npy` | Matrice (N, 512) de features ResNet-18 |
-| `outputs_theophile/02_IQA_Metrics_Extraction/resnet18_ids.csv` | Correspondance image_id ↔ indice dans la matrice |
-| `outputs_theophile/02_IQA_Metrics_Extraction/02_qmap_demo.png` | Heatmaps de qualité par métrique (démo) |
-| `outputs_theophile/02_IQA_Metrics_Extraction/02_directional_tenengrad.png` | Analyse directionnelle H/V/D1/D2 |
-| `outputs_theophile/02_IQA_Metrics_Extraction/02_full_dataset_distributions.png` | Histogrammes des métriques (dataset complet) |
-| `outputs_theophile/02_IQA_Metrics_Extraction/02_correlation_matrix.png` | Matrice de corrélation entre métriques |
-| `outputs_theophile/02_IQA_Metrics_Extraction/02_extreme_images.png` | Images extrêmes (worst vs best Tenengrad) |
+| `metrics/patch_metrics_full.csv` | 8 métriques × (mean/std/max/min) pour chaque image |
+| `quality_maps/*.npy` | Carte de qualité `(4, 4, 8)` par image |
+| `resnet_features/resnet18_features.npy` | Matrice (N, 512) de features ResNet-18 |
+| `resnet_features/resnet18_ids.csv` | Correspondance image_id ↔ indice dans la matrice |
+| `figures/02_qmap_demo.png` | Heatmaps de qualité par métrique (démo) |
+| `figures/02_directional_tenengrad.png` | Analyse directionnelle H/V/D1/D2 |
+| `figures/02_full_dataset_distributions.png` | Histogrammes des métriques (dataset complet) |
+| `figures/02_correlation_matrix.png` | Matrice de corrélation entre métriques |
+| `figures/02_extreme_images.png` | Images extrêmes (worst vs best Tenengrad) |
 
 ---
 
@@ -119,22 +130,31 @@ Deux indicateurs spatiaux dérivés des données du Notebook 2 :
 
 ### Séparation train/val (anti-leakage)
 
-Une colonne `split` est ajoutée au chargement des métriques, déduite du chemin de l'image (`seg_train` → `"train"`, `seg_val` → `"val"`). **Toutes les opérations statistiques (clipping, normalisation, PCA, seuils) sont fitted uniquement sur les images TRAIN**, puis appliquées (transform) sur l'ensemble du dataset.
+Une colonne `split` est ajoutée au chargement des métriques, déduite du chemin de l'image (`seg_train` → `"train"`, `seg_val` → `"val"`). **Toutes les opérations statistiques (clipping, normalisation, PCA, entraînement du MLP, seuils) sont fitted uniquement sur les images TRAIN**, puis appliquées (transform) sur l'ensemble du dataset.
 
-### Deux méthodes de scoring comparées
+### Trois méthodes de scoring comparées
 
 | Méthode | Principe | Avantage |
 |---|---|---|
-| **A — Score pondéré** | Combinaison linéaire de 6 features normalisées (min-max **fitted sur TRAIN**) avec poids manuels (tenengrad=0.30, laplacian=0.25, rms_contrast=0.15, entropy_inv=0.15, spatial_homogeneity=0.10, directional_balance=0.05) | Interprétable physiquement |
-| **B — PCA (PC1)** | Premier composant principal normalisé à [0, 1] (**PCA fitted sur TRAIN**), signe corrigé par corrélation avec Tenengrad (sur TRAIN) | Objectif, data-driven, pas de choix arbitraire de poids |
-| **C — Hybride** | Moyenne de A + B + PC1-ResNet-18 (**PCA ResNet fitted sur TRAIN**) | Plus riche si features ResNet disponibles |
+| **B — PCA (PC1)** *(calculée en premier)* | Premier composant principal normalisé à [0, 1] (**PCA fitted sur TRAIN**), signe corrigé par corrélation avec Tenengrad (sur TRAIN) | Objectif, data-driven, pas de choix arbitraire de poids |
+| **A — Score pondéré** | Combinaison linéaire de 6 features normalisées Min-Max (**fitted sur TRAIN**), avec poids = **loadings absolus du PC1 de la Méthode B**, normalisés à somme 1 | Interprétable physiquement, poids objectifs (plus de valeurs manuelles) |
+| **C — Score appris** | MLP (512→128→32→1, sortie sigmoïde) entraîné par MSE sur les features ResNet-18 figées d'images **TRAIN dégradées synthétiquement** (bruit gaussien, flou de mouvement, JPEG), cible = `1 - sévérité connue`. Appliqué ensuite aux features ResNet-18 réelles (NB2), puis renormalisé Min-Max (bornes TRAIN) | Exploite une représentation apprise (non-linéaire), pas seulement une combinaison linéaire de métriques classiques |
+
+> **Honnêteté scientifique (Méthode C) :** ARCADE ne fournit aucune annotation de qualité
+> réelle. La cible d'entraînement du MLP est un **proxy synthétique** (sévérité de
+> dégradation connue), pas une vérité terrain humaine. Le split train/val interne au MLP
+> est fait par image (jamais par échantillon), toujours à l'intérieur des images TRAIN.
 
 ### Sélection du score final
 
 Le score final (`quality_score`) est déterminé par l'hyperparamètre `APPROACH` dans `pipeline_config.py` :
 - `APPROACH = "A"` → `score_weighted`
 - `APPROACH = "B"` → `score_pca`
-- `APPROACH = "C"` → `score_hybrid`
+- `APPROACH = "C"` → `score_dl`
+
+`score_weighted` et `score_pca` sont **toujours** calculés et exportés, quelle que soit
+l'approche active. `score_dl` n'est calculé (et exporté) que lorsque `APPROACH="C"` (les
+features ResNet-18 du NB2 doivent être disponibles).
 
 ### Labels catégoriels
 
@@ -151,20 +171,26 @@ Le score continu est discrétisé en 3 classes par tertiles **calculés sur TRAI
 - Galerie triée par score (vérification visuelle de la cohérence)
 - Corrélation du score final avec chaque métrique brute
 - Galerie de 3 exemples par classe (bad / medium / good)
-- Comparaison poids manuels vs loadings PCA (cohérence vérifiée)
+- Méthode C : courbe d'entraînement du MLP, scatter prédiction vs sévérité synthétique connue, comparaison `score_dl` vs `score_weighted`/`score_pca`
 
-### Sorties
+### Sorties (dans `outputs_theophile/03_Inductive_Bias_Generation/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs_theophile/03_Inductive_Bias_Generation/labels_quality.csv` | image_id, path, **split**, quality_score, quality_label, score_weighted, score_pca [, score_resnet, score_hybrid] |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_engineered_features.png` | Distribution des features spatial_homogeneity et directional_balance |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_score_weighted.png` | Distribution du score pondéré + contribution de chaque feature |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_pca_biplot.png` | Loadings PC1 + biplot PC1 vs PC2 |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_score_comparison.png` | Corrélation et différence entre Méthode A et Méthode B |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_label_distribution.png` | Distribution du score final avec seuils + camembert des labels |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_gallery_sorted_by_score.png` | Galerie triée par quality_score |
-| `outputs_theophile/03_Inductive_Bias_Generation/03_examples_per_class.png` | 3 exemples par classe (bad / medium / good) |
+| `labels_quality.csv` | Fichier **partagé**, écrasé à chaque run de NB3 : image_id, path, **split**, quality_score, quality_label, score_weighted, score_pca [, score_dl]. `quality_score`/`quality_label` reflètent la **dernière** approche exécutée (les colonnes `score_*` sont elles préservées entre runs). |
+| `common/03_engineered_features.png` | Distribution des features spatial_homogeneity et directional_balance (indépendant de l'approche) |
+| `common/03_score_comparison.png` | Corrélation et différence entre Méthode A et Méthode B (indépendant de l'approche : compare toujours score_weighted vs score_pca) |
+| `approach_{A,B,C}/labels_quality.csv` | **Copie figée** par approche : mêmes colonnes que ci-dessus, mais `quality_score`/`quality_label` correspondent bien à CETTE approche, même après que d'autres aient tourné ensuite. |
+| `approach_{A,B,C}/03_label_distribution.png` | Distribution du score final (de cette approche) avec seuils + camembert des labels |
+| `approach_{A,B,C}/03_gallery_sorted_by_score.png` | Galerie triée par quality_score (de cette approche) |
+| `approach_{A,B,C}/03_examples_per_class.png` | 3 exemples par classe (bad / medium / good), labels de cette approche |
+| `approach_A_weighted_pca/03_score_weighted.png` | Distribution du score pondéré + poids PCA par feature |
+| `approach_B_pca1/03_pca_biplot.png` | Loadings PC1 + biplot PC1 vs PC2 |
+| `approach_C_learned/quality_mlp_resnet.pt` | MLP entraîné (poids + scaler + métadonnées) |
+| `approach_C_learned/03_dl_training_curve.png` | Courbe d'entraînement + validation prédite vs sévérité connue |
+| `approach_C_learned/03_dl_score_comparison.png` | `score_dl` vs `score_weighted`/`score_pca` |
+
+> ⚠️ `03_label_distribution.png`, `03_gallery_sorted_by_score.png` et `03_examples_per_class.png` dépendent de `quality_score`/`quality_label`, donc de l'approche active — ils ont été déplacés de `common/` vers `approach_{A,B,C}/` (corrigé le 2026-06-17) pour ne plus être écrasés entre deux runs d'approches différentes.
 
 ---
 
@@ -204,12 +230,13 @@ h ← (1 + γᵢ) · h + βᵢ
 
 | Fichier | Contenu |
 |---------|---------|
-| `approach_{X}/quality_aware_vae.pt` | Checkpoint du cVAE (modèle + config + historique) |
-| `approach_{X}/04_architecture_cvae.png` | Schéma de l'architecture FiLM |
-| `approach_{X}/04_conditioning_before_training.png` | Reconstructions à c variés (zero-init) |
-| `approach_{X}/04_warmup_curves.png` | Courbes de loss Phase 1 (train + val) |
-| `approach_{X}/04_conditioning_after_training.png` | Effet du conditionnement post-warm-up |
-| `approach_{X}/04_finetune_curves.png` | Courbes de loss Phase 2 (train + val) |
+| `checkpoints/quality_aware_vae.pt` | Checkpoint du cVAE + baseline ablation (modèle + config + historique) |
+| `figures/04_architecture_cvae.png` | Schéma de l'architecture FiLM |
+| `figures/04_conditioning_before_training.png` | Reconstructions à c variés (zero-init) |
+| `figures/04_warmup_curves.png` | Courbes de loss Phase 1 (train + val) |
+| `figures/04_conditioning_after_training.png` | Effet du conditionnement post-warm-up |
+| `figures/04_finetune_curves.png` | Courbes de loss Phase 2 (train + val) |
+| `figures/04_baseline_curves.png` | Courbes de loss de l'ablation baseline (sans FiLM) |
 
 ---
 
@@ -233,7 +260,7 @@ h ← (1 + γᵢ) · h + βᵢ
 | PSNR | Peak Signal-to-Noise Ratio | ↑ meilleur |
 | HaarPSI | Haar Perceptual Similarity Index (Reisenhofer et al., 2018) | ↑ meilleur |
 
-> **Note :** HaarPSI est privilégié car plus fiable que SSIM/PSNR sur les images médicales (Breger et al., 2024).
+> **Note :** HaarPSI est privilégié car plus fiable que SSIM/PSNR sur les images médicales (Breger et al., 2024). Le Notebook 7 complète cette analyse avec un **PSNR masqué par le masque vasculaire** (voir plus bas).
 
 ### Grille de dégradations synthétiques (7 types)
 
@@ -252,26 +279,87 @@ Propre, Bruit gaussien (σ=0.05, 0.10, 0.20), Flou de mouvement horizontal (k=5)
 ### Lecture des résultats
 
 - Le cVAE est entraîné avec un warm-up FiLM (2 500 steps) + fine-tuning global (5 000 steps) = **7 500 steps** au total, avec validation et early stopping.
-- Résultat attendu : MSE cVAE < MSE baseline sur les images `bad`, performances comparables sur les `good`.
-- **Note :** avec un nombre réduit de steps (ex : 50 steps de démonstration dans NB4), les deux modèles sont quasi-identiques — c'est attendu et normal.
+- Ce notebook est exécuté indépendamment pour chacune des 3 approches (`approach_A/`, `approach_B/`, `approach_C/`).
 
 ### Sorties (dans `outputs_theophile/05_Evaluation_of_Robustness/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
-| `approach_{X}/05_evaluation_results.csv` | Métriques par image (baseline + cVAE) sur images réelles |
-| `approach_{X}/05_synthetic_results.csv` | Métriques par image × dégradation sur images synthétiques |
-| `approach_{X}/05_degradation_grid.png` | Grille des 7 types de dégradations |
-| `approach_{X}/05_boxplots.png` | Box plots MSE/SSIM/HaarPSI par classe de qualité |
-| `approach_{X}/05_synthetic_metrics.png` | Bar charts baseline vs cVAE par dégradation |
-| `approach_{X}/05_gallery_bad.png` | Galerie qualitative sur images bad |
-| `approach_{X}/05_gallery_synthetic.png` | Galerie sur images synthétiquement dégradées |
+| `tables/05_evaluation_results.csv` | Métriques par image (baseline + cVAE) sur images réelles |
+| `tables/05_synthetic_results.csv` | Métriques par image × dégradation sur images synthétiques |
+| `figures/05_degradation_grid.png` | Grille des 7 types de dégradations |
+| `figures/05_boxplots.png` | Box plots MSE/SSIM/HaarPSI par classe de qualité |
+| `figures/05_synthetic_metrics.png` | Bar charts baseline vs cVAE par dégradation |
+| `figures/05_gallery_bad.png` | Galerie qualitative sur images bad |
+| `figures/05_gallery_synthetic.png` | Galerie sur images synthétiquement dégradées |
+
+---
+
+## Notebook 6 — Ablation par c Constant (`06_Ablation_c_Constant.ipynb`)
+
+**Objectif :** Vérifier que le signal `c` contient une information utile pour le cVAE, en
+comparant le `cvae_{APPROACH}` (entraîné avec le vrai score de l'approche active) à un
+second cVAE entraîné avec `c=0.5` constant pour toutes les images — même architecture,
+mêmes données, même budget compute. Si le cVAE(c réel) est significativement meilleur, le
+signal `c` est exploité ; sinon, le conditionnement FiLM n'apporte rien au-delà d'une
+simple capacité supplémentaire du modèle. **Généralisé aux 3 approches** : le notebook lit
+`APPROACH` depuis `pipeline_config.py` comme NB4/NB5, donc à relancer une fois par approche
+(A, B, C) pour avoir l'ablation complète des 3 — ce n'est plus limité à B.
+
+### Sorties (dans `outputs_theophile/06_Ablation_c_Constant/approach_{APPROACH}/`)
+
+| Fichier | Contenu |
+|---------|---------|
+| `checkpoints/quality_aware_vae_c_constant.pt` | Checkpoint du cVAE entraîné avec c=0.5 constant |
+| `tables/06_ablation_results.csv` | Métriques par image, c réel vs c constant |
+| `tables/06_synthetic_results.csv` | Métriques sur dégradations synthétiques |
+| `figures/06_training_curves.png` | Courbes d'entraînement du cVAE(c=0.5) |
+| `figures/06_boxplots.png` | Distribution des métriques, c réel vs c constant |
+| `figures/06_delta_per_image.png` | Δmétrique par image en fonction du score qualité |
+| `figures/06_gallery.png` | Galerie qualitative bad/good |
+| `figures/06_synthetic_barplot.png` | Comparaison sur dégradations synthétiques |
+
+---
+
+## Notebook 7 — Comparaison Masked PSNR (`07_Masked_PSNR_Comparison.ipynb`)
+
+**Objectif :** Reprendre les évaluations des Notebooks 5/6 (baseline vs cVAE, 3 approches +
+ablation) en complétant le **PSNR classique** par un **Masked PSNR**
+(`medvae_eval/scripts/masked_psnr.py`) qui ne calcule le MSE que sur les pixels du masque
+vasculaire annoté (polygones COCO ARCADE), au lieu de l'image entière.
+
+### Point méthodologique important
+
+Chaque modèle est conditionné avec **le score natif de son approche** (`score_weighted`
+pour les modèles `_A`, `score_pca` pour `_B`, `score_dl` pour `_C`), lues directement
+depuis `labels_quality.csv` (qui contient les 3 colonnes simultanément). Les classes
+bad/medium/good sont **recalculées indépendamment pour chaque approche** (tertiles sur
+TRAIN), au lieu de réutiliser la colonne `quality_label` générique du CSV — qui ne reflète
+que la dernière approche avec laquelle NB3 a été exécuté. Ceci évite toute contamination
+croisée entre approches lors de l'évaluation.
+
+### Sorties (dans `outputs_theophile/07_Masked_PSNR_Comparison/`)
+
+| Fichier | Contenu |
+|---------|---------|
+| `tables/07_full_results.csv` | Résultats complets (3 approches + ablation) |
+| `tables/07_psnr_comparison_table.csv` | PSNR classique vs masked, par classe et modèle |
+| `tables/07_verdict_flip_table.csv` | Le gagnant change-t-il selon la métrique ? |
+| `tables/07_synthetic_results.csv` | Résultats sur dégradations synthétiques |
+| `figures/07_mask_explanation.png` | Visualisation du masque vasculaire (signal vs bruit) |
+| `figures/07_psnr_vs_masked_bars.png` | Comparaison barres classique/masked par approche |
+| `figures/07_psnr_correlation_scatter.png` | Corrélation par image entre les deux métriques |
+| `figures/07_boxplots_*.png` | Distributions par comparaison |
+| `figures/07_gallery_bad_approach_{A,B,C}.png` | Galeries qualitatives par approche, overlay masque |
+| `figures/07_gallery_good_ablation.png` | Galerie ablation c réel vs c constant |
+| `figures/07_gallery_synthetic_masked.png` | Galerie sur dégradations synthétiques |
+| `figures/07_synthetic_psnr_vs_masked.png` | PSNR classique vs masked selon sévérité de dégradation |
 
 ---
 
 ## quality_metrics.ipynb — Pipeline autonome simplifié
 
-**Objectif :** Pipeline autonome et léger d'évaluation de qualité NR-IQA, indépendant de la chaîne NB1→NB5. Produit directement un score composite par image.
+**Objectif :** Pipeline autonome et léger d'évaluation de qualité NR-IQA, indépendant de la chaîne NB1→NB7. Produit directement un score composite par image.
 
 ### Métriques calculées (11 métriques No-Reference)
 
@@ -321,11 +409,11 @@ Moyenne non pondérée de 7 métriques normalisées (min-max) :
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs_theophile/quality_metrics/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
-| `outputs_theophile/quality_metrics/quality_distributions.png` | Histogrammes des 11 métriques |
-| `outputs_theophile/quality_metrics/quality_correlation.png` | Matrice de corrélation |
-| `outputs_theophile/quality_metrics/quality_comparison.png` | 5 low quality vs 5 high quality |
-| `outputs_theophile/quality_metrics/quality_composite.png` | Distribution du score composite |
+| `outputs_theophile/quality_metrics_standalone/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
+| `outputs_theophile/quality_metrics_standalone/quality_distributions.png` | Histogrammes des 11 métriques |
+| `outputs_theophile/quality_metrics_standalone/quality_correlation.png` | Matrice de corrélation |
+| `outputs_theophile/quality_metrics_standalone/quality_comparison.png` | 5 low quality vs 5 high quality |
+| `outputs_theophile/quality_metrics_standalone/quality_composite.png` | Distribution du score composite |
 
 ---
 
@@ -354,6 +442,15 @@ from medvae_standalone import AutoencoderKL, DiagonalGaussianDistribution
 base_ae = AutoencoderKL(ddconfig=DDCONFIG, embed_dim=EMBED_DIM, ckpt_path=PHASE1_CKPT)
 ```
 
-Ce fichier est importé par **NB4** et **NB5** pour charger les poids pré-entraînés Stanford (`vae_4x_4c_2D.ckpt`) et construire le cVAE quality-aware.
+Ce fichier est importé par **NB4**, **NB5**, **NB6** et **NB7** pour charger les poids
+pré-entraînés Stanford (`vae_4x_4c_2D.ckpt`) et construire le cVAE quality-aware.
+
+---
+
+## Fichier utilitaire — `medvae_eval/scripts/masked_psnr.py`
+
+**Objectif :** Définit `MaskedPSNR`, un module PyTorch qui calcule le PSNR uniquement sur
+les pixels appartenant au masque vasculaire (polygones de segmentation COCO ARCADE),
+au lieu de l'image entière. Utilisé par **NB7**.
 
 ---
