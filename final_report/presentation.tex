@@ -226,7 +226,7 @@ JPEG (global) & $(+0.030)$ & $(-0.439)$ \\
 % Main result
 \begin{frame}{Result: conditioning hurts reconstruction}
   \begin{center}
-    \includegraphics[height=0.62\textheight]{theophile/result_boxplots_eval.png}
+    \includegraphics[height=0.5\textheight]{theophile/result_boxplots_eval.png}
   \end{center}
   \footnotesize
   \begin{itemize}
@@ -420,27 +420,6 @@ Latent space: everything is predicted as background.
 \end{frame}
 
 % ############################################################################
-% PERSPECTIVES (from final.tex, Sec. Perspectives)
-% ############################################################################
-\begin{frame}{Perspectives}
-  \begin{block}{Toward a \emph{foundation model} for radiation-based medical imaging}
-  Unify the explored axes into a single training objective.
-  \end{block}
-  \begin{itemize}
-    \item \textbf{Hybrid JEPA + reconstruction objective}: predict the masked
-      latent patches while keeping the encoder anchored to a decodable space.
-    \item \textbf{Physically grounded degradations}: quantum noise,
-      contrast/brightness, multiplicative fields, anisotropic motion blur
-      (cardiac/respiratory).
-    \item \textbf{Conditioning (CVAE)} on DICOM metadata
-      (modality, dose, SNR, quality) $\rightarrow$ disentangled
-      content / acquisition-quality representations.
-    \item \textbf{Downstream validation}: classification, detection,
-      multi-modality segmentation (ARCADE as a demanding test bed).
-  \end{itemize}
-\end{frame}
-
-% ############################################################################
 % GENERAL CONCLUSION (from final.tex, Sec. Conclusion)
 % ############################################################################
 \begin{frame}{General conclusion}
@@ -466,5 +445,28 @@ Latent space: everything is predicted as background.
   is not yet \emph{semantically organized} nor \emph{acquisition-aware}
   enough to be segmented or conditioned directly.
 \end{frame}
+
+% ############################################################################
+% PERSPECTIVES (from final.tex, Sec. Perspectives)
+% ############################################################################
+\begin{frame}{Perspectives}
+  \begin{block}{Toward a \emph{foundation model} for radiation-based medical imaging}
+  Unify the explored axes into a single training objective.
+  \end{block}
+  \begin{itemize}
+    \item \textbf{Hybrid JEPA + reconstruction objective}: predict the masked
+      latent patches while keeping the encoder anchored to a decodable space.
+    \item \textbf{Physically grounded degradations}: quantum noise,
+      contrast/brightness, multiplicative fields, anisotropic motion blur
+      (cardiac/respiratory).
+    \item \textbf{Conditioning (CVAE)} on DICOM metadata
+      (modality, dose, SNR, quality) $\rightarrow$ disentangled
+      content / acquisition-quality representations.
+    \item \textbf{Downstream validation}: classification, detection,
+      multi-modality segmentation (ARCADE as a demanding test bed).
+  \end{itemize}
+\end{frame}
+
+
 
 \end{document}
