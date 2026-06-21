@@ -1,0 +1,428 @@
+% ============================================================================
+% Présentation orale fusionnée — Projet IM06 / MedVAE
+% Ordre des parties : 1) Elias  2) Théophile  3) Yanic  4) Théo
+% Toutes les figures sont dans figures/<prenom>/...
+% ============================================================================
+\documentclass[aspectratio=169]{beamer}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french,provide=*]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{pifont}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{colortbl}
+
+\newcommand{\cmark}{\textcolor{green!50!black}{\ding{51}}}
+\newcommand{\xmark}{\textcolor{red!70!black}{\ding{55}}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% Recherche des figures dans tous les sous-dossiers
+\graphicspath{%
+  {figures/}%
+  {figures/elias/}{figures/theophile/}{figures/yanic/}{figures/theo/}%
+}
+
+% ---------- Theme ----------
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\definecolor{TPBordeaux}{RGB}{140,30,45}
+\setbeamercolor{structure}{fg=TPBordeaux}
+
+% Page de section automatique
+\AtBeginSection[]{%
+  \begin{frame}[plain,c]
+    \begin{center}
+      \usebeamercolor[fg]{structure}%
+      {\Large\bfseries\insertsection}
+    \end{center}
+  \end{frame}%
+}
+
+% ---------- Title info ----------
+\title[MedVAE — Segmentation coronaire]{MedVAE : adaptation, fine-tuning et analyse pour l'imagerie médicale et la segmentation coronaire}
+\author{Yanic Rothlingshofer  \and Théo Palagi \and Elias Corlou \and Théophile Nadiedjoa}
+\institute[]{\large \it Télécom Paris}
+\date{\underline{Encadrant :} Elsa Angelini}
+
+% ---------- Logo (affiché si logo_TP.png est présent à côté du .tex) ----------
+\titlegraphic{%
+  \vspace{0cm}
+  \includegraphics[width=0.3\linewidth]{logoTP.png}%
+  }%
+
+
+\begin{document}
+
+\maketitle
+
+% ############################################################################
+% INTRODUCTION (d'après final.tex, Sec. Introduction)
+% ############################################################################
+\begin{frame}{Introduction}
+  \begin{columns}[T]
+  \begin{column}{0.58\textwidth}
+  \textbf{Contexte.} L'apprentissage profond en imagerie médicale est limité
+  par la haute résolution nécessaire au détail diagnostique. Les VAE
+  compressent l'image en un latent compact.
+  \begin{itemize}
+    \item \textbf{MedVAE} : compresseur médical générique ($>1$M images),
+      $\times 16$ ($512^2 \to 128^2 \times 1$), entraîné en deux étapes
+      (reconstruction puis enrichissement sémantique).
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Domaine.} Angiographie coronaire (ARCADE, $1\,200$ images) :
+  structures fines, tubulaires, peu contrastées, bruit et artefacts.
+  \end{column}
+  \begin{column}{0.42\textwidth}
+  \begin{block}{Question centrale}
+  Un compresseur médical générique reste-t-il \alert{fiable et utile} face à
+  un domaine clinique spécifique et exigeant ?
+  \end{block}
+  \vspace{0.2em}
+  \footnotesize \textbf{Quatre axes complémentaires :}
+  \begin{enumerate}
+    \item Robustesse aux dégradations 
+    \item Biais inductif de qualité via FiLM 
+    \item Structuration sémantique du latent (JEPA)
+    \item Représentation latente pour la segmentation 
+  \end{enumerate}
+  \end{column}
+  \end{columns}
+\end{frame}
+
+% ############################################################################
+% PARTIE 1 — ELIAS
+% (.tex manquant pour l'instant — placeholder à compléter)
+% Figures disponibles dans figures/elias/ :
+%   degradation_visual.png, pipeline.pdf, mpsnr.pdf,
+%   179_clean.png, 179_clean_ov.png, 179_deg_ov.png, 179_poisson.png,
+%   metrics_by_level_all_masked.pdf,
+%   metrics_by_level_masked_blur_NEW.png,
+%   metrics_by_level_masked_jpeg_NEW.png,
+%   metrics_by_level_masked_poisson_NEW.png
+% ############################################################################
+\section{Robustesse de MedVAE aux dégradations}
+
+\begin{frame}{Partie d'Elias — à insérer}
+  \begin{center}
+    \Large À compléter avec le contenu d'Elias.
+  \end{center}
+  \vfill
+  {\footnotesize Figures déjà disponibles dans \texttt{figures/elias/} :
+  \texttt{degradation\_visual.png}, \texttt{pipeline.pdf}, \texttt{mpsnr.pdf},
+  \texttt{metrics\_by\_level\_*}.}
+\end{frame}
+
+% --- Scaffold prêt à l'emploi pour Elias (décommenter et remplir) -----------
+% \begin{frame}{Dégradations simulées}
+%   \centering
+%   \includegraphics[width=\linewidth]{degradation_visual.png}
+% \end{frame}
+%
+% \begin{frame}{Pipeline d'évaluation}
+%   \centering
+%   \includegraphics[width=0.9\linewidth]{pipeline.pdf}
+% \end{frame}
+%
+% \begin{frame}{Métriques par niveau de dégradation}
+%   \centering
+%   \includegraphics[width=0.49\linewidth]{metrics_by_level_masked_blur_NEW.png}
+%   \includegraphics[width=0.49\linewidth]{metrics_by_level_masked_poisson_NEW.png}
+% \end{frame}
+
+% ############################################################################
+% PARTIE 2 — THÉOPHILE
+% Image-quality inductive bias for MedVAE (conditioning via FiLM)
+% Figures dans figures/theophile/
+% ############################################################################
+\section{Biais inductif de qualité d'image (FiLM)}
+
+% Motivation
+\begin{frame}{Motivation}
+  \begin{itemize}
+    \item MedVAE applies the \textbf{same transform} to a clean or a heavily
+      degraded coronary angiography: no notion of \emph{how degraded} the
+      input is.
+    \item \textbf{Hypothesis:} conditioning MedVAE on a quality score
+      $c \in [0,1]$, injected via FiLM, should let it adapt to the
+      degradation level actually present.
+    \item Three independent ways to compute $c$ (A: weighted, B: PCA,
+      C: learned) $\rightarrow$ run the \emph{same} pipeline three times.
+  \end{itemize}
+\end{frame}
+
+% Quality score construction
+\begin{frame}{Building the quality score $c$}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{theophile/pipeline_B_score.pdf}
+  \end{center}
+\end{frame}
+
+% Sanity check on the score
+\begin{frame}{Does the score make clinical sense?}
+  \begin{center}
+    \includegraphics[width=\textwidth]{theophile/result_gallery_score.png}
+  \end{center}
+  \begin{center}
+    \footnotesize ARCADE images sorted by increasing score $c$ (approach A).
+  \end{center}
+\end{frame}
+
+% FiLM conditioning + training
+\begin{frame}{FiLM conditioning \& training}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{theophile/pipeline_C_film.pdf}
+  \end{center}
+\end{frame}
+
+% Main result
+\begin{frame}{Result: conditioning hurts reconstruction}
+  \begin{center}
+    \includegraphics[height=0.62\textheight]{theophile/result_boxplots_eval.png}
+  \end{center}
+  \footnotesize
+  \begin{itemize}
+    \item Baseline $>$ cVAE on \textbf{all 3 approaches} $\times$
+      \textbf{all 4 metrics} (MSE, SSIM, PSNR, HaarPSI), even masked
+  \end{itemize}
+\end{frame}
+
+% Ablation
+\begin{frame}{Ablation: does the network actually use $c$?}
+  \begin{center}
+    \includegraphics[width=0.85\textwidth]{theophile/result_delta_ablation.png}
+  \end{center}
+  \begin{center}
+    \footnotesize Real $c$ vs.\ constant $c{=}0.5$ (approach C): gap grows
+    with image quality: the network's response genuinely depends on $c$.
+  \end{center}
+\end{frame}
+
+% ############################################################################
+% PARTIE 3 — YANIC
+% Structuration sémantique de l'espace latent (JEPA vs BioMedCLIP)
+% Figures dans figures/yanic/
+% ############################################################################
+\section{Structuration sémantique de l'espace latent (JEPA)}
+
+\begin{frame}{Stage 2 original — distillation BioMedCLIP}
+  \centering
+  \includegraphics[width=1.0\linewidth]{yanic/stage_2_medvae_ori.png}
+\end{frame}
+
+\begin{frame}{Stage 2 modifié — adaptation JEPA}
+  \centering
+  \includegraphics[width=0.72\linewidth]{yanic/stage_2_pipeline.pdf}
+
+  \vfill
+  {\small
+  \[\boxed{
+    \mathcal{L}_{\text{stage2}}
+    = \mathcal{L}_{\text{pred}}
+    + \lambda_{\text{SIGReg}}\,\mathcal{L}_{\text{SIGReg}}
+  }\]
+  \[
+    \mathcal{L}_{\text{pred}}
+    = \frac{1}{|\mathcal{M}|} \sum_{p \in \mathcal{M}}
+      \mathrm{SmoothL_1}\!\left(\hat{z}_t^{(p)},\, \tilde{z}_t^{(p)}\right),
+    \qquad
+    \mathcal{L}_{\text{SIGReg}}
+    = \mathbb{E}_{\mathbf{v}}\!\left[ T_{\text{EP}}\!\left(\bigl\{ z_c^\top \mathbf{v} \bigr\}\right) \right]
+  \]}
+\end{frame}
+
+\begin{frame}{Résultats — reconstruction}
+  \centering
+  \includegraphics[width=\linewidth]{yanic/recon.png}
+
+  \vfill
+  {\footnotesize
+  \begin{itemize}
+    \item Décodeur \alert{gelé} : tout déplacement de l'encodeur dégrade le PSNR (16.85 dB pour le stage 2).
+    \item Le stage 2 JEPA \alert{floute} : prédire un patch masqué revient à \emph{moyenner} les zones plausibles $\Rightarrow$ perte des hautes fréquences (vaisseaux fins).
+    \item Cohérent avec l'objectif latent : on optimise la sémantique, pas la fidélité pixel.
+  \end{itemize}}
+\end{frame}
+
+\begin{frame}{Résultats — PCA RGB des features intermédiaires}
+  \centering
+  \includegraphics[height=0.82\textheight]{yanic/pca.png}
+\end{frame}
+
+% ############################################################################
+% PARTIE 4 — THÉO
+% Intégration de MedVAE pour la segmentation multi-classes
+% Figures dans figures/theo/
+% ############################################################################
+\section{Intégration pour la segmentation multi-classes}
+
+\begin{frame}{Contexte et problématique}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\textbf{Tâche.} Segmentation fine des artères coronaires sur ARCADE :
+\begin{itemize}
+  \item 26 classes (le fond et 25 segments)
+  \item structures minces, tubulaires, peu contrastées
+  \item déséquilibre extrême ($\approx 95\,\%$ de fond)
+\end{itemize}
+\vspace{0.6em}
+\textbf{Outil.} MedVAE, auto-encodeur variationnel médical pré-entraîné : compression $\times 16$ ($512^2 \to 128^2 \times 1$), mais \alert{avec perte}.
+\end{column}
+\begin{column}{0.44\textwidth}
+\begin{block}{Deux questions}
+\begin{enumerate}
+  \item La compression préserve-t-elle assez d'information anatomique pour la segmentation ?
+  \item Où l'intégrer : espace \textbf{latent} ou espace \textbf{pixel} ?
+\end{enumerate}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Méthode : cinq conditions}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\small
+\begin{itemize}
+  \item \textbf{A} — U-Net pleine résolution (référence)
+  \item \textbf{A*} — U-Net de A sur images reconstruites, \alert{sans réentraînement} (contrôle)
+  \item \textbf{B} — tête légère sur le latent gelé
+  \item \textbf{C} — comme B, encodeur fine-tuné sur ARCADE
+  \item \textbf{D} — U-Net réentraîné sur images reconstruites
+\end{itemize}
+\vspace{0.6em}
+\footnotesize Espace \textbf{latent} : B, C \quad ; \quad espace \textbf{pixel} : A*, D.
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{theo/cond_B.pdf}\\[0.5em]
+\includegraphics[width=\linewidth]{theo/cond_D.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Résultat 1 : la segmentation depuis le latent échoue}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{itemize}
+  \item B et C : Dice $\approx 0{,}04$ (contre 0,433 pour A)
+  \item seul le fond est prédit, IoU $\to 0$
+\end{itemize}
+\textbf{Pourquoi ?}
+\begin{itemize}
+  \item déséquilibre $95\,\%$ de fond $\Rightarrow$ minimum trivial très attracteur
+  \item latent à 1 canal, \alert{aucune caractéristique multi-échelles} (ni connexions de saut)
+\end{itemize}
+Le fine-tuning du compresseur (C) n'y change rien.
+\end{column}
+\begin{column}{0.52\textwidth}
+\centering
+\includegraphics[width=\linewidth]{theo/comparaison_conditions.png}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Résultat 2 : l'espace pixel préserve, l'adaptation aide}
+\begin{columns}[T]
+\begin{column}{0.42\textwidth}
+\centering
+\small
+\begin{tabular}{lcc}
+\toprule
+Cond. & Dice & IoU \\
+\midrule
+A   & 0,433 & 0,499 \\
+A*  & 0,434 & 0,497 \\
+B   & 0,038 & 0,005 \\
+C   & 0,039 & 0,000 \\
+D   & \textbf{0,451} & 0,495 \\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.58\textwidth}
+\small
+\begin{itemize}
+  \item \textbf{Compression neutre} : A* $\approx$ A (0,434 vs 0,433)
+  \item \alert{Résultat central : $D - A^{*} = +0{,}017$} \\ gain propre de l'adaptation (même entrée, seul le réentraînement diffère)
+  \item gain concentré sur les segments rares et fins (C11, C18, C19)
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{-0.2em}
+\centering
+\includegraphics[width=0.86\textwidth]{theo/dice_per_class.png}
+\end{frame}
+
+\begin{frame}{Prédictions qualitatives}
+\vspace{0.3em}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering
+Espace pixel : structures bien segmentées.
+\includegraphics[width=\linewidth]{theo/predAstar.png}\\[0.4em]
+\includegraphics[width=\linewidth]{theo/conDmieux.png}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+Espace latent : tout est prédit comme fond.
+\includegraphics[width=\linewidth]{theo/predB.png}\\[0.4em]
+\includegraphics[width=\linewidth]{theo/predC.png}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ############################################################################
+% PERSPECTIVES (d'après final.tex, Sec. Perspectives)
+% ############################################################################
+\begin{frame}{Perspectives}
+  \begin{block}{Vers un \emph{foundation model} pour l'imagerie médicale par rayonnement}
+  Unifier les axes explorés en un objectif d'entraînement unique.
+  \end{block}
+  \begin{itemize}
+    \item \textbf{Objectif hybride JEPA + reconstruction} : prédire les patchs
+      latents masqués tout en gardant l'encodeur ancré à un espace décodable.
+    \item \textbf{Dégradations physiquement fondées} : bruit quantique,
+      contraste/luminosité, champs multiplicatifs, flou de mouvement
+      anisotrope (cardiaque/respiratoire).
+    \item \textbf{Conditionnement (CVAE)} sur les métadonnées DICOM
+      (modalité, dose, SNR, qualité) $\rightarrow$ représentations
+      désenchevêtrées contenu / qualité d'acquisition.
+    \item \textbf{Validation downstream} : classification, détection,
+      segmentation multi-modalités (ARCADE comme banc d'essai exigeant).
+  \end{itemize}
+\end{frame}
+
+% ############################################################################
+% CONCLUSION GÉNÉRALE (d'après final.tex, Sec. Conclusion)
+% ############################################################################
+\begin{frame}{Conclusion générale}
+  \footnotesize
+  Sur quatre axes complémentaires, nous avons sondé le comportement de MedVAE,
+  compresseur médical générique, sur le domaine exigeant de l'angiographie coronaire :
+  \begin{itemize}
+    \item \textbf{Robustesse} : filtre passe-bas intelligent et débruiteur non
+      linéaire ; s'effondre sur les hautes fréquences \emph{structurées}
+      (artefacts JPEG) — la nature de la dégradation prime sur son intensité.
+    \item \textbf{FiLM} : conditionner sur un score de qualité dégrade
+      légèrement la reconstruction (compromis architectural), bien que le
+      réseau exploite réellement le signal.
+    \item \textbf{JEPA} : latent nettement plus compact ($90\%$ de variance sur
+      $25$ dimensions), gain discriminatif, mais coût en reconstruction
+      (décodeur gelé).
+    \item \textbf{Segmentation} : la compression $\times 16$ préserve
+      l'anatomie \alert{en espace pixel} (gain ciblé sur les vaisseaux fins) ;
+      le latent à un canal reste inadapté à la prédiction dense directe.
+  \end{itemize}
+  \vspace{0.3em}
+  \textbf{Bilan.} Compression fidèle réutilisable en espace pixel, mais latent
+  pas encore assez \emph{organisé sémantiquement} ni \emph{conscient de
+  l'acquisition} pour être segmenté ou conditionné directement.
+\end{frame}
+
+\end{document}
