@@ -1,62 +1,220 @@
-# MedVAE: Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation
+# MedVAE — Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation
 
+> A four-axis study of **MedVAE**, a generic medical autoencoder, applied to the demanding domain of
+> **coronary angiography** (ARCADE dataset). We probe its robustness, its conditioning, its latent
+> structure and its usefulness for downstream segmentation.
 
-## JEPA adaptation of phase 2 medvae training (ROTHLINGSHOFER Yanic)
+📄 **[Read the paper](final_report/final.pdf)** &nbsp;·&nbsp; 🖥️ **[See the slides](final_report/presentation.pdf)**
 
-This project explores an adaptation of the second training stage of Med-VAE. In
-the original pipeline, stage 2 relies on BioMedCLIP to preserve clinically
-relevant information in the latent space. The goal here is to replace this
-external vision-language supervision with a self-supervised JEPA objective,
-directly learned from medical images.
+**Authors:** Yanic Rothlingshofer · Théo Palagi · Elias Corlou · Théophile Nadiedjoa
+*Télécom Paris — IM06 project*
 
-The motivation is to make the adaptation less dependent on BioMedCLIP, whose
-representations may not always match the target medical domain or imaging
-modality. JEPA is a good fit because it trains the model to predict missing
-latent information from visible context, encouraging semantic and structural
-representations without reconstructing pixels. The design is inspired by I-JEPA:
-a context encoder processes visible image patches, a frozen target encoder
-provides target latent representations, and a predictor is trained with a latent
-prediction loss.
+---
 
-![JEPA adaptation pipeline](final_report/figures/yanic/figures/pipeline_figure/pipeline.png)
-*Figure: JEPA adaptation pipeline, inspired by the original Med-VAE pipeline figure.*
+## Overview
 
-In practice, the Med-VAE encoder is reused as the backbone of the JEPA adapted
-encoder. The BioMedCLIP-based consistency term is replaced by a latent
-prediction loss between predicted target latents and frozen target encoder
-latents. The adapted encoder can then be evaluated on downstream medical image
-tasks.
+MedVAE is a medical image autoencoder pre-trained on chest X-rays and mammographies that compresses
+images into a compact latent space. Coronary angiographies are structurally very different from those
+modalities: thin tubular vessels, bifurcations and stenosis regions that demand fine-grained spatial
+encoding to survive compression.
 
-### 2026-05-26
+We investigate **one central question along four complementary axes**: *how far can a generic medical
+compressor be trusted, adapted and reused on an out-of-distribution modality?*
 
-- Integrated MedMNIST dataset for pretraining (which contains 8 2d images datasets ~ 450k images).
-- Completed the full pretraining pipeline: phase 1 (VAE reconstruction) and phase 2 (JEPA latent prediction) trainers are implemented in `utils/vae_trainer.py` and `utils/jepa_trainer.py`, driven by a unified entry-point `pretraining.py`.
-- Added a downstream evaluation pipeline (`downstream.py`, `utils/downstream_wrapper.py`) supporting linear probing on top of the frozen JEPA-adapted encoder.
-- Added SLURM job scripts (`jobs/`) for cluster execution of all training phases and downstream evaluation.
-- Configuration files reorganised: `configs/pretraining.yaml` for the pretraining phases, `configs/downstream.yaml` for evaluation.
-- General code cleanup across model modules (removed dead code, fixed imports, unified logging).
+| Axis | Question | Lead | Code |
+|------|----------|------|------|
+| **A. Robustness** | How does reconstruction fidelity behave under degraded inputs? | Elias Corlou | [`medvae_eval/`](medvae_eval/) |
+| **B. FiLM conditioning** | Can MedVAE be made *acquisition-aware* via a quality score? | Théophile Nadiedjoa | [`medvae_eval/cvae/`](medvae_eval/cvae/) |
+| **C. JEPA adaptation** | Can self-supervision replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
+| **D. Segmentation** | Is the latent usable for coronary vessel segmentation? | Théo Palagi | [`finetune/`](finetune/) |
 
-## Fine-tuning MedVAE on New Medical Modalities (PALAGI Théo)
+### Key takeaway
 
-This project investigates whether fine-tuning MedVAE, which is a medical image autoencoder pre-trained on chest X-rays and mammographies, on a new imaging modality can improve downstream segmentation performance.  
+MedVAE produces a **faithful, pixel-space–reusable** code, but its latent is **not yet semantically
+organized nor acquisition-aware** enough to be segmented or conditioned directly.
 
-We use the ARCADE dataset, which contains coronary angiography images annotated with 26 arterial segmentation classes. Coronary angiographies are structurally very different from the modalities MedVAE was trained on: they feature thin tubular structures, bifurcations, and stenosis regions that require fine-grained spatial encoding to be preserved under compression.
-The core hypothesis is that a general-purpose medical encoder, while useful, may not capture the domain-specific visual features needed for precise vascular segmentation. Fine-tuning MedVAE on ARCADE images should push its latent space to better represent these structures, leading to better downstream performance.  
+---
 
-To test this, we design three comparable pipelines. The first trains a standard U-Net directly on full-resolution ARCADE images and serves as an upper-bound reference. The second uses the pre-trained MedVAE encoder to compress images into latent representations, which are then passed to a lightweight segmentation head, this measures how well the general model transfers to this new modality. The third repeats the second pipeline but with a MedVAE encoder that has been fine-tuned on ARCADE images beforehand, isolating the contribution of domain adaptation.
-All three pipelines are evaluated using the mean Dice score across the 26 arterial classes on a held-out test set. The gap between the second and third conditions directly quantifies the benefit of fine-tuning MedVAE on a previously unseen medical modality.
+## A — Robustness of MedVAE to Input Degradations
 
-![fine-tune pipeline](finetune/images/pipeline.jpg)
-*Figure: Experimental pipelines for evaluating MedVAE adaptation on coronary angiography segmentation.*
+![Robustness pipeline](assets/pipeline_robustness.jpg)
 
-## Input quality analysis for MedVAE reconstruction (CORLOU Elias & NADIEDJOA Théophile)
+We measure how reconstruction fidelity degrades when the input is corrupted, motivated by low-dose
+acquisition noise, compression and motion artefacts. Using a fully **full-reference** protocol with a
+**vessel-masked PSNR (mPSNR)** restricted to ARCADE's coronary annotations, we sweep ~50 levels over
+three degradation types and correlate reconstruction quality against degradation amplitude.
 
-This work evaluates how MedVAE's reconstruction fidelity behaves when the input image is degraded rather than clean, a question directly motivated by low-dose acquisition noise, compression, and motion artefacts in coronary angiography. An initial exploration using no-reference quality metrics (ARNIQA, then a custom engineered score) was discarded: on clean images the intrinsic quality variance is too small to be exploitable, and under controlled degradation these scores are dominated by blur, which makes them non-monotone and unsuitable as a clean quality axis.
+- **Gaussian blur** → strong anti-correlation (r ≈ −0.998): blurred inputs reconstruct *better*
+  (spectral bias toward low frequencies).
+- **Poisson noise** → strong positive correlation (r ≈ +0.998): the latent bottleneck discards
+  stochastic high-frequency noise — a genuine but partial denoiser.
+- **JPEG compression** → non-monotone: a "blur-like" regime that helps, then a low-quality regime where
+  structured block artefacts collapse the reconstruction.
 
-We instead adopt a fully full-reference protocol: since the clean image, its degraded version, and MedVAE's reconstruction are all available simultaneously, reconstruction fidelity can be measured by direct comparison rather than through a no-reference proxy. Using a vessel-masked PSNR (mPSNR, restricted to ARCADE's coronary annotations), we run independent sweeps over ~50 levels for three degradation types — Poisson noise, Gaussian blur, and JPEG compression — and correlate mPSNR(degraded, reconstruction) against the degradation amplitude mPSNR(clean, degraded).
+**Conclusion:** MedVAE acts as an intelligent low-pass filter and non-linear denoiser, but collapses on
+*structured* out-of-distribution high frequencies — the **nature** of the degradation matters more than
+its intensity.
 
-The results reveal that MedVAE's behaviour depends on the spectral nature of the degradation, not just its intensity. Gaussian blur shows a strong anti-correlation (r ≈ −0.998): blurred inputs reconstruct better, consistent with the model's spectral bias towards low frequencies. Poisson noise shows a strong positive correlation (r ≈ +0.998): MedVAE's latent bottleneck discards stochastic high-frequency noise, acting as a genuine but only partial denoiser. JPEG compression is non-monotone, combining a "blur-like" regime that initially helps reconstruction with a low-quality regime where structured block artefacts collapse it; global correlation is misleading (r ≈ +0.03) but each regime taken separately is nearly perfectly correlated. Overall, MedVAE acts as an intelligent low-pass filter and non-linear denoiser, but remains vulnerable to structured out-of-distribution high frequencies it can neither encode nor ignore.
+```bash
+# Scripts are configured via constants at the top of each file (degradation type, #levels, paths)
+cd medvae_eval/scripts
+python run_maskedPSNR_sweep.py     # sweep mPSNR over a degradation type
+python correlation_analysis.py     # correlate mPSNR(deg, recon) vs mPSNR(clean, deg)
+python visualize_degraded.py       # qualitative degradation panels
+```
 
-![quality pipeline](medvae_eval/pipeline_figure/pipeline_3.jpg)
+---
 
-*Figure: Controlled full-reference degradation pipeline for the MedVAE robustness analysis.*
+## B — Image-Quality Inductive Bias (FiLM conditioning)
+
+![FiLM pipeline](assets/pipeline_film.png)
+
+We make MedVAE *acquisition-aware* by injecting a scalar quality score `c ∈ [0, 1]` through **FiLM**
+modulation (a shared MLP feeding per-block `(γ, β)` heads, zero-initialised), and compare against an
+identically-trained baseline VAE with the same budget but no conditioning.
+
+**Conclusion:** the network genuinely exploits the conditioning signal, but FiLM conditioning *slightly
+degrades* the reconstruction — an architectural trade-off rather than a free gain.
+
+```bash
+# Exploratory notebooks (run top to bottom)
+medvae_eval/cvae/03_Inductive_Bias_Generation.ipynb
+medvae_eval/cvae/04_MedVAE_Architecture_Mod.ipynb     # FiLM-conditioned MedVAE
+medvae_eval/cvae/06_Ablation_c_Constant.ipynb         # ablation vs baseline
+```
+
+---
+
+## C — JEPA Adaptation of MedVAE Stage 2
+
+![JEPA pipeline](assets/pipeline_jepa.png)
+
+MedVAE's stage 2 relies on **BioMedCLIP** to preserve clinically relevant information in the latent
+space. We replace that external vision-language supervision with a self-supervised **JEPA** objective
+(inspired by I-JEPA): a context encoder processes visible patches, a frozen EMA target encoder provides
+target latents, and a predictor is trained with a latent-prediction loss. Pretraining uses **MedMNIST**
+(8 2-D datasets, ~450k images), and the adapted encoder is evaluated by linear probing.
+
+**Conclusion:** the JEPA-adapted latent is markedly more compact (90% of variance on 25 dimensions) and
+discriminative, but at a reconstruction cost (frozen decoder) — a more semantic, less pixel-faithful code.
+
+```bash
+# Stage 1 — VAE reconstruction pretraining
+python jepa_adaptation/stage1_training.py \
+  --config jepa_adaptation/configs/stage_1.yaml \
+  --model-config jepa_adaptation/configs/model.yaml
+
+# Stage 2 — JEPA latent-prediction adaptation
+python jepa_adaptation/stage2_training.py \
+  --config jepa_adaptation/configs/stage_2.yaml \
+  --model-config jepa_adaptation/configs/model.yaml
+
+# Downstream linear probing
+jepa_adaptation/downstream/downstream_1.ipynb
+jepa_adaptation/downstream/downstream_2.ipynb
+```
+
+SLURM job scripts for the cluster live in [`jepa_adaptation/jobs/`](jepa_adaptation/jobs/).
+
+---
+
+## D — MedVAE as a Latent Representation for Coronary Segmentation
+
+We test whether MedVAE's latent can drive **26-class coronary vessel segmentation** on ARCADE, across
+four comparable conditions:
+
+| Condition | Pipeline | Question |
+|-----------|----------|----------|
+| **A** | U-Net ResNet34 on original 512×512 images | High-resolution reference |
+| **B** | Frozen pre-trained MedVAE + lightweight head | Does generic compression suffice? |
+| **C** | Frozen ARCADE-finetuned MedVAE + lightweight head | Does fine-tuning the compressor help? |
+| **D** | Frozen MedVAE (encode→decode) + trainable U-Net | Does adapting to artefacts compensate? |
+
+| | |
+|:---:|:---:|
+| ![Condition A](assets/cond_A.png) | ![Condition B](assets/cond_B.png) |
+| ![Condition C](assets/cond_C.png) | ![Condition D](assets/cond_D.png) |
+
+All conditions are evaluated by mean Dice across the 26 arterial classes on a held-out test set.
+
+**Conclusion:** ×16 compression preserves the anatomy **in pixel space** (targeted gain on thin
+vessels), but the single-channel latent remains unsuited to direct dense prediction.
+
+```bash
+# Always run from the repo root, as a module (imports are absolute)
+
+# (optional, condition C only) fine-tune MedVAE on ARCADE first
+python finetune/finetune_medvae.py --config finetune/configs/medvae_finetune.yaml
+
+# train a condition (a | b | c | d)
+python -m finetune.train --config finetune/configs/condition_a.yaml
+
+# comparative plots
+python -m finetune.plot \
+  --history \
+    finetune/checkpoints/condition_a_unet_history.json \
+    finetune/checkpoints/condition_b_medvae_history.json \
+    finetune/checkpoints/condition_c_medvae_finetuned_history.json \
+    finetune/checkpoints/condition_d_unet_medvae_reconstructed_history.json \
+  --labels "Condition A" "Condition B" "Condition C" "Condition D" \
+  --save_dir finetune/figures
+```
+
+---
+
+## Repository structure
+
+```
+projet_IM06/
+├── medvae_eval/        # Axis A & B — robustness analysis + FiLM conditioning
+│   ├── scripts/        #   degradation sweeps, masked-PSNR, correlations
+│   └── cvae/           #   FiLM-conditioned MedVAE notebooks
+├── jepa_adaptation/    # Axis C — JEPA self-supervised stage-2 adaptation
+│   ├── stage1_training.py / stage2_training.py
+│   ├── configs/ models/ utils/ downstream/ jobs/
+├── finetune/           # Axis D — coronary segmentation from MedVAE latents
+│   ├── train.py        #   entry point (run as `python -m finetune.train`)
+│   ├── configs/        #   condition_a … condition_d
+│   ├── encoder/ models/ losses/ metrics/ trainer/
+├── final_report/       # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
+├── assets/             # figures used in this README
+└── README.md
+```
+
+---
+
+## Setup
+
+```bash
+# Python 3.10+ recommended; create a virtual environment, then:
+pip install -r finetune/requirements.txt
+# MedVAE itself:
+pip install medvae
+```
+
+### Dataset
+
+Experiments use the **[ARCADE](https://zenodo.org/records/10390295)** coronary angiography dataset
+(segmentation phase, 26 arterial classes). Update the dataset paths in the relevant YAML configs /
+script constants before running:
+
+```yaml
+train_images: ".../segmentation_dataset/seg_train/images"
+train_ann:    ".../segmentation_dataset/seg_train/annotations/seg_train.json"
+val_images:   ".../test_case_segmentation/images"
+val_ann:      ".../test_case_segmentation/annotations/instances_default.json"
+```
+
+### MedVAE — spatial reminder
+
+`medvae_4_1_2d` compresses **4× per spatial dimension** (not 16×): a 512×512 image → a 128×128×1 latent.
+Returning to pixel space therefore needs **2 upsamplings** of ×2 (`n_upsample: 2`).
+
+---
+
+## Acknowledgements
+
+Built on top of [MedVAE](https://github.com/StanfordMIMI/MedVAE) (Stanford MIMI). JEPA adaptation is
+inspired by [I-JEPA](https://github.com/facebookresearch/ijepa); the segmentation backbones use
+[segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch).
+```
