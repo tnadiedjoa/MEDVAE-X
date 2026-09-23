@@ -6,10 +6,10 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import yaml
 from torch.amp import autocast
 from torch.utils.data import DataLoader
 
+from finetune.config import load_config
 from finetune.dataset import ArcadeDataset
 from finetune.encoder import MedVAEAutoencoder
 from finetune.metrics.seg_metrics import SegMetrics
@@ -75,8 +75,7 @@ def main():
     parser.add_argument("--n_samples", type=int, default=4)
     args = parser.parse_args()
 
-    with open(args.config_a) as f:
-        config = yaml.safe_load(f)
+    config = load_config(args.config_a)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")

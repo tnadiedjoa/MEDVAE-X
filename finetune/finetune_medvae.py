@@ -5,13 +5,14 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-import yaml
 from PIL import Image
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, Dataset, random_split
 
 from medvae import MVAE
+
+from finetune.config import load_config
 
 
 class ArcadeImageDataset(Dataset):
@@ -178,8 +179,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
-    with open(args.config) as f:
-        config = yaml.safe_load(f)
+    config = load_config(args.config)
     fine_tune(config)
 
 

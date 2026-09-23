@@ -1,10 +1,14 @@
+import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import glob
 import random
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/stenosis_dataset/sten_train"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
+DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/stenosis_dataset/sten_train"
 OUTPUT_PATH  = "../outputs/degradation/degradation_visual.png"
 SEED         = 42
 
