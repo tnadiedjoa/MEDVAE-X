@@ -3,7 +3,7 @@
 #SBATCH --output=finetune/slurm/logs/eval_astar_%j.out
 #SBATCH --error=finetune/slurm/logs/eval_astar_%j.err
 #SBATCH --time=00:30:00
-#SBATCH --partition=H100,A100,L40S
+#SBATCH --partition=3090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
