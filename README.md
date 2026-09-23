@@ -165,7 +165,7 @@ python -m finetune.plot \
 ## Repository structure
 
 ```
-projet_IM06/
+MEDVAE-X/
 ├── medvae_eval/        # Axis A & B — robustness analysis + FiLM conditioning
 │   ├── scripts/        #   degradation sweeps, masked-PSNR, correlations
 │   └── cvae/           #   FiLM-conditioned MedVAE notebooks
@@ -178,6 +178,8 @@ projet_IM06/
 │   ├── encoder/ models/ losses/ metrics/ trainer/
 ├── final_report/       # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
 ├── assets/             # figures used in this README
+├── scripts/            # download_arcade.sh
+├── data/arcade/        # ARCADE dataset (not versioned, see Setup)
 └── README.md
 ```
 
@@ -186,23 +188,45 @@ projet_IM06/
 ## Setup
 
 ```bash
-# Python 3.10+ recommended; create a virtual environment, then:
+git clone <repo-url> && cd MEDVAE-X
+
+# Python 3.10+ recommended
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r finetune/requirements.txt
-# MedVAE itself:
 pip install medvae
+
+# Strip notebook outputs on commit (run once per clone)
+pip install nbstripout && nbstripout --install
 ```
 
 ### Dataset
 
 Experiments use the **[ARCADE](https://zenodo.org/records/10390295)** coronary angiography dataset
-(segmentation phase, 26 arterial classes). Update the dataset paths in the relevant YAML configs /
-script constants before running:
+(CC0, segmentation phase, 26 arterial classes). It is not versioned; download it with:
 
-```yaml
-train_images: ".../segmentation_dataset/seg_train/images"
-train_ann:    ".../segmentation_dataset/seg_train/annotations/seg_train.json"
-val_images:   ".../test_case_segmentation/images"
-val_ann:      ".../test_case_segmentation/annotations/instances_default.json"
+```bash
+bash scripts/download_arcade.sh
+```
+
+The script fetches the Zenodo archive (~450 MB), checks its MD5 and lays it out under `data/arcade/`
+following the original challenge structure (`dataset_phase_1/…`, `dataset_final_phase/…`).
+
+All code (YAML configs, scripts, notebooks) resolves dataset paths from the `ARCADE_ROOT`
+environment variable, defaulting to `data/arcade/`. If the dataset already lives elsewhere
+(e.g. a copy shared on the cluster), point to it instead of downloading:
+
+```bash
+export ARCADE_ROOT=/path/to/arcade
+```
+
+### Running on the Slurm cluster
+
+Submit jobs **from the repo root**: scripts use `$SLURM_SUBMIT_DIR` as the project directory and
+activate `.venv/` from there.
+
+```bash
+sbatch finetune/slurm/train_a.sbatch
+sbatch jepa_adaptation/jobs/stage_1.sbatch
 ```
 
 ### MedVAE — spatial reminder
