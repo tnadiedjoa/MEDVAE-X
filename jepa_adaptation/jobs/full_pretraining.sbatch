@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=jepa_full
-#SBATCH --partition=H100,A100,L40S
+#SBATCH --partition=3090
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=4
 #SBATCH --mem=48G
 #SBATCH --time=24:00:00
 #SBATCH --output=jepa_adaptation/jobs/logs/full_%j.out

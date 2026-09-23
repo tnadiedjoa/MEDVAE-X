@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -p H100,A100
+#SBATCH -p 3090
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -c 8
+#SBATCH -c 4
 #SBATCH --mem=48G
 #SBATCH --gres=gpu:1
 #SBATCH --time=24:00:00

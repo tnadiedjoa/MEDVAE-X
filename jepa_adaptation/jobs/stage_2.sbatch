@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=jepa_stage2
-#SBATCH --partition=H100,A100,L40S
+#SBATCH --partition=3090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
