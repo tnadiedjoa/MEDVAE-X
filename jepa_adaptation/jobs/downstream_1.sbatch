@@ -11,8 +11,8 @@
 
 set -e
 
-PROJECT_ROOT=/home/infres/yrothlin-24/projet_IM06
-MICROMAMBA=/home/infres/yrothlin-24/.local/bin/micromamba
+# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 NOTEBOOK="$PROJECT_ROOT/jepa_adaptation/downstream/downstream_1.ipynb"
 LOG_DIR="$PROJECT_ROOT/jepa_adaptation/jobs/logs"
 
@@ -20,8 +20,7 @@ mkdir -p "$LOG_DIR"
 cd "$PROJECT_ROOT"
 
 module load cuda
-eval "$($MICROMAMBA shell hook --shell bash)"
-micromamba activate IM05
+source "$PROJECT_ROOT/.venv/bin/activate"
 
 echo "=== downstream_1 — $(date) ==="
 nvidia-smi --query-gpu=name,driver_version --format=csv,noheader

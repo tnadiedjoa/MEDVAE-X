@@ -6,7 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 
-PROJECT_DIR="/home/infres/tpalagi-24/projet_IM06"
+# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+PROJECT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 
 cd "$PROJECT_DIR"
