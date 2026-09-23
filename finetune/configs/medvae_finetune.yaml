@@ -3,7 +3,7 @@ encoder:
   modality:   "xray"
 
 data:
-  train_images: "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train/images"
+  train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
   img_size:     512
   val_ratio:    0.1        # 10 % des images train → validation
   num_workers:  4

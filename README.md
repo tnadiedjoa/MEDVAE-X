@@ -144,7 +144,7 @@ vessels), but the single-channel latent remains unsuited to direct dense predict
 # Always run from the repo root, as a module (imports are absolute)
 
 # (optional, condition C only) fine-tune MedVAE on ARCADE first
-python finetune/finetune_medvae.py --config finetune/configs/medvae_finetune.yaml
+python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
 
 # train a condition (a | b | c | d)
 python -m finetune.train --config finetune/configs/condition_a.yaml

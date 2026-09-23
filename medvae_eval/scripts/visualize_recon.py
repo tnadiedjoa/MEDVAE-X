@@ -1,3 +1,4 @@
+import os
 import torch
 from medvae import MVAE
 import numpy as np
@@ -6,7 +7,10 @@ from pathlib import Path
 import cv2
 import glob
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
+DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
 OUTPUT_DIR = "../outputs/degradation"
 N_LEVELS = 20
 SEED = 42

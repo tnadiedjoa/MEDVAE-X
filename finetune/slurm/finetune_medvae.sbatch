@@ -20,6 +20,6 @@ echo "=== Fine-tuning MedVAE — démarrage ==="
 echo "Job ID : $SLURM_JOB_ID"
 date
 
-python finetune/finetune_medvae.py --config finetune/configs/medvae_finetune.yaml
+python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
 
 echo "=== Fine-tuning MedVAE — terminé ===" && date

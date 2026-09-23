@@ -1,3 +1,4 @@
+import os
 from torchmetrics.image.arniqa import ARNIQA
 import torch
 import pandas as pd
@@ -5,7 +6,10 @@ from PIL import Image
 import torchvision.transforms as T
 import glob
 
-DATASET_PATH = "/home/infres/yrothlin-24/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
+DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
 
 image_paths = sorted(glob.glob(f"{DATASET_PATH}/**/images/*", recursive=True))
 device = "cuda" if torch.cuda.is_available() else "cpu"

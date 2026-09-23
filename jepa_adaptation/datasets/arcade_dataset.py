@@ -10,7 +10,9 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 import albumentations as A
 
-DATA_ROOT = "/home/infres/yrothlin-24/arcade_challenge_datasets"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 
 _SEG_TRAIN_IMAGES = f"{DATA_ROOT}/dataset_phase_1/segmentation_dataset/seg_train/images"
 _SEG_TRAIN_ANN    = f"{DATA_ROOT}/dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"

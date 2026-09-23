@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import torch
-import yaml
 
 
 def load_history(path: str) -> dict:
@@ -190,11 +189,11 @@ def plot_predictions(
     n_samples: int = 4,
     seed: int = 42,
 ) -> None:
+    from finetune.config import load_config
     from finetune.dataset import ArcadeDataset
     from finetune.train import build_model
 
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+    config = load_config(config_path)
 
     data_cfg = config["data"]
     device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -206,7 +205,7 @@ def plot_predictions(
     model.to(device).eval()
     print(f"Checkpoint chargé : epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")
 
-    # Charge le test set (les chemins sont absolus dans tous les yamls)
+    # Charge le test set (chemins résolus par rapport à ARCADE_ROOT)
     test_dataset = ArcadeDataset(
         images_dir=data_cfg["val_images"],
         annotations=data_cfg["val_ann"],

@@ -4,18 +4,12 @@ import os
 
 import numpy as np
 import torch
-import yaml
-
 from torch.utils.data import DataLoader
 
+from finetune.config import load_config
 from finetune.dataset import ArcadeDataset, split_dataset
 from finetune.models import build_unet, build_seg_head
 from finetune.trainer import Trainer
-
-
-def load_config(path: str) -> dict:
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
 
 
 def set_seed(seed: int) -> None:
