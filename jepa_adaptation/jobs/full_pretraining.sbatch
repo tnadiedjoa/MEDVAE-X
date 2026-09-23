@@ -5,8 +5,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=24:00:00
-#SBATCH --output=jepa_adaptation/outputs/full_pretraining/logs/full_%j.out
-#SBATCH --error=jepa_adaptation/outputs/full_pretraining/logs/full_%j.err
+#SBATCH --output=jepa_adaptation/jobs/logs/full_%j.out
+#SBATCH --error=jepa_adaptation/jobs/logs/full_%j.err
 
 # ── paramètres ────────────────────────────────────────────────
 EPOCHS_STAGE1=30
@@ -15,8 +15,8 @@ EPOCHS_STAGE2=30
 
 set -e
 
-PROJECT_ROOT=/home/infres/yrothlin-24/projet_IM06
-MICROMAMBA=/home/infres/yrothlin-24/.local/bin/micromamba
+# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage1/logs"
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage2/logs"
@@ -24,8 +24,7 @@ mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/full_pretraining/logs"
 cd "$PROJECT_ROOT"
 
 module load cuda
-eval "$($MICROMAMBA shell hook --shell bash)"
-micromamba activate IM05
+source "$PROJECT_ROOT/.venv/bin/activate"
 
 nvidia-smi --query-gpu=name,driver_version --format=csv,noheader
 
