@@ -2,7 +2,7 @@
 #SBATCH --job-name=im06_medvae_ft
 #SBATCH --output=finetune/slurm/logs/finetune_medvae_%j.out
 #SBATCH --error=finetune/slurm/logs/finetune_medvae_%j.err
-#SBATCH --time=08:00:00
+#SBATCH --time=14:00:00
 #SBATCH --partition=3090
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
@@ -20,6 +20,6 @@ echo "=== Fine-tuning MedVAE — démarrage ==="
 echo "Job ID : $SLURM_JOB_ID"
 date
 
-python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
+python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml "$@"
 
 echo "=== Fine-tuning MedVAE — terminé ===" && date

@@ -22,6 +22,6 @@ echo "Node   : $SLURMD_NODENAME"
 echo "GPU    : $CUDA_VISIBLE_DEVICES"
 date
 
-python -m finetune.train --config finetune/configs/condition_a.yaml
+python -m finetune.train --config finetune/configs/condition_a.yaml "$@"
 
 echo "=== Condition A — terminé ===" && date

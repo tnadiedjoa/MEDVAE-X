@@ -19,7 +19,7 @@ data:
 encoder:
   model_name:      "medvae_4_1_2d"   # f=4 par dim spatiale, 1 canal latent
   modality:        "xray"
-  checkpoint_path: "finetune/checkpoints/medvae_finetuned/best_medvae_finetuned.pth"
+  checkpoint_path: null   # fourni au lancement : --set encoder.checkpoint_path=<run medvae_finetune>/best_medvae_finetuned.pth
 
 # Tête de segmentation légère (identique à condition B)
 model:
@@ -53,4 +53,4 @@ loss:
   cl_weight:   0.0
 
 logging:
-  save_dir: "finetune/checkpoints"
+  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/

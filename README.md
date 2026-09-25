@@ -152,10 +152,10 @@ python -m finetune.train --config finetune/configs/condition_a.yaml
 # comparative plots
 python -m finetune.plot \
   --history \
-    finetune/checkpoints/condition_a_unet_history.json \
-    finetune/checkpoints/condition_b_medvae_history.json \
-    finetune/checkpoints/condition_c_medvae_finetuned_history.json \
-    finetune/checkpoints/condition_d_unet_medvae_reconstructed_history.json \
+    finetune/results/condition_a_unet_history.json \
+    finetune/results/condition_b_medvae_history.json \
+    finetune/results/condition_c_medvae_finetuned_history.json \
+    finetune/results/condition_d_unet_medvae_reconstructed_history.json \
   --labels "Condition A" "Condition B" "Condition C" "Condition D" \
   --save_dir finetune/figures
 ```
@@ -175,10 +175,14 @@ MEDVAE-X/
 ├── finetune/           # Axis D — coronary segmentation from MedVAE latents
 │   ├── train.py        #   entry point (run as `python -m finetune.train`)
 │   ├── configs/        #   condition_a … condition_d
+│   ├── results/        #   current official results (histories, test scores)
 │   ├── encoder/ models/ losses/ metrics/ trainer/
+├── experiments/runs/   # one folder per run (config, metadata, scores)
+├── EXPERIMENTS.md      # experiment log: every change tested, before/after
+├── tests/              # pytest (metrics)
 ├── final_report/       # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
 ├── assets/             # figures used in this README
-├── scripts/            # download_arcade.sh
+├── scripts/            # download_arcade.sh, promote_run.py
 ├── data/arcade/        # ARCADE dataset (not versioned, see Setup)
 └── README.md
 ```
@@ -228,6 +232,21 @@ activate `.venv/` from there.
 sbatch finetune/slurm/train_a.sbatch
 sbatch jepa_adaptation/jobs/stage_1.sbatch
 ```
+
+Only the `3090` partition (RTX 3090, 24 GB, max 4 CPUs per GPU) is available to our accounts.
+
+### Experiments
+
+Every training run gets its own folder in `experiments/runs/<date>_<name>/` (exact config,
+git commit, GPU, scores). Config values can be overridden without editing the YAML files:
+
+```bash
+python -m finetune.train --config finetune/configs/condition_a.yaml \
+  --set training.learning_rate=3e-4 --run-name lr3e-4_condition_a
+```
+
+Every change tested on the project is logged in [EXPERIMENTS.md](EXPERIMENTS.md) with its
+before/after results, whether it was kept or not.
 
 ### MedVAE — spatial reminder
 

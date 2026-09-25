@@ -16,44 +16,29 @@ source "$PROJECT_DIR/.venv/bin/activate"
 
 echo "=== Plots — démarrage ===" && date
 
-CKPTS="finetune/checkpoints"
+RESULTS="finetune/results"
 FIGS="finetune/figures"
 
-python -m finetune.plot \
-  --history "$CKPTS/condition_a_unet_history.json" \
-  --labels "Condition A" --save_dir "$FIGS" \
-  --predict \
-  --checkpoint "$CKPTS/best_model_condition_a_unet.pth" \
-  --config finetune/configs/condition_a.yaml
-
-python -m finetune.plot \
-  --history "$CKPTS/condition_b_medvae_history.json" \
-  --labels "Condition B" --save_dir "$FIGS" \
-  --predict \
-  --checkpoint "$CKPTS/best_model_condition_b_medvae.pth" \
-  --config finetune/configs/condition_b.yaml
-
-python -m finetune.plot \
-  --history "$CKPTS/condition_c_medvae_finetuned_history.json" \
-  --labels "Condition C" --save_dir "$FIGS" \
-  --predict \
-  --checkpoint "$CKPTS/best_model_condition_c_medvae_finetuned.pth" \
-  --config finetune/configs/condition_c.yaml
-
-python -m finetune.plot \
-  --history "$CKPTS/condition_d_unet_medvae_reconstructed_history.json" \
-  --labels "Condition D" --save_dir "$FIGS" \
-  --predict \
-  --checkpoint "$CKPTS/best_model_condition_d_unet_medvae_reconstructed.pth" \
-  --config finetune/configs/condition_d.yaml
-
+# Courbes comparatives des résultats officiels du projet
 python -m finetune.plot \
   --history \
-    "$CKPTS/condition_a_unet_history.json" \
-    "$CKPTS/condition_b_medvae_history.json" \
-    "$CKPTS/condition_c_medvae_finetuned_history.json" \
-    "$CKPTS/condition_d_unet_medvae_reconstructed_history.json" \
+    "$RESULTS/condition_a_unet_history.json" \
+    "$RESULTS/condition_b_medvae_history.json" \
+    "$RESULTS/condition_c_medvae_finetuned_history.json" \
+    "$RESULTS/condition_d_unet_medvae_reconstructed_history.json" \
   --labels "Condition A" "Condition B" "Condition C" "Condition D" \
   --save_dir "$FIGS"
+
+# Figures de prédictions, dans le dossier de chaque run passé en argument :
+#   sbatch finetune/slurm/plot_all.sbatch experiments/runs/<run A> experiments/runs/<run B> ...
+for RUN in "$@"; do
+  NAME=$(python -c "import yaml,sys; print(yaml.safe_load(open(sys.argv[1]))['experiment']['name'])" "$RUN/config.yaml")
+  python -m finetune.plot \
+    --history "$RUN/${NAME}_history.json" \
+    --labels "$NAME" --save_dir "$RUN" \
+    --predict \
+    --checkpoint "$RUN/best_model_${NAME}.pth" \
+    --config "$RUN/config.yaml"
+done
 
 echo "=== Plots — terminé ===" && date
