@@ -12,6 +12,7 @@ data:
 training:
   epochs:                   50
   batch_size:               4
+  micro_batch_size:         1        # accumulation de gradient : batch de 4 en 4 × 1 (RTX 3090, 24 Go)
   learning_rate:            4.5e-6   # petit LR : fine-tuning, pas training from scratch
   weight_decay:             0.0
   lr_min:                   1.0e-7
@@ -19,4 +20,4 @@ training:
   grad_clip:                1.0
 
 logging:
-  save_dir: "finetune/checkpoints/medvae_finetuned"
+  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/

@@ -20,8 +20,16 @@ echo "=== Condition A* — démarrage ==="
 echo "Job ID : $SLURM_JOB_ID"
 date
 
+# Checkpoint du U-Net de la condition A, ex. :
+#   CHECKPOINT_A=experiments/runs/<run A>/best_model_condition_a_unet.pth sbatch finetune/slurm/eval_astar.sbatch
+if [ ! -f "${CHECKPOINT_A:-}" ]; then
+  echo "ERREUR : checkpoint A introuvable : '${CHECKPOINT_A:-}'"
+  exit 1
+fi
+
 python -m finetune.eval_astar \
   --config_a     finetune/configs/condition_a.yaml \
-  --checkpoint_a finetune/checkpoints/best_model_condition_a_unet.pth
+  --checkpoint_a "$CHECKPOINT_A" \
+  --predict "$@"
 
 echo "=== Condition A* — terminé ===" && date
