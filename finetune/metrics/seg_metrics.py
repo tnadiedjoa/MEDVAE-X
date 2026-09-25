@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 from torchmetrics import MetricCollection
-from torchmetrics.segmentation import MeanIoU
-from torchmetrics.classification import MulticlassF1Score
+from torchmetrics.classification import MulticlassF1Score, MulticlassJaccardIndex
 
 
 class SegMetrics(nn.Module):
@@ -31,9 +30,13 @@ class SegMetrics(nn.Module):
             ignore_index=ignore_index,
         ).to(device)
 
-        self.iou_mean = MeanIoU(
+        # IoU calculé comme le Dice (même accumulation sur le dataset, même moyenne
+        # macro). MeanIoU de torchmetrics attend du one-hot par défaut et renvoyait
+        # des valeurs fausses sur nos masques d'indices.
+        self.iou_mean = MulticlassJaccardIndex(
             num_classes=num_classes,
-            per_class=False,
+            average="macro",
+            ignore_index=ignore_index,
         ).to(device)
 
     def update(self, logits: torch.Tensor, targets: torch.Tensor) -> None:

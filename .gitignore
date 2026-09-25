@@ -3,6 +3,7 @@ arcade_challenge_datasets/
 MedVAE-main/
 .DS_Store
 __pycache__/
+.pytest_cache/
 *.py[cod]
 .ipynb_checkpoints/
 *.aux
