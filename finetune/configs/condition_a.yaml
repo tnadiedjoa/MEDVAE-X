@@ -45,4 +45,4 @@ loss:
   cl_weight:   0.0
 
 logging:
-  save_dir: "finetune/checkpoints"
+  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/

@@ -164,7 +164,7 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
 - **Architecture identique à B**, à **un seul champ** près dans le YAML :
   ```yaml
   encoder:
-    checkpoint_path: "finetune/checkpoints/medvae_finetuned/best_medvae_finetuned.pth"
+    checkpoint_path: "experiments/runs/<run medvae_finetune>/best_medvae_finetuned.pth"
   ```
   → l'encodeur charge les poids MedVAE **fine-tunés sur ARCADE** (voir §3), puis
   est gelé comme en B.

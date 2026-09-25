@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from finetune.config import load_config
 from finetune.dataset import ArcadeDataset, split_dataset
 from finetune.models import build_unet, build_seg_head
+from finetune.runs import add_run_args, apply_overrides, create_run
 from finetune.trainer import Trainer
 
 
@@ -79,6 +80,11 @@ def build_model(config: dict, device: torch.device):
         from finetune.encoder import MedVAEEncoder
         import torch.nn as nn
 
+        # Sans checkpoint, C tournerait silencieusement comme B
+        if condition == "C" and not config["encoder"].get("checkpoint_path"):
+            raise ValueError("Condition C : encoder.checkpoint_path manquant "
+                             "(--set encoder.checkpoint_path=<MedVAE fine-tuné>)")
+
         encoder = MedVAEEncoder(
             model_name=config["encoder"]["model_name"],
             modality=config["encoder"]["modality"],
@@ -141,10 +147,13 @@ def build_model(config: dict, device: torch.device):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
+    add_run_args(parser)
     args = parser.parse_args()
 
-    config = load_config(args.config)
+    config = apply_overrides(load_config(args.config), args.overrides)
     print(f"Expérience : {config['experiment']['name']}")
+    run_name = args.run_name or config["experiment"]["name"]
+    config["logging"]["save_dir"] = create_run(config, run_name, args.overrides)
 
     set_seed(config["experiment"]["seed"])
     device = get_device()

@@ -22,13 +22,15 @@ echo "Node   : $SLURMD_NODENAME"
 echo "GPU    : $CUDA_VISIBLE_DEVICES"
 date
 
-CKPT="finetune/checkpoints/medvae_finetuned/best_medvae_finetuned.pth"
-if [ ! -f "$CKPT" ]; then
-  echo "ERREUR : checkpoint MedVAE introuvable : $CKPT"
-  echo "Lancer finetune_medvae.sbatch avant train_c.sbatch"
+# Checkpoint du MedVAE fine-tuné (produit par finetune_medvae.sbatch), ex. :
+#   MEDVAE_CKPT=experiments/runs/<run>/best_medvae_finetuned.pth sbatch finetune/slurm/train_c.sbatch
+if [ ! -f "${MEDVAE_CKPT:-}" ]; then
+  echo "ERREUR : checkpoint MedVAE introuvable : '${MEDVAE_CKPT:-}'"
+  echo "Lancer finetune_medvae.sbatch puis passer MEDVAE_CKPT=<run>/best_medvae_finetuned.pth"
   exit 1
 fi
 
-python -m finetune.train --config finetune/configs/condition_c.yaml
+python -m finetune.train --config finetune/configs/condition_c.yaml \
+  --set encoder.checkpoint_path="$MEDVAE_CKPT" "$@"
 
 echo "=== Condition C — terminé ===" && date

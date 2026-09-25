@@ -10,6 +10,7 @@ from torch.amp import autocast
 from torch.utils.data import DataLoader
 
 from finetune.config import load_config
+from finetune.runs import add_run_args, apply_overrides, create_run
 from finetune.dataset import ArcadeDataset
 from finetune.encoder import MedVAEAutoencoder
 from finetune.metrics.seg_metrics import SegMetrics
@@ -70,12 +71,15 @@ def main():
     parser.add_argument("--medvae_modality", default="xray")
     parser.add_argument("--predict", action="store_true",
                         help="Génère la visualisation des prédictions A*")
-    parser.add_argument("--save_dir", default="finetune/figures",
-                        help="Dossier de sauvegarde des figures (défaut : finetune/figures)")
+    parser.add_argument("--save_dir", default=None,
+                        help="Dossier de sauvegarde des figures (défaut : dossier du run)")
     parser.add_argument("--n_samples", type=int, default=4)
+    add_run_args(parser)
     args = parser.parse_args()
 
-    config = load_config(args.config_a)
+    config = apply_overrides(load_config(args.config_a), args.overrides)
+    config["experiment"]["checkpoint_a"] = os.path.abspath(args.checkpoint_a)
+    run_dir = create_run(config, args.run_name or "condition_astar", args.overrides)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")
@@ -134,17 +138,9 @@ def main():
     print(f"\nRappel : Dice A (images originales) = {ckpt['dice']:.4f}")
     print(f"  → dégradation brute MedVAE : {ckpt['dice'] - results['dice_mean']:.4f}")
 
-    # Sauvegarde dans results.json (même fichier que les autres conditions)
-    save_dir = config["logging"]["save_dir"]
-    os.makedirs(save_dir, exist_ok=True)
-    results_path = os.path.join(save_dir, "results.json")
-
-    if os.path.exists(results_path):
-        with open(results_path) as f:
-            all_results = json.load(f)
-    else:
-        all_results = {}
-
+    # Sauvegarde dans le dossier du run
+    results_path = os.path.join(run_dir, "results.json")
+    all_results = {}
     all_results["condition_astar"] = {
         "dice_mean":      results["dice_mean"],
         "iou_mean":       results["iou_mean"],
@@ -161,7 +157,7 @@ def main():
             autoencoder=autoencoder,
             test_dataset=test_dataset,
             device=device,
-            save_dir=args.save_dir,
+            save_dir=args.save_dir or run_dir,
             n_samples=args.n_samples,
         )
 

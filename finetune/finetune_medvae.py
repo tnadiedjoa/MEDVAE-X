@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from medvae import MVAE
 
 from finetune.config import load_config
+from finetune.runs import add_run_args, apply_overrides, create_run
 
 
 class ArcadeImageDataset(Dataset):
@@ -100,6 +101,8 @@ def fine_tune(config: dict) -> None:
     os.makedirs(save_dir, exist_ok=True)
     ckpt_path = os.path.join(save_dir, "best_medvae_finetuned.pth")
 
+    micro_batch_size = train_cfg.get("micro_batch_size") or train_cfg["batch_size"]
+
     best_val  = float("inf")
     patience  = train_cfg.get("early_stopping_patience", 10)
     no_imp    = 0
@@ -112,19 +115,23 @@ def fine_tune(config: dict) -> None:
         mvae.train()
         train_loss = 0.0
         for images in train_loader:
-            images = images.to(device)
             optimizer.zero_grad()
 
-            latent        = mvae.encode(images)
-            reconstructed = mvae.decode(latent)
+            # Accumulation de gradient par micro-batchs : identique au batch entier
+            # (L1 moyenne, normalisations par image) mais tient en mémoire sur 24 Go
+            batch_loss = 0.0
+            for chunk in images.split(micro_batch_size):
+                chunk = chunk.to(device)
+                reconstructed = mvae.decode(mvae.encode(chunk))
+                loss = F.l1_loss(reconstructed, chunk) * (len(chunk) / len(images))
+                loss.backward()
+                batch_loss += loss.item()
 
-            loss = F.l1_loss(reconstructed, images)
-            loss.backward()
             torch.nn.utils.clip_grad_norm_(
                 mvae.parameters(), train_cfg.get("grad_clip", 1.0)
             )
             optimizer.step()
-            train_loss += loss.item()
+            train_loss += batch_loss
 
         train_loss /= len(train_loader)
 
@@ -133,10 +140,11 @@ def fine_tune(config: dict) -> None:
         val_loss = 0.0
         with torch.no_grad():
             for images in val_loader:
-                images = images.to(device)
-                latent        = mvae.encode(images)
-                reconstructed = mvae.decode(latent)
-                val_loss += F.l1_loss(reconstructed, images).item()
+                for chunk in images.split(micro_batch_size):
+                    chunk = chunk.to(device)
+                    reconstructed = mvae.decode(mvae.encode(chunk))
+                    val_loss += (F.l1_loss(reconstructed, chunk).item()
+                                 * len(chunk) / len(images))
         val_loss /= len(val_loader)
 
         scheduler.step()
@@ -171,15 +179,18 @@ def fine_tune(config: dict) -> None:
 
     print(f"\nFine-tuning terminé.")
     print(f"Checkpoint : {ckpt_path}")
-    print(f"→ Mettre à jour condition_c.yaml :")
-    print(f"    checkpoint_path: \"{ckpt_path}\"")
+    print(f"→ Condition C avec ce MedVAE :")
+    print(f"    MEDVAE_CKPT={ckpt_path} sbatch finetune/slurm/train_c.sbatch")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
+    add_run_args(parser)
     args = parser.parse_args()
-    config = load_config(args.config)
+    config = apply_overrides(load_config(args.config), args.overrides)
+    config["logging"]["save_dir"] = create_run(config, args.run_name or "medvae_finetune",
+                                               args.overrides)
     fine_tune(config)
 
 

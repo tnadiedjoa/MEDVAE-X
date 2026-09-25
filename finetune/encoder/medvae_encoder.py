@@ -125,8 +125,14 @@ class MedVAEAutoencoder(nn.Module):
         model_name: str = "medvae_4_1_2d",
         modality: str = "xray",
         device: torch.device = torch.device("cpu"),
+        chunk_size: int = 2,
     ):
         super().__init__()
+
+        # Images traitées par paquets : l'attention de MedVAE en 512×512 coûte
+        # ~1 Go par image, un batch de 8 d'un coup dépasse les 24 Go d'une 3090.
+        # Sans effet sur le résultat (modèle gelé, normalisations par image).
+        self.chunk_size = chunk_size
 
         print(f"Chargement de MedVAE autoencoder ({model_name})...")
         self.mvae = MVAE(model_name=model_name, modality=modality).to(device)
@@ -152,8 +158,10 @@ class MedVAEAutoencoder(nn.Module):
         x_norm = x * 2.0 - 1.0
 
         with torch.no_grad():
-            latent        = self.mvae.encode(x_norm)       # [B,1,128,128]
-            reconstructed = self.mvae.decode(latent)       # [B,1,512,512] dans [-1,1]
+            reconstructed = torch.cat([
+                self.mvae.decode(self.mvae.encode(chunk))  # [b,1,128,128] → [b,1,512,512] dans [-1,1]
+                for chunk in x_norm.split(self.chunk_size)
+            ])
 
         # Renormalise [-1,1] → [0,1] et clippe pour sécurité
         return ((reconstructed + 1.0) / 2.0).clamp(0.0, 1.0)
