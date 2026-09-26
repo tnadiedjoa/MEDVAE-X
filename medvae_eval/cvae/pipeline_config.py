@@ -82,3 +82,39 @@ def print_approach_summary(approach=None):
     print(f"  Colonne de score : {cfg['score_col']}")
     print(f"  {cfg['description']}")
     print()
+
+
+# ── Chemins ───────────────────────────────────────────────────
+
+import os
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+ARCADE_ROOT = Path(os.environ.get("ARCADE_ROOT", _REPO_ROOT / "data" / "arcade"))
+
+
+def resolve_image_path(path) -> str:
+    """Chemin d'image valable sur cette machine.
+
+    Les CSV (NB2, NB3) stockent des chemins absolus propres à la machine qui les a
+    produits (ex. /home/infres/<autre>/arcade_challenge_datasets/...) : on garde la
+    partie relative à la racine ARCADE et on la rattache à ARCADE_ROOT.
+    """
+    path = str(path)
+    for marker in ("arcade_challenge_datasets/", "/dataset_phase_1/", "/dataset_final_phase/"):
+        if marker in path:
+            relative = path.split(marker, 1)[1]
+            if marker.startswith("/"):
+                relative = marker.strip("/") + "/" + relative
+            return str(ARCADE_ROOT / relative)
+    return path
+
+
+def read_csv_with_paths(csv_path):
+    """pd.read_csv, avec la colonne « path » convertie par resolve_image_path."""
+    import pandas as pd
+    df = pd.read_csv(csv_path)
+    if "path" in df.columns:
+        df["path"] = df["path"].map(resolve_image_path)
+    return df
