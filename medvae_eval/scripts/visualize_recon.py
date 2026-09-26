@@ -7,11 +7,14 @@ from pathlib import Path
 import cv2
 import glob
 
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
 # Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
-OUTPUT_DIR = "../outputs/degradation"
+OUTPUT_DIR = f"{_OUTPUTS}/degradation"
 N_LEVELS = 20
 SEED = 42
 LEVELS_TO_SHOW = [0, 10, 15, 19]

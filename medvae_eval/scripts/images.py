@@ -1,11 +1,15 @@
+import os
 import json
 import cv2
 import numpy as np
 from pathlib import Path
 
-DATASET_PATH = "../../../data/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
+DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
 ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
-OUTPUT_DIR = "../outputs/sample"
+OUTPUT_DIR = os.path.join(_REPO_ROOT, "medvae_eval", "outputs", "sample")
 POISSON_SCALE = 0.1  # plus bas = plus de bruit shot
 SEED = 42
 

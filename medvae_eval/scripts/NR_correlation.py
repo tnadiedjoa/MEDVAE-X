@@ -1,9 +1,13 @@
+import os
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
 
-arniqa = pd.read_csv('../outputs/metrics/arniqa_scores.csv')
-fr = pd.read_csv('../outputs/metrics/FR_results.csv')
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
+arniqa = pd.read_csv(f"{_OUTPUTS}/metrics/arniqa_scores.csv")
+fr = pd.read_csv(f"{_OUTPUTS}/metrics/FR_results.csv")
 
 df = pd.DataFrame({
     'arniqa': arniqa['arniqa_score'].values,
