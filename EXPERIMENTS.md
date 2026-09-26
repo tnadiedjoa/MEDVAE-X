@@ -164,7 +164,7 @@ Test préalable sur 8 images (lr 1e-3, 1000 pas) : Dice 0.995 contre 0.749 pour 
 | *Référence A (U-Net sur l'image)* | *0.436* | *0.330* | *22 / 25* | *0.650 / 0.507* |
 | *Référence D (MedVAE → U-Net)* | *0.445* | *0.335* | *23 / 25* | *0.567 / 0.497* |
 
-**Conclusion** : Dice ×4 pour B et C, qui arrivent à 94 % du Dice de A (0.409 contre
+**Conclusion** : gardé (`latent_unet_head`, `base_channels: 64` dans les configs de B et C, résultats promus). Dice ×4 pour B et C, qui arrivent à 94 % du Dice de A (0.409 contre
 0.436) en ne partant que du latent MedVAE compressé ×16.
 
 - **La conclusion d'origine du projet est renversée** : le latent MedVAE *est* exploitable
