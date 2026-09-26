@@ -253,7 +253,10 @@ class Trainer:
         all_results[f"condition_{condition.lower()}"] = {
             "dice_mean":      results["dice_mean"],
             "iou_mean":       results["iou_mean"],
+            "dice_fg_mean":   results["dice_fg_mean"],
+            "iou_fg_mean":    results["iou_fg_mean"],
             "dice_per_class": results["dice_per_class"],
+            "iou_per_class":  results["iou_per_class"],
         }
 
         with open(results_path, "w") as f:

@@ -9,10 +9,11 @@ from finetune.metrics import SegMetrics
 NUM_CLASSES = 26
 
 
-def manual_scores(preds, targets):
-    """Dice et IoU moyens sur les classes présentes (dans la prédiction ou la cible)."""
+def manual_scores(preds, targets, first_class=0):
+    """Dice et IoU moyens sur les classes présentes (dans la prédiction ou la cible),
+    à partir de first_class (1 = artères seules, fond exclu)."""
     dices, ious = [], []
-    for c in range(NUM_CLASSES):
+    for c in range(first_class, NUM_CLASSES):
         p, t = preds == c, targets == c
         inter = (p & t).sum().item()
         total = p.sum().item() + t.sum().item()
@@ -57,3 +58,19 @@ def test_matches_manual_computation(name):
     assert results["dice_mean"] == pytest.approx(dice, abs=1e-4)
     assert results["iou_mean"] == pytest.approx(iou, abs=1e-4)
     assert results["dice_mean"] >= results["iou_mean"] - 1e-6
+
+    dice_fg, iou_fg = manual_scores(preds, targets, first_class=1)
+    assert results["dice_fg_mean"] == pytest.approx(dice_fg, abs=1e-4)
+    assert results["iou_fg_mean"] == pytest.approx(iou_fg, abs=1e-4)
+
+
+def test_reset_clears_foreground_presence():
+    targets = make_targets()
+    logits = F.one_hot(targets, NUM_CLASSES).permute(0, 3, 1, 2).float()
+    metrics = SegMetrics(num_classes=NUM_CLASSES)
+    metrics.update(logits, targets)
+    metrics.reset()
+    only_class_3 = torch.where(targets == 7, torch.zeros_like(targets), targets)
+    metrics.update(F.one_hot(only_class_3, NUM_CLASSES).permute(0, 3, 1, 2).float(), only_class_3)
+    # Après reset, la classe 7 n'est plus « présente » : seule la 3 compte
+    assert metrics.compute()["dice_fg_mean"] == pytest.approx(1.0)
