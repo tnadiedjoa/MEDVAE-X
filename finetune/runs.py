@@ -39,7 +39,14 @@ def apply_overrides(config: dict, overrides: list[str]) -> dict:
         node = config
         for part in parents:
             node = node.setdefault(part, {})
-        node[leaf] = yaml.safe_load(raw)
+        value = yaml.safe_load(raw)
+        # PyYAML lit « 1e-3 » comme du texte (il faut « 1.0e-3 » en YAML 1.1)
+        if isinstance(value, str):
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+        node[leaf] = value
     return config
 
 
