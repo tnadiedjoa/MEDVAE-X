@@ -1,0 +1,11 @@
+{
+  "run": "2026-09-25_105816_e02_medvae_finetune",
+  "date": "2026-09-25T10:58:16",
+  "git_commit": "af97a2692ebbe0d5fcb7297b0a038764f7116e5c",
+  "git_dirty": false,
+  "overrides": [],
+  "host": "node40",
+  "slurm_job_id": "1008505",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}

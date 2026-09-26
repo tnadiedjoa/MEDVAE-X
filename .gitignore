@@ -20,6 +20,7 @@ jepa-adaptation/outputs/
 jepa-adaptation/data/
 outputs/
 runs/
+!experiments/runs/
 wandb/
 *.ckpt
 *.pt

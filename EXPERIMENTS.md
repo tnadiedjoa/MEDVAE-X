@@ -57,37 +57,52 @@ est impossible (Dice ≥ IoU pour toute classe).
 le projet lui passait des masques d'indices de classes, mal interprétés sans erreur.
 Sur un cas test où le modèle prédit « fond » partout, il renvoyait 0.000 au lieu de 0.283.
 
-**Modification** : `MeanIoU` remplacé par `MulticlassJaccardIndex(average="macro")`,
+**Modification** (commit `70a070c`) : `MeanIoU` remplacé par `MulticlassJaccardIndex(average="macro")`,
 calculé exactement comme le Dice. Test de non-régression : `tests/test_seg_metrics.py`
 (échoue sur l'ancien code, passe sur le nouveau).
 
 **Impact** : le Dice est inchangé (son calcul était correct). **Tous les IoU publiés
 jusqu'ici sont faux** ; les checkpoints d'origine n'étant pas disponibles, ils ne peuvent
-pas être recalculés : les IoU corrects viendront de E02.
+pas être recalculés ; les IoU corrects sont ceux de E02.
 
 **Conclusion** : gardé (correction de bug).
 
-## E02 — Reproduction de l'état actuel sur RTX 3090 (en cours)
+## E02 — Reproduction de l'état actuel sur RTX 3090 (2026-09-25)
 
 **Objectif** : obtenir le point de départ mesuré dans nos conditions. Les résultats
 d'origine ont été obtenus sur H100/A100, avec d'autres versions des librairies et une
 copie d'ARCADE dont la provenance exacte n'est pas connue ; nous utilisons des RTX 3090,
 torch 2.14 et ARCADE depuis Zenodo.
 
-**Résultats d'origine** (Dice correct, IoU faux, cf. E01) :
-
-| Condition | Dice | IoU (faux) |
-|---|---|---|
-| A — U-Net | 0.433 | 0.499 |
-| A* — U-Net A sur images reconstruites | 0.435 | 0.497 |
-| B — latent MedVAE + tête | 0.038 | 0.005 |
-| C — latent MedVAE fine-tuné + tête | 0.039 | 0.000 |
-| D — MedVAE → U-Net | 0.451 | 0.495 |
+**Code** : commit `af97a26`, configs inchangées.
+**Runs** : `experiments/runs/2026-09-25_*_e02_*`
 
 **Adaptations à la 3090 (24 Go), sans effet sur les calculs** : le fine-tuning MedVAE
 traite chaque batch de 4 en 4 micro-batchs de 1 avec accumulation de gradient, et la
 condition D passe les images dans le MedVAE gelé par paquets de 2. Dans les deux cas le
 résultat est mathématiquement identique (loss L1 moyenne, normalisations par image).
 
-**Observation à vérifier** : un Dice de 0.038 correspond à un modèle qui prédit « fond »
-partout (≈ 1/26) ; B et C semblent ne rien avoir appris.
+| Condition | Dice origine | Dice E02 | IoU E02 (corrigé) | Epochs |
+|---|---|---|---|---|
+| A — U-Net | 0.433 | **0.436** | 0.330 | 100 |
+| A* — U-Net A sur images reconstruites | 0.435 | **0.437** | 0.329 | — (éval.) |
+| B — latent MedVAE + tête | 0.038 | **0.039** | 0.039 | 22 (early stop) |
+| C — latent MedVAE fine-tuné + tête | 0.039 | **0.039** | 0.039 | 22 (early stop) |
+| D — MedVAE → U-Net | 0.451 | **0.445** | 0.335 | 100 |
+
+Fine-tuning MedVAE (prérequis de C) : loss L1 de validation 0.02617 → 0.02408 (epoch
+49/50), identique à l'original (0.02613 → 0.02408, epoch 49/50).
+
+**Conclusions**
+
+- **Reproduction réussie** : tous les Dice sont à ±0.006 de l'original malgré le
+  changement de GPU, de librairies et de source du dataset. E02 sert de référence
+  « avant » pour les expériences suivantes.
+- **Les vrais IoU sont ~0.33** pour A, A* et D (contre ~0.50 annoncés, cf. E01).
+- **B et C ne détectent aucune artère** : Dice de 0.98 sur le fond et < 0.01 sur les
+  25 classes d'artères, aucun progrès en validation, arrêt à l'epoch 22. Ils prédisent
+  « fond » partout. La conclusion actuelle du projet (« le latent n'est pas adapté à la
+  prédiction dense ») repose donc sur des modèles qui n'ont rien appris : il reste à
+  établir si c'est une limite réelle du latent ou un problème d'entraînement.
+- **D ≈ A** (0.445 vs 0.436) : l'écart A/D est du même ordre que la variation
+  origine/reproduction (0.006), il n'est donc pas significatif sur un seul run.

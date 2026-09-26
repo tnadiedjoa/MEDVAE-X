@@ -1,0 +1,11 @@
+{
+  "run": "2026-09-25_112329_e02_condition_astar",
+  "date": "2026-09-25T11:23:29",
+  "git_commit": "af97a2692ebbe0d5fcb7297b0a038764f7116e5c",
+  "git_dirty": false,
+  "overrides": [],
+  "host": "nodemm05",
+  "slurm_job_id": "1008542",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}
