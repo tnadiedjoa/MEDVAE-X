@@ -21,12 +21,12 @@ encoder:
   modality:        "xray"
   checkpoint_path: null   # fourni au lancement : --set encoder.checkpoint_path=<run medvae_finetune>/best_medvae_finetuned.pth
 
-# Tête de segmentation légère (identique à condition B)
+# Tête de segmentation : petit U-Net à la résolution du latent (E04, identique à B)
 model:
-  architecture:    "seg_head"
+  architecture:    "latent_unet_head"
   latent_channels: 1            # 1 canal latent (medvae_4_1_2d)
   num_classes:     26
-  base_channels:   128
+  base_channels:   64
   n_upsample:      2            # 128 → 256 → 512 (f=4 spatial, 2 × ×2)
 
 training:
