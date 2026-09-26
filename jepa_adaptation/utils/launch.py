@@ -13,6 +13,11 @@ def bootstrap():
         if p.exists() and str(p) not in sys.path:
             sys.path.insert(0, str(p))
 
+    # Sans clone local de MedVAE, on utilise le paquet pip `medvae` : déclarer des
+    # modules vers un dossier inexistant masquerait le paquet installé.
+    if not (MEDVAE_ROOT / "medvae").exists():
+        return
+
     stubs = {
         "medvae": MEDVAE_ROOT / "medvae",
         "medvae.losses": MEDVAE_ROOT / "medvae" / "losses",
