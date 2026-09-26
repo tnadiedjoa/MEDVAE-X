@@ -192,15 +192,14 @@ MEDVAE-X/
 ## Setup
 
 ```bash
-git clone <repo-url> && cd MEDVAE-X
+git clone https://github.com/tnadiedjoa/MEDVAE-X.git && cd MEDVAE-X
 
 # Python 3.10+ recommended
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r finetune/requirements.txt
-pip install medvae
+pip install -r requirements.txt        # or requirements-lock.txt for the exact tested versions
 
 # Strip notebook outputs on commit (run once per clone)
-pip install nbstripout && nbstripout --install
+nbstripout --install
 ```
 
 ### Dataset
