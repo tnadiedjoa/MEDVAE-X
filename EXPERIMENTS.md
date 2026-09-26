@@ -140,3 +140,38 @@ les plus grosses, Dice jusqu'à 0.25 par classe), mais restent très loin de A (
   même ordre que la variation d'un run à l'autre).
 - La conclusion d'origine (« le latent n'est pas adapté à la prédiction dense ») n'est
   pas établie : il faut d'abord tester une tête capable d'exploiter le contexte.
+
+## E04 — Tête U-Net à la résolution du latent pour B et C (2026-09-26)
+
+**Hypothèse** : après E03, B et C sous-apprennent (Dice d'entraînement ≈ validation
+≈ 0.09). La tête `SegHead` ne fait aucune convolution à la résolution du latent : chaque
+pixel ne voit que son voisinage immédiat, alors qu'identifier un segment d'artère (IVA,
+circonflexe…) demande de voir une grande partie de l'image.
+**Modification** : nouvelle tête `LatentUNetHead` (commit `388ece7`) : petit U-Net sur le
+latent (128 → 64 → 32 → 16 → 128, connexions skip), puis le même upsampling ×4 vers
+512×512 ; `base_channels=64`, 7.8 M paramètres (U-Net de A : 24 M). Rien d'autre ne
+change (même latent, loss, lr 1e-3). Lancé avec
+`--set model.architecture=latent_unet_head --set model.base_channels=64`.
+Test préalable sur 8 images (lr 1e-3, 1000 pas) : Dice 0.995 contre 0.749 pour `SegHead`.
+**Runs** : avant `*_e03_lr1e-3_condition_{b,c}` — après `2026-09-26_114934_e04_latent_unet_head_condition_{b,c}`
+
+| | Dice | IoU | Artères détectées | Dice train / val (meilleur) |
+|---|---|---|---|---|
+| B avant (E03) | 0.097 | 0.070 | 12 / 25 | 0.090 / 0.109 |
+| **B après** | **0.409** | **0.304** | **21 / 25** | 0.452 / 0.444 |
+| C avant (E03) | 0.091 | 0.066 | 12 / 25 | 0.092 / 0.107 |
+| **C après** | **0.398** | **0.292** | **22 / 25** | 0.466 / 0.446 |
+| *Référence A (U-Net sur l'image)* | *0.436* | *0.330* | *22 / 25* | *0.650 / 0.507* |
+| *Référence D (MedVAE → U-Net)* | *0.445* | *0.335* | *23 / 25* | *0.567 / 0.497* |
+
+**Conclusion** : Dice ×4 pour B et C, qui arrivent à 94 % du Dice de A (0.409 contre
+0.436) en ne partant que du latent MedVAE compressé ×16.
+
+- **La conclusion d'origine du projet est renversée** : le latent MedVAE *est* exploitable
+  pour la segmentation dense des coronaires ; l'échec venait de l'entraînement (E03) et
+  de la tête (E04), pas du latent.
+- **C ≈ B** encore une fois (0.398 contre 0.409) : fine-tuner MedVAE sur ARCADE n'aide pas.
+- **Encore du sous-apprentissage** (train ≈ val ≈ 0.45, contre 0.65 / 0.51 pour A) et
+  les courbes plafonnent quand le learning rate atteint son minimum (100 epochs, meilleur
+  score aux epochs 90-97) : une tête plus large ou un entraînement plus long pourraient
+  encore réduire l'écart avec A.

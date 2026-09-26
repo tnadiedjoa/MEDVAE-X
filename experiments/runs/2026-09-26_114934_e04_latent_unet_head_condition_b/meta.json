@@ -1,0 +1,14 @@
+{
+  "run": "2026-09-26_114934_e04_latent_unet_head_condition_b",
+  "date": "2026-09-26T11:49:34",
+  "git_commit": "388ece7ad0a35fca0950bb54827e5a4bb9c0ef97",
+  "git_dirty": false,
+  "overrides": [
+    "model.architecture=latent_unet_head",
+    "model.base_channels=64"
+  ],
+  "host": "nodemm01",
+  "slurm_job_id": "1009499",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}
