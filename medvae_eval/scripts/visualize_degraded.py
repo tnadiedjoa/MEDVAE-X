@@ -5,11 +5,14 @@ import matplotlib.pyplot as plt
 import glob
 import random
 
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
 # Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/stenosis_dataset/sten_train"
-OUTPUT_PATH  = "../outputs/degradation/degradation_visual.png"
+OUTPUT_PATH  = f"{_OUTPUTS}/degradation/degradation_visual.png"
 SEED         = 42
 
 POISSON_LEVELS = [60.0, 20.0, 5.0]

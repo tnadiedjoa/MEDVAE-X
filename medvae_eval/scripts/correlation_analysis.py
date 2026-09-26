@@ -1,8 +1,12 @@
+import os
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
 
-files = ['../outputs/degradation/masked_sweep_blur.csv', '../outputs/degradation/masked_sweep_jpeg.csv', '../outputs/degradation/masked_sweep_poisson.csv']
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
+files = [f"{_OUTPUTS}/degradation/masked_sweep_blur.csv", f"{_OUTPUTS}/degradation/masked_sweep_jpeg.csv", f"{_OUTPUTS}/degradation/masked_sweep_poisson.csv"]
 
 for file in files:
     df = pd.read_csv(file)

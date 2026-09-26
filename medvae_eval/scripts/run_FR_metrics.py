@@ -6,6 +6,9 @@ import pandas as pd
 import glob
 from masked_psnr import MaskedPSNR
 
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
 # Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
@@ -37,4 +40,4 @@ for img_path in image_paths:
     })
     print(results[-1])
 
-pd.DataFrame(results).to_csv("../outputs/metrics/FR_results.csv", index=False)
+pd.DataFrame(results).to_csv(f"{_OUTPUTS}/metrics/FR_results.csv", index=False)
