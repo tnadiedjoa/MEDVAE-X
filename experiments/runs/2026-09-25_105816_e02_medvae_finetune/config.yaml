@@ -1,0 +1,20 @@
+encoder:
+  model_name: medvae_4_1_2d
+  modality: xray
+data:
+  train_images: dataset_phase_1/segmentation_dataset/seg_train/images
+  img_size: 512
+  val_ratio: 0.1
+  num_workers: 4
+  pin_memory: true
+training:
+  epochs: 50
+  batch_size: 4
+  micro_batch_size: 1
+  learning_rate: 4.5e-06
+  weight_decay: 0.0
+  lr_min: 1.0e-07
+  early_stopping_patience: 10
+  grad_clip: 1.0
+logging:
+  save_dir: null
