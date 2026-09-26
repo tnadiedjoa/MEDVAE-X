@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Dépendances (torch CPU, sans GPU ni dataset)
+        run: |
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install torchmetrics segmentation-models-pytorch albumentations pycocotools \
+                      pillow pyyaml numpy pandas pytest
+      - name: Tests
+        run: pytest -q tests/
