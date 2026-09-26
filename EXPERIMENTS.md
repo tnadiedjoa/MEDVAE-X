@@ -106,3 +106,37 @@ Fine-tuning MedVAE (prérequis de C) : loss L1 de validation 0.02617 → 0.02408
   établir si c'est une limite réelle du latent ou un problème d'entraînement.
 - **D ≈ A** (0.445 vs 0.436) : l'écart A/D est du même ordre que la variation
   origine/reproduction (0.006), il n'est donc pas significatif sur un seul run.
+
+## E03 — Learning rate de la tête de B et C : 5e-5 → 1e-3 (2026-09-26)
+
+**Diagnostic préalable** (`experiments/diagnostics/diag_latent_b.py`, commit `9a4d7ef`) :
+le latent MedVAE n'est pas en cause. Le bruit du tirage aléatoire est négligeable
+(écart-type 0.001 contre 7 pour le signal) et le latent contient autant d'information
+sur les vaisseaux qu'une image réduite à la même taille. En revanche, sur 8 images, la
+tête de B n'apprend presque rien avec son learning rate (Dice 0.05), mais atteint
+Dice 0.72 et 13 artères avec lr = 1e-3.
+
+**Hypothèse** : B et C restent bloqués sur « tout est du fond » parce que leur learning
+rate (5e-5) est trop faible pour une tête entraînée depuis zéro.
+**Modification** : `training.learning_rate` 5e-5 → 1e-3, rien d'autre (commit `1f19218`,
+`--set training.learning_rate=1e-3`). C utilise le MedVAE fine-tuné de E02.
+**Runs** : avant `*_e02_condition_{b,c}` — après `2026-09-26_025705_e03_lr1e-3_condition_{b,c}`
+
+| | Dice | IoU | Artères détectées (Dice > 0.01) | Epochs |
+|---|---|---|---|---|
+| B avant (E02) | 0.039 | 0.039 | 0 / 25 | 22 (early stop) |
+| **B après** | **0.097** | **0.070** | **12 / 25** | 97 (early stop) |
+| C avant (E02) | 0.039 | 0.039 | 0 / 25 | 22 (early stop) |
+| **C après** | **0.091** | **0.066** | **12 / 25** | 100 |
+
+**Conclusion** : gardé. B et C apprennent enfin (Dice ×2.5, 12 artères détectées sur
+les plus grosses, Dice jusqu'à 0.25 par classe), mais restent très loin de A (0.436).
+
+- **Sous-apprentissage** : Dice d'entraînement (~0.09) ≈ Dice de validation (~0.11) ;
+  le modèle n'arrive pas à mieux faire même sur les images d'entraînement. La limite
+  est la capacité de la tête (aucune convolution à la résolution du latent, champ
+  réceptif très petit), pas le sur-apprentissage.
+- **C ≈ B** : le fine-tuning de MedVAE sur ARCADE n'apporte rien ici (écart 0.006, du
+  même ordre que la variation d'un run à l'autre).
+- La conclusion d'origine (« le latent n'est pas adapté à la prédiction dense ») n'est
+  pas établie : il faut d'abord tester une tête capable d'exploiter le contexte.
