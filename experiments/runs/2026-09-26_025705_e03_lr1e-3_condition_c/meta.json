@@ -1,7 +1,7 @@
 {
   "run": "2026-09-26_025705_e03_lr1e-3_condition_c",
   "date": "2026-09-26T02:57:05",
-  "git_commit": "1f19218f0a67d6e95bb64800bea83c1d9ecd7217",
+  "git_commit": "247793bb9031060f9fcda80a85b563cbacb69492",
   "git_dirty": false,
   "overrides": [
     "encoder.checkpoint_path=experiments/runs/2026-09-25_105816_e02_medvae_finetune/best_medvae_finetuned.pth",

@@ -57,7 +57,7 @@ est impossible (Dice ≥ IoU pour toute classe).
 le projet lui passait des masques d'indices de classes, mal interprétés sans erreur.
 Sur un cas test où le modèle prédit « fond » partout, il renvoyait 0.000 au lieu de 0.283.
 
-**Modification** (commit `70a070c`) : `MeanIoU` remplacé par `MulticlassJaccardIndex(average="macro")`,
+**Modification** (commit `93390f7`) : `MeanIoU` remplacé par `MulticlassJaccardIndex(average="macro")`,
 calculé exactement comme le Dice. Test de non-régression : `tests/test_seg_metrics.py`
 (échoue sur l'ancien code, passe sur le nouveau).
 
@@ -74,7 +74,7 @@ d'origine ont été obtenus sur H100/A100, avec d'autres versions des librairies
 copie d'ARCADE dont la provenance exacte n'est pas connue ; nous utilisons des RTX 3090,
 torch 2.14 et ARCADE depuis Zenodo.
 
-**Code** : commit `af97a26`, configs inchangées.
+**Code** : commit `10f4048`, configs inchangées.
 **Runs** : `experiments/runs/2026-09-25_*_e02_*`
 
 **Adaptations à la 3090 (24 Go), sans effet sur les calculs** : le fine-tuning MedVAE
@@ -109,7 +109,7 @@ Fine-tuning MedVAE (prérequis de C) : loss L1 de validation 0.02617 → 0.02408
 
 ## E03 — Learning rate de la tête de B et C : 5e-5 → 1e-3 (2026-09-26)
 
-**Diagnostic préalable** (`experiments/diagnostics/diag_latent_b.py`, commit `9a4d7ef`) :
+**Diagnostic préalable** (`experiments/diagnostics/diag_latent_b.py`, commit `b7854d8`) :
 le latent MedVAE n'est pas en cause. Le bruit du tirage aléatoire est négligeable
 (écart-type 0.001 contre 7 pour le signal) et le latent contient autant d'information
 sur les vaisseaux qu'une image réduite à la même taille. En revanche, sur 8 images, la
@@ -118,7 +118,7 @@ Dice 0.72 et 13 artères avec lr = 1e-3.
 
 **Hypothèse** : B et C restent bloqués sur « tout est du fond » parce que leur learning
 rate (5e-5) est trop faible pour une tête entraînée depuis zéro.
-**Modification** : `training.learning_rate` 5e-5 → 1e-3, rien d'autre (commit `1f19218`,
+**Modification** : `training.learning_rate` 5e-5 → 1e-3, rien d'autre (commit `247793b`,
 `--set training.learning_rate=1e-3`). C utilise le MedVAE fine-tuné de E02.
 **Runs** : avant `*_e02_condition_{b,c}` — après `2026-09-26_025705_e03_lr1e-3_condition_{b,c}`
 
