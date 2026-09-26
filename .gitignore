@@ -1,23 +1,21 @@
+# Données (non versionnées, cf. scripts/download_arcade.sh)
 data/
 arcade_challenge_datasets/
 MedVAE-main/
-.DS_Store
+
+# Environnements, caches, éditeurs
+.venv
+.cache/
 __pycache__/
-.pytest_cache/
 *.py[cod]
+.pytest_cache/
 .ipynb_checkpoints/
-*.aux
-*.fls
-*.fdb_latexmk
-*.log
-*.synctex.gz
-*.out
-*.err
-*.toc
-sample.png
-sample_superposed.png
-jepa-adaptation/outputs/
-jepa-adaptation/data/
+.vscode/
+.claude/
+.DS_Store
+.DS_
+
+# Sorties d'entraînement et d'analyse (régénérables)
 outputs/
 runs/
 !experiments/runs/
@@ -29,11 +27,25 @@ wandb/
 *.nii.gz
 *.npy
 *.npz
-.DS_
-.venv
-.vscode/
-.cache/
+*.out
+*.err
+*.log
+sample.png
+sample_superposed.png
 
+# Compilation LaTeX (les PDF finaux sont versionnés)
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.nav
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+
+# Brouillons de rapports individuels
 report_theo/
 report_yanic/
 report_elias/

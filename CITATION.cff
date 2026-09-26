@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite it as below, together with MedVAE and ARCADE."
+title: "MEDVAE-X: adaptation, fine-tuning and analysis of MedVAE for coronary angiography"
+type: software
+authors:
+  - family-names: Rothlingshofer
+    given-names: Yanic
+  - family-names: Palagi
+    given-names: Théo
+  - family-names: Corlou
+    given-names: Elias
+  - family-names: Nadiedjoa
+    given-names: Théophile
+affiliation: "Télécom Paris"
+repository-code: "https://github.com/tnadiedjoa/MEDVAE-X"
+license: MIT
+date-released: "2026-06-21"
+references:
+  - type: article
+    title: "MedVAE: Efficient Automated Interpretation of Medical Images with Large-Scale Generalizable Autoencoders"
+    authors:
+      - family-names: Varma
+        given-names: Maya
+      - name: "et al."
+    year: 2025
+    identifiers:
+      - type: other
+        value: "arXiv:2502.14753"
+  - type: article
+    title: "Dataset for Automatic Region-based Coronary Artery Disease Diagnostics Using X-Ray Angiography Images"
+    authors:
+      - family-names: Popov
+        given-names: Maxim
+      - name: "et al."
+    journal: "Scientific Data"
+    volume: 11
+    start: 20
+    year: 2024

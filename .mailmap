@@ -1,0 +1,23 @@
+# Regroupe les différentes identités git d'un même auteur (git shortlog, git log --use-mailmap)
+Théo Palagi <theo.palagi2004@gmail.com> Palagi Théo <theo.palagi2004@gmail.com>
+Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@node40.enst.fr>
+Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@gpu-gw.enst.fr>
+Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@nodemm01.enst.fr>
+Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@node17.enst.fr>
+Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@nodemm05.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> Yanic ROTHLINGSHOFER <yrothlin-24@telecom-paris.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@nodecpu05.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@node54.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@node05.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@node04.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@node39.enst.fr>
+Yanic Rothlingshofer <yrothlin-24@telecom-paris.fr> <yrothlin-24@gpu-gw.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@nodemm01.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@nodecpu12.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@node19.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@node21.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@nodecpu10.enst.fr>
+Elias Corlou <ecorlou-24@telecom-paris.fr> <ecorlou-24@node17.enst.fr>
+Théophile Nadiedjoa <theophile.nadied@gmail.com> nadiedjoa-24 <theophile.nadied@gmail.com>
+Théophile Nadiedjoa <theophile.nadied@gmail.com> Théophile NADIEDJOA <theophile.nadiedjoa@telecom-paris.fr>
+Théophile Nadiedjoa <theophile.nadied@gmail.com> Theophile Nadiedjoa <nadiedjoa-24@node45.enst.fr>

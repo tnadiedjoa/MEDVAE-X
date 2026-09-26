@@ -261,4 +261,32 @@ Returning to pixel space therefore needs **2 upsamplings** of ×2 (`n_upsample: 
 Built on top of [MedVAE](https://github.com/StanfordMIMI/MedVAE) (Stanford MIMI). JEPA adaptation is
 inspired by [I-JEPA](https://github.com/facebookresearch/ijepa); the segmentation backbones use
 [segmentation_models.pytorch](https://github.com/qubvel/segmentation_models.pytorch).
+Third-party code included in this repository is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Citation
+
+If you use this code, please cite this repository ([CITATION.cff](CITATION.cff)) and the works it builds on:
+
+```bibtex
+@misc{varma2025medvae,
+  title  = {MedVAE: Efficient Automated Interpretation of Medical Images with Large-Scale Generalizable Autoencoders},
+  author = {Varma, Maya and Kumar, Ashwin and van der Sluijs, Rogier and Ostmeier, Sophie and Blankemeier, Louis
+            and Chambon, Pierre and Bluethgen, Christian and Prince, Jip and Langlotz, Curtis and Chaudhari, Akshay},
+  year   = {2025},
+  eprint = {2502.14753},
+  archivePrefix = {arXiv}
+}
+
+@article{popov2024arcade,
+  title   = {Dataset for Automatic Region-based Coronary Artery Disease Diagnostics Using X-Ray Angiography Images},
+  author  = {Popov, Maxim and Amanturdieva, Akmaral and Zhaksylyk, Nuren and others},
+  journal = {Scientific Data},
+  volume  = {11},
+  pages   = {20},
+  year    = {2024}
+}
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Yanic Rothlingshofer, Théo Palagi, Elias Corlou, Théophile Nadiedjoa.
