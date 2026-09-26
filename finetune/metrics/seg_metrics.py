@@ -39,6 +39,16 @@ class SegMetrics(nn.Module):
             ignore_index=ignore_index,
         ).to(device)
 
+        # Pour les moyennes sur les artères seules (fond exclu, standard ARCADE)
+        self.iou_per_class = MulticlassJaccardIndex(
+            num_classes=num_classes,
+            average="none",
+            ignore_index=ignore_index,
+        ).to(device)
+        # Pixels prédits / réels par classe : une classe absente des deux côtés
+        # est exclue des moyennes (comme dans la moyenne macro de torchmetrics)
+        self.register_buffer("class_pixels", torch.zeros(num_classes, dtype=torch.long, device=device))
+
     def update(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
         # On convertit les logits en classes prédites (argmax sur la dim des classes)
         preds = logits.argmax(dim=1)   # (B, H, W)
@@ -46,16 +56,26 @@ class SegMetrics(nn.Module):
         self.dice_per_class.update(preds, targets)
         self.dice_mean.update(preds, targets)
         self.iou_mean.update(preds, targets)
+        self.iou_per_class.update(preds, targets)
+        self.class_pixels += torch.bincount(preds.flatten(), minlength=self.num_classes)[:self.num_classes]
+        self.class_pixels += torch.bincount(targets.flatten(), minlength=self.num_classes)[:self.num_classes]
 
     def compute(self) -> dict:
         dice_per_class = self.dice_per_class.compute()  # tensor (num_classes,)
         dice_mean      = self.dice_mean.compute()        # scalar tensor
         iou_mean       = self.iou_mean.compute()         # scalar tensor
 
+        iou_per_class  = self.iou_per_class.compute()
+        present_fg     = self.class_pixels[1:] > 0     # artères présentes (prédites ou réelles)
+
         results = {
             "dice_mean":      dice_mean.item(),
             "iou_mean":       iou_mean.item(),
+            # Moyennes sur les artères seules (classes 1..N-1 présentes), fond exclu
+            "dice_fg_mean":   dice_per_class[1:][present_fg].mean().item() if present_fg.any() else 0.0,
+            "iou_fg_mean":    iou_per_class[1:][present_fg].mean().item() if present_fg.any() else 0.0,
             "dice_per_class": dice_per_class.tolist(),
+            "iou_per_class":  iou_per_class.tolist(),
         }
 
         # Ajoute chaque classe séparément pour le logging wandb
@@ -69,6 +89,8 @@ class SegMetrics(nn.Module):
         self.dice_per_class.reset()
         self.dice_mean.reset()
         self.iou_mean.reset()
+        self.iou_per_class.reset()
+        self.class_pixels.zero_()
 
 
 def build_metrics(config: dict, device: torch.device) -> SegMetrics:
