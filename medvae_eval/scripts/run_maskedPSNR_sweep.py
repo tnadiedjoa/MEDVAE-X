@@ -1,3 +1,4 @@
+import os
 import torch
 from medvae import MVAE
 from torchmetrics.image.arniqa import ARNIQA
@@ -9,9 +10,12 @@ import glob
 from tqdm import tqdm
 from masked_psnr import MaskedPSNR
 
-DATASET_PATH = "../../../data/arcade_challenge_datasets/dataset_phase_1/segmentation_dataset/seg_train"
+# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
+DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
 ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
-OUTPUT_DIR = "../outputs/degradation"
+OUTPUT_DIR = os.path.join(_REPO_ROOT, "medvae_eval", "outputs", "degradation")
 N_IMAGES = 50
 N_LEVELS = 20
 SEED = 42

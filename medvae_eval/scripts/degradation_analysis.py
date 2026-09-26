@@ -1,8 +1,12 @@
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-OUTPUT_DIR = "../outputs/degradation"
+# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+_OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
+
+OUTPUT_DIR = f"{_OUTPUTS}/degradation"
 MODE = "nr"  # "nr" (arniqa) ou "masked" (poisson/jpeg/blur)
 DEGRADATION = "poisson"  # "poisson" ou "jpeg" ou "blur" (si MODE="masked")
 
