@@ -8,7 +8,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Clés de la section `data` exprimées relativement à la racine ARCADE
-DATA_PATH_KEYS = ("train_images", "train_ann", "val_images", "val_ann")
+DATA_PATH_KEYS = ("train_images", "train_ann", "val_images", "val_ann",
+                  "official_val_images", "official_val_ann")
 
 
 def arcade_root() -> Path:

@@ -12,7 +12,12 @@ from pycocotools import mask as coco_mask
 import albumentations as A
 from albumentations.pytorch import ToTensorV2 
 
-def get_train_transforms(img_size: int = 512) -> A.Compose:
+def get_train_transforms(img_size: int = 512, noise_std_range=None) -> A.Compose:
+    # GaussNoise sans paramètre : écart-type de 20 à 44 % du max avec albumentations
+    # >= 2 (~84/255, image quasi détruite), contre ~3-7/255 en 1.x. noise_std_range
+    # (fraction du max) permet de retrouver un bruit léger ; None = comportement actuel.
+    gauss_noise = (A.GaussNoise(std_range=tuple(noise_std_range), p=0.3)
+                   if noise_std_range is not None else A.GaussNoise(p=0.3))
     return A.Compose([
         A.Resize(img_size, img_size),
         A.HorizontalFlip(p=0.5),
@@ -29,7 +34,7 @@ def get_train_transforms(img_size: int = 512) -> A.Compose:
             contrast_limit=0.2,
             p=0.5,
         ),
-        A.GaussNoise(p=0.3),
+        gauss_noise,
         A.CLAHE(clip_limit=2.0, p=0.3),
     ])
 
@@ -47,10 +52,11 @@ class ArcadeDataset(Dataset):
         image_ids: list = None,
         img_size: int = 512,
         augment: bool = False,
+        noise_std_range=None,
     ):
         self.images_dir = images_dir
         self.img_size   = img_size
-        self.transforms = get_train_transforms(img_size) if augment \
+        self.transforms = get_train_transforms(img_size, noise_std_range) if augment \
                   else get_val_transforms(img_size)
 
         # Charge le JSON 
