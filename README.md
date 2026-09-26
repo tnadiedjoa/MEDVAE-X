@@ -1,5 +1,7 @@
 # MedVAE — Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation
 
+[![tests](https://github.com/tnadiedjoa/MEDVAE-X/actions/workflows/tests.yml/badge.svg)](https://github.com/tnadiedjoa/MEDVAE-X/actions/workflows/tests.yml)
+
 > A four-axis study of **MedVAE**, a generic medical autoencoder, applied to the demanding domain of
 > **coronary angiography** (ARCADE dataset). We probe its robustness, its conditioning, its latent
 > structure and its usefulness for downstream segmentation.
@@ -179,7 +181,7 @@ MEDVAE-X/
 │   ├── encoder/ models/ losses/ metrics/ trainer/
 ├── experiments/runs/   # one folder per run (config, metadata, scores)
 ├── EXPERIMENTS.md      # experiment log: every change tested, before/after
-├── tests/              # pytest (metrics)
+├── tests/              # pytest (metrics, configs, runs, models, dataset) — run in CI
 ├── final_report/       # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
 ├── assets/             # figures used in this README
 ├── scripts/            # download_arcade.sh, promote_run.py
