@@ -1,0 +1,46 @@
+experiment:
+  name: condition_c_medvae_finetuned
+  condition: C
+  seed: 42
+data:
+  train_images: dataset_phase_1/segmentation_dataset/seg_train/images
+  train_ann: dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json
+  val_images: dataset_final_phase/test_case_segmentation/images
+  val_ann: dataset_final_phase/test_case_segmentation/annotations/instances_default.json
+  train_ratio: 0.8
+  num_classes: 26
+  img_size: 512
+  num_workers: 4
+  pin_memory: true
+encoder:
+  model_name: medvae_4_1_2d
+  modality: xray
+  checkpoint_path: experiments/runs/2026-09-25_105816_e02_medvae_finetune/best_medvae_finetuned.pth
+model:
+  architecture: seg_head
+  latent_channels: 1
+  num_classes: 26
+  base_channels: 128
+  n_upsample: 2
+training:
+  epochs: 100
+  batch_size: 4
+  learning_rate: 5.0e-05
+  weight_decay: 0.0001
+  early_stopping_patience: 15
+  grad_clip: 1.0
+scheduler:
+  name: cosine
+  cosine:
+    T_max: 100
+    eta_min: 1.0e-06
+  plateau:
+    factor: 0.5
+    patience: 7
+    min_lr: 1.0e-06
+loss:
+  dice_weight: 0.5
+  ce_weight: 0.5
+  cl_weight: 0.0
+logging:
+  save_dir: null
