@@ -60,7 +60,7 @@ exécution de **NB3 avec `APPROACH="C"`** pour régénérer `labels_quality.csv`
 6. **Normalisation MSCN** (Mean Subtracted Contrast Normalized) — `Î(i,j) = (I(i,j) - μ(i,j)) / (σ(i,j) + C)` — supprime les biais d'illumination non-uniforme et les biais globaux de contraste entre patients.
 7. **Validation de MSCN** — Comparaison visuelle avant/après, histogrammes de distribution, et vérification que les métriques différencient encore les images post-MSCN.
 
-### Sorties (dans `outputs_theophile/01_Data_Exploration/figures/`)
+### Sorties (dans `outputs_cvae/01_Data_Exploration/figures/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -99,7 +99,7 @@ exécution de **NB3 avec `APPROACH="C"`** pour régénérer `labels_quality.csv`
 8. **Analyse statistique** — Distributions des 8 métriques sur tout le dataset, matrice de corrélation pour identifier les redondances.
 9. **Export** — CSV + cartes de qualité `.npy`.
 
-### Sorties (dans `outputs_theophile/02_IQA_Metrics_Extraction/`)
+### Sorties (dans `outputs_cvae/02_IQA_Metrics_Extraction/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -173,7 +173,7 @@ Le score continu est discrétisé en 3 classes par tertiles **calculés sur TRAI
 - Galerie de 3 exemples par classe (bad / medium / good)
 - Méthode C : courbe d'entraînement du MLP, scatter prédiction vs sévérité synthétique connue, comparaison `score_dl` vs `score_weighted`/`score_pca`
 
-### Sorties (dans `outputs_theophile/03_Inductive_Bias_Generation/`)
+### Sorties (dans `outputs_cvae/03_Inductive_Bias_Generation/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -226,7 +226,7 @@ h ← (1 + γᵢ) · h + βᵢ
 8. **Phase 2 — Fine-tuning global** (5 000 steps, ~20 epochs) — Tous les poids sont dégelés (base VAE + FiLM). LR réduit à 1e-6 avec scheduler cosine → 1e-7. Validation et early stopping identiques.
 9. **Sauvegarde du checkpoint** — `quality_aware_vae.pt` contenant le meilleur modèle (sélectionné sur val loss), ddconfig, embed_dim, historiques des deux phases.
 
-### Sorties (dans `outputs_theophile/04_MedVAE_Architecture_Mod/approach_{APPROACH}/`)
+### Sorties (dans `outputs_cvae/04_MedVAE_Architecture_Mod/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -281,7 +281,7 @@ Propre, Bruit gaussien (σ=0.05, 0.10, 0.20), Flou de mouvement horizontal (k=5)
 - Le cVAE est entraîné avec un warm-up FiLM (2 500 steps) + fine-tuning global (5 000 steps) = **7 500 steps** au total, avec validation et early stopping.
 - Ce notebook est exécuté indépendamment pour chacune des 3 approches (`approach_A/`, `approach_B/`, `approach_C/`).
 
-### Sorties (dans `outputs_theophile/05_Evaluation_of_Robustness/approach_{APPROACH}/`)
+### Sorties (dans `outputs_cvae/05_Evaluation_of_Robustness/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -306,7 +306,7 @@ simple capacité supplémentaire du modèle. **Généralisé aux 3 approches** :
 `APPROACH` depuis `pipeline_config.py` comme NB4/NB5, donc à relancer une fois par approche
 (A, B, C) pour avoir l'ablation complète des 3 — ce n'est plus limité à B.
 
-### Sorties (dans `outputs_theophile/06_Ablation_c_Constant/approach_{APPROACH}/`)
+### Sorties (dans `outputs_cvae/06_Ablation_c_Constant/approach_{APPROACH}/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -338,7 +338,7 @@ TRAIN), au lieu de réutiliser la colonne `quality_label` générique du CSV —
 que la dernière approche avec laquelle NB3 a été exécuté. Ceci évite toute contamination
 croisée entre approches lors de l'évaluation.
 
-### Sorties (dans `outputs_theophile/07_Masked_PSNR_Comparison/`)
+### Sorties (dans `outputs_cvae/07_Masked_PSNR_Comparison/`)
 
 | Fichier | Contenu |
 |---------|---------|
@@ -409,11 +409,11 @@ Moyenne non pondérée de 7 métriques normalisées (min-max) :
 
 | Fichier | Contenu |
 |---------|---------|
-| `outputs_theophile/quality_metrics_standalone/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
-| `outputs_theophile/quality_metrics_standalone/quality_distributions.png` | Histogrammes des 11 métriques |
-| `outputs_theophile/quality_metrics_standalone/quality_correlation.png` | Matrice de corrélation |
-| `outputs_theophile/quality_metrics_standalone/quality_comparison.png` | 5 low quality vs 5 high quality |
-| `outputs_theophile/quality_metrics_standalone/quality_composite.png` | Distribution du score composite |
+| `outputs_cvae/quality_metrics_standalone/quality_metrics_scores.csv` | `image, quality_score` pour chaque image |
+| `outputs_cvae/quality_metrics_standalone/quality_distributions.png` | Histogrammes des 11 métriques |
+| `outputs_cvae/quality_metrics_standalone/quality_correlation.png` | Matrice de corrélation |
+| `outputs_cvae/quality_metrics_standalone/quality_comparison.png` | 5 low quality vs 5 high quality |
+| `outputs_cvae/quality_metrics_standalone/quality_composite.png` | Distribution du score composite |
 
 ---
 
