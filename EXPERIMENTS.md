@@ -129,7 +129,7 @@ rate (5e-5) est trop faible pour une tête entraînée depuis zéro.
 | C avant (E02) | 0.039 | 0.039 | 0 / 25 | 22 (early stop) |
 | **C après** | **0.091** | **0.066** | **12 / 25** | 100 |
 
-**Conclusion** : gardé. B et C apprennent enfin (Dice ×2.5, 12 artères détectées sur
+**Conclusion** : gardé (learning rate 1e-3 dans les configs de B et C, résultats promus). B et C apprennent enfin (Dice ×2.5, 12 artères détectées sur
 les plus grosses, Dice jusqu'à 0.25 par classe), mais restent très loin de A (0.436).
 
 - **Sous-apprentissage** : Dice d'entraînement (~0.09) ≈ Dice de validation (~0.11) ;

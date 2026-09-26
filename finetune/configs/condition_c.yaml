@@ -32,7 +32,7 @@ model:
 training:
   epochs:                   100
   batch_size:               4
-  learning_rate:            5.0e-5
+  learning_rate:            1.0e-3   # E03 : 5e-5 bloquait la tête sur « tout est du fond »
   weight_decay:             1.0e-4
   early_stopping_patience:  15
   grad_clip:                1.0
