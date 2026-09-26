@@ -39,3 +39,18 @@ def test_split_is_deterministic_and_disjoint(tmp_path):
     train, val = split_dataset(ann, train_ratio=0.8, seed=42)
     assert (train, val) == split_dataset(ann, train_ratio=0.8, seed=42)
     assert len(train) == 8 and len(val) == 2 and not set(train) & set(val)
+
+
+def test_gauss_noise_strength_is_configurable():
+    from finetune.dataset import get_train_transforms
+
+    image = np.full((256, 256), 128, np.uint8)
+
+    def noise_std(std_range):
+        noise = next(t for t in get_train_transforms(256, std_range).transforms
+                     if type(t).__name__ == "GaussNoise")
+        noise.p = 1.0
+        return noise(image=image)["image"].astype(float).std()
+
+    assert noise_std((0.0124, 0.0277)) < 10        # ~3-7 niveaux sur 255 : bruit léger
+    assert noise_std(None) > 30                    # défaut albumentations >= 2 : très fort

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from finetune.config import load_config
+from finetune.config import arcade_root, load_config
 from finetune.dataset import ArcadeDataset, split_dataset
 from finetune.models import build_unet, build_seg_head
 from finetune.runs import add_run_args, apply_overrides, create_run
@@ -35,16 +35,30 @@ def get_device() -> torch.device:
 def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
     data_cfg = config["data"]
 
-    train_ids, val_ids = split_dataset(
-        data_cfg["train_ann"],
-        train_ratio=data_cfg["train_ratio"],
-        seed=config["experiment"]["seed"],
-    )
+    noise = data_cfg.get("gauss_noise_std_range")   # E07 ; None = comportement d'origine
 
-    train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
-                                  train_ids, augment=True)
-    val_dataset   = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
-                                  val_ids,   augment=False)
+    if data_cfg.get("validation", "split") == "official":
+        # E08 : tout seg_train (1000 images) pour l'entraînement, seg_val officiel
+        # (200 images) pour la sélection du modèle
+        train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
+                                      augment=True, noise_std_range=noise)
+        seg_val = arcade_root() / "dataset_phase_1" / "segmentation_dataset" / "seg_val"
+        val_dataset   = ArcadeDataset(
+            data_cfg.get("official_val_images", str(seg_val / "images")),
+            data_cfg.get("official_val_ann", str(seg_val / "annotations" / "seg_val.json")),
+            augment=False,
+        )
+    else:
+        # Comportement d'origine : seg_train découpé 80/20 selon le seed
+        train_ids, val_ids = split_dataset(
+            data_cfg["train_ann"],
+            train_ratio=data_cfg["train_ratio"],
+            seed=config["experiment"]["seed"],
+        )
+        train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
+                                      train_ids, augment=True, noise_std_range=noise)
+        val_dataset   = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
+                                      val_ids,   augment=False)
     test_dataset  = ArcadeDataset(data_cfg["val_images"],   data_cfg["val_ann"],
                                   augment=False)
 
