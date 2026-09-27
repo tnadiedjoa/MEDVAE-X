@@ -1,0 +1,14 @@
+{
+  "run": "2026-09-26_192256_e06_seed44_condition_c",
+  "date": "2026-09-26T19:22:56",
+  "git_commit": "6dca6a26b4f50fbb3e83ba3de288f924fbc44f99",
+  "git_dirty": true,
+  "overrides": [
+    "encoder.checkpoint_path=experiments/runs/2026-09-25_105816_e02_medvae_finetune/best_medvae_finetuned.pth",
+    "experiment.seed=44"
+  ],
+  "host": "nodemm01",
+  "slurm_job_id": "1009810",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}
