@@ -1,0 +1,11 @@
+{
+  "run": "2026-09-27_202446_e13_film_baseline_seed42",
+  "date": "2026-09-27T20:24:46",
+  "git_commit": "da55a67d6f3c3d2d1ba7dabd81b5b26d520ac5f8",
+  "git_dirty": true,
+  "overrides": [],
+  "host": "nodemm01",
+  "slurm_job_id": "1011644",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}

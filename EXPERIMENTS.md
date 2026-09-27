@@ -308,3 +308,69 @@ MedVAE reconstruit l'image propre à 33.1 dB (vaisseaux : 33.1 dB), ce qui fixe 
 - Le résultat d'origine sur le flou (« les images floues se reconstruisent mieux », r ≈ −0.998)
   venait de la métrique : la courbe orange des figures (reconstruction vs entrée dégradée)
   monte avec le flou, alors que la courbe bleue (vs image propre) descend.
+
+## E13 — Axe B refait : conditionnement FiLM par un score de qualité (2026-09-27)
+
+**Constat sur l'étude d'origine** (notebooks 04 à 07 de `medvae_eval/cvae/`) :
+- entraînement et évaluation en **64×64** : à cette résolution, le MedVAE pré-entraîné
+  (`vae_4x_4c_2D`) ne reconstruit qu'à **20.7 dB** sur seg_val, contre **34.8 dB** en
+  256×256 (runs `e13_film_pretrained_64px` et `e13_film_pretrained`), et les vaisseaux
+  font ~1 pixel ;
+- loss = MSE moyenne + 1e-6 × KL **sommée** sur le latent : le terme KL n'est pas à la même
+  échelle que la MSE (en 256×256, il pèse ~700 fois la MSE et fait remonter l'erreur de
+  validation pendant l'entraînement). La « loss ELBO interne » où le cVAE gagnait de 31 à
+  45 % mesure donc surtout la KL, pas la reconstruction ;
+- le cVAE (2500 pas FiLM seul, puis 5000 pas complets) et la baseline (7500 pas complets)
+  ne sont pas entraînés de la même façon ;
+- un seul run par modèle, 60 images de test : l'ablation compare deux modèles entraînés
+  séparément (vrai c contre c = 0.5), l'écart mêle donc l'usage de c et la variabilité d'un
+  entraînement à l'autre, que le test de Wilcoxon sur les images ne couvre pas.
+
+**Nouveau protocole** (`medvae_eval/film/train_film.py`, commits `34b8619` et `da55a67`) :
+- 256×256 ; seg_train découpé 900 / 100 (découpage fixe) ; **test = seg_val** (200 images,
+  jamais vues ni pour l'entraînement ni pour la sélection) ;
+- baseline et FiLM entraînés **à l'identique** : tous les paramètres, 3000 pas, AdamW
+  lr 1e-5 cosine, batch 4, loss = MSE + 1e-6 × KL / nombre de pixels (convention
+  MedVAE / latent-diffusion) ; sélection sur la MSE de validation ; 3 seeds ;
+- FiLM : 19 blocs, têtes initialisées à zéro, +1.70 M paramètres (+3.1 % des 55.3 M de
+  `vae_4x_4c_2D`) ;
+- **contrôles à l'inférence, sur le même modèle** : c mélangé (permutation fixe des scores
+  entre les 200 images) et c constant (moyenne d'entraînement). Si le modèle se sert de c,
+  le vrai c doit battre les deux ;
+- score c de l'approche C (appris), celle pour laquelle l'étude d'origine concluait que
+  c est exploité.
+
+**Runs** : `2026-09-27_*_e13_film_{pretrained,baseline_seed4?,C_seed4?}` ; analyse
+`python medvae_eval/film/analyze.py` (commande dans le script) → `experiments/film/e13/`.
+
+| Modèle (test seg_val, 256×256) | PSNR (dB) | PSNR vaisseaux (dB) | SSIM | HaarPSI |
+|---|---|---|---|---|
+| MedVAE pré-entraîné | 34.81 | 35.57 | 0.949 | 0.939 |
+| Baseline fine-tunée (sans c) | 42.261 ± 0.013 | 40.891 ± 0.005 | 0.970 | 0.983 |
+| FiLM, vrai c | 42.287 ± 0.018 | 40.915 ± 0.009 | 0.970 | 0.983 |
+| FiLM, c mélangé | 42.285 ± 0.017 | 40.914 ± 0.009 | 0.970 | 0.983 |
+| FiLM, c constant | 42.300 ± 0.021 | 40.925 ± 0.010 | 0.970 | 0.984 |
+
+| Différence appariée (PSNR, dB) | Moyenne | IC 95 % (images) | Par seed (42 / 43 / 44) |
+|---|---|---|---|
+| Baseline − pré-entraîné | **+7.45** | [+7.06, +7.85] | +7.44 / +7.46 / +7.44 |
+| FiLM (vrai c) − baseline | +0.026 | [+0.015, +0.038] | +0.055 / +0.004 / +0.019 |
+| FiLM : vrai c − c mélangé | +0.002 | [−0.007, +0.010] | +0.002 / +0.002 / +0.001 |
+| FiLM : vrai c − c constant | −0.013 | [−0.021, −0.006] | −0.015 / −0.015 / −0.009 |
+
+(moyenne ± écart-type sur 3 seeds ; mêmes conclusions sur le PSNR des vaisseaux, le SSIM
+et le HaarPSI, cf. `experiments/film/e13/paired.csv`)
+
+**Conclusions**
+
+- **Fine-tuner MedVAE sur ARCADE améliore fortement la reconstruction** : +7.4 dB de PSNR
+  (+5.3 dB sur les vaisseaux) par rapport au modèle pré-entraîné, pour les 3 seeds.
+- **FiLM ne fait ni mieux ni moins bien que la baseline** : +0.03 dB, positif pour les 3
+  seeds mais très faible (< 0.1 dB). Le résultat d'origine (cVAE pire de 21 à 49 % en
+  MSE) ne se reproduit pas quand les deux modèles sont entraînés à l'identique.
+- **Le modèle ne se sert pas de l'information de qualité** : remplacer le vrai c par celui
+  d'une autre image ne change rien (+0.002 dB, IC contenant 0), et un c constant fait même
+  très légèrement mieux. Les modulations FiLM apprises dépendent bien de c (|γ(1) − γ(0)|
+  jusqu'à 0.05), mais cette dépendance n'aide pas la reconstruction : le petit gain sur la
+  baseline vient des paramètres ajoutés (une modulation affine par canal), pas du score.
+  La conclusion d'origine « l'approche C exploite c » n'est pas confirmée.
