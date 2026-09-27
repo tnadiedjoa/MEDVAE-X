@@ -72,7 +72,7 @@
   compact latent.
   \begin{itemize}
     \item \textbf{MedVAE}: generic medical compressor ($>1$M images),
-      $\times 16$ ($512^2 \to 128^2 \times 1$), trained in two stages
+      $\times 4$ per side, $\times 16$ in area ($512^2 \to 128^2 \times 1$), trained in two stages
       (reconstruction then semantic enrichment).
   \end{itemize}
   \vspace{0.4em}
@@ -99,7 +99,7 @@
 % ############################################################################
 % PART 1 — ELIAS
 % Figures available in figures/elias/ :
-%   degradation_visual.png, pipeline.pdf, mpsnr.pdf,
+%   degradation_visual.png, pipeline_corrected.pdf, mpsnr.pdf, robustness_corrected.png,
 %   179_clean.png, 179_clean_ov.png, 179_deg_ov.png, 179_poisson.png,
 %   metrics_by_level_all_masked.pdf,
 %   metrics_by_level_masked_blur_NEW.png,
@@ -110,7 +110,11 @@
 
 \begin{frame}{Method: evaluation protocol}
 \centering
-\includegraphics[width=0.85\linewidth]{elias/pipeline.pdf}
+\includegraphics[width=0.85\linewidth]{elias/pipeline_corrected.pdf}
+
+\vspace{0.6em}
+\footnotesize The reconstruction is compared to the \alert{clean} image: does MedVAE bring a degraded input closer to it?
+100 \texttt{seg\_val} images, deterministic latent, fixed intensity scale, seeded noise, bootstrap CIs.
 \end{frame}
 
 \begin{frame}{Why not a no-reference metric?}
@@ -146,36 +150,42 @@ quantiles 5/50/95 & 0.3772 / 0.4566 / 0.5391 \\
 \end{columns}
 \end{frame}
 
-\begin{frame}{Result: three distinct regimes}
+\begin{frame}{Result: MedVAE removes noise, not blur or JPEG artefacts}
 \begin{columns}[T]
-\begin{column}{0.42\textwidth}
+\begin{column}{0.46\textwidth}
 \centering
 \footnotesize
-\vspace{0.7em}
-\begin{tabular}{lcc}
+\vspace{0.3em}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-Degradation & $r$ (Pearson) & $\rho$ (Spearman) \\
+Degradation & $\Delta$ PSNR (dB) & Restored \\
 \midrule
-Blur & $-0.998$ & $-0.998$ \\
-Poisson & $+0.998$ & $+1.000$ \\
-JPEG (before peak) & $-0.990$ & $-1.000$ \\
-JPEG (after peak) & $+0.990$ & $+1.000$ \\
-JPEG (global) & $(+0.030)$ & $(-0.439)$ \\
+Poisson & $+1.2 \to +6.6$ & $99$--$100\%$ \\
+JPEG ($95 \to 5$) & $-11.7 \to -0.6$ & $0$--$9\%$ \\
+Blur & $-2.0 \to +0.1$ & -- \\
 \bottomrule
 \end{tabular}
+
+\vspace{0.3em}
+\tiny $\Delta = \mathrm{PSNR}(\text{clean}, \text{recon}) - \mathrm{PSNR}(\text{clean}, \text{degraded})$
 \end{column}
-\begin{column}{0.58\textwidth}
+\begin{column}{0.54\textwidth}
 \footnotesize
 \begin{itemize}
-  \item \textbf{Blur}: near-perfect anti-correlation (28.9 $\to$ 39.2 dB) — spectral bias
-  \item \textbf{Poisson}: positive correlation, mirror image — the latent removes high-frequency noise ($+1.94$ dB toward the clean image, insufficient)
-  \item \alert{JPEG}: non-monotonic — smoothing that helps up to the peak, then collapse (block artifacts)
+  \item \textbf{Poisson}: genuine denoising, larger for stronger noise
+  \item \textbf{JPEG}: never restored --- MedVAE's own error (33 dB ceiling) exceeds the artefacts
+  \item \textbf{Blur}: not restored --- the reconstruction follows the blurred input
+  \item \alert{The earlier ``blur reconstructs better''} measured fidelity to the \emph{degraded} input (orange)
 \end{itemize}
 \end{column}
 \end{columns}
-\vspace{0.1em}
+\end{frame}
+
+\begin{frame}{Result: restoration curves (vessel pixels)}
 \centering
-\includegraphics[width=1.0\textwidth]{elias/metrics_by_level_masked_all.pdf}
+\includegraphics[height=0.74\textheight]{elias/robustness_corrected.png}
+
+\footnotesize Grey: degraded input vs clean. Blue: reconstruction vs clean. Orange: reconstruction vs degraded input (earlier metric). Bottom: $\Delta$.
 \end{frame}
 
 % ############################################################################
