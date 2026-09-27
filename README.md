@@ -171,24 +171,30 @@ python -m finetune.plot \
 
 ```
 MEDVAE-X/
-├── medvae_eval/        # Axis A & B — robustness analysis + FiLM conditioning
-│   ├── scripts/        #   degradation sweeps, masked-PSNR, correlations
-│   └── cvae/           #   FiLM-conditioned MedVAE notebooks
-├── jepa_adaptation/    # Axis C — JEPA self-supervised stage-2 adaptation
+├── medvae_eval/          # Axes A & B
+│   ├── robustness/       #   A: restoration sweep, analysis, segmentation under degradation
+│   ├── film/             #   B: FiLM-conditioned MedVAE, training/evaluation, analysis, figures
+│   ├── cvae/             #   B: quality-score notebooks (score construction) + original FiLM study
+│   └── scripts/          #   A: original robustness scripts (kept for reference)
+├── jepa_adaptation/      # Axis C — JEPA self-supervised stage-2 adaptation
 │   ├── stage1_training.py / stage2_training.py
-│   ├── configs/ models/ utils/ downstream/ jobs/
-├── finetune/           # Axis D — coronary segmentation from MedVAE latents
-│   ├── train.py        #   entry point (run as `python -m finetune.train`)
-│   ├── configs/        #   condition_a … condition_d
-│   ├── results/        #   current official results (histories, test scores)
-│   ├── encoder/ models/ losses/ metrics/ trainer/
-├── experiments/runs/   # one folder per run (config, metadata, scores)
-├── EXPERIMENTS.md      # experiment log: every change tested, before/after
-├── tests/              # pytest (metrics, configs, runs, models, dataset) — run in CI
-├── final_report/       # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
-├── assets/             # figures used in this README
-├── scripts/            # download_arcade.sh, promote_run.py
-├── data/arcade/        # ARCADE dataset (not versioned, see Setup)
+│   ├── eval/probe.py     #   linear probe on frozen representations
+│   ├── configs/ datasets/ models/ utils/ downstream/ jobs/
+├── finetune/             # Axis D — coronary segmentation from MedVAE latents
+│   ├── train.py          #   entry point (run as `python -m finetune.train`)
+│   ├── evaluate.py       #   re-evaluate a finished run on the test set
+│   ├── configs/          #   condition_a … condition_d
+│   ├── results/          #   current official results (histories, test scores)
+│   ├── encoder/ models/ losses/ metrics/ trainer/ slurm/
+├── experiments/
+│   ├── runs/             # one folder per run (config, metadata, scores)
+│   └── robustness/ film/ diagnostics/  # analyses of the logged experiments
+├── EXPERIMENTS.md        # experiment log: every change tested, before/after
+├── tests/                # pytest (metrics, configs, runs, models, dataset) — run in CI
+├── final_report/         # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
+├── assets/               # figures used in this README
+├── scripts/              # download_arcade.sh, promote_run.py, summarize_runs.py
+├── data/arcade/          # ARCADE dataset (not versioned, see Setup)
 └── README.md
 ```
 
