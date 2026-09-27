@@ -19,7 +19,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | en cours | — |
 | E11 | A | Robustesse mesurée par rapport à l'image propre | débruite le Poisson (+1.2 à +6.6 dB), ne restaure ni JPEG ni flou | refait |
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | à venir | — |
-| E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c non utilisé | refait |
+| E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
 | E14 | C | JEPA refait (test exclu du pré-entraînement, linear probe) | en cours | — |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
@@ -395,3 +395,27 @@ et le HaarPSI, cf. `experiments/film/e13/paired.csv`)
   jusqu'à 0.05), mais cette dépendance n'aide pas la reconstruction : le petit gain sur la
   baseline vient des paramètres ajoutés (une modulation affine par canal), pas du score.
   La conclusion d'origine « l'approche C exploite c » n'est pas confirmée.
+
+**Vérifications complémentaires (seed 42)** : scores des approches A (pondéré) et B (PCA),
+et learning rate 100 fois plus fort pour les couches FiLM (`--film-lr 1e-3`, commit
+`8445406`), pour écarter l'idée que c soit ignoré parce que les têtes FiLM apprennent trop
+lentement. Runs `*_e13_film_{A,B,C_filmlr1e-3}_seed42` ; analyse `experiments/film/e13_seed42_checks/`.
+
+| Seed 42, PSNR (dB) | FiLM − baseline | vrai c − c mélangé | vrai c − c constant |
+|---|---|---|---|
+| Score C (référence ci-dessus) | +0.055 | +0.002 [−0.007, +0.010] | −0.015 |
+| Score C, lr FiLM 1e-3 | **+0.239** [+0.16, +0.33] | +0.011 [−0.008, +0.031] | −0.001 [−0.018, +0.018] |
+| Score A | +0.067 [+0.05, +0.09] | +0.009 [+0.003, +0.016] | +0.006 [+0.002, +0.011] |
+| Score B | +0.078 [+0.06, +0.10] | **+0.037** [+0.020, +0.054] | +0.023 [+0.010, +0.036] |
+
+- **Un lr FiLM plus fort améliore FiLM (+0.24 dB), mais pas grâce à c** : le c constant fait
+  aussi bien que le vrai. Les couches FiLM servent de paramètres supplémentaires.
+- **Avec les scores A et B, le vrai c bat les deux contrôles** (IC hors de 0) : le réseau
+  exploite un peu ces scores, construits à partir de métriques de netteté et de contraste
+  calculées sur toute l'image (une information globale, alors que ce MedVAE n'a que des
+  convolutions). L'effet reste minuscule : ≤ 0.04 dB sur l'image, ≤ 0.012 dB sur les
+  vaisseaux, un seul seed.
+- Conclusion d'ensemble : **le conditionnement par la qualité n'apporte pas de gain utile à
+  la reconstruction**. Le score C (appris) n'est pas utilisé ; A et B le sont très
+  légèrement. C'est l'inverse de l'étude d'origine (C exploité, A inversé), qui comparait
+  des modèles entraînés séparément sur un seul run.
