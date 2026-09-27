@@ -4,6 +4,27 @@ Toutes les modifications testées sur le projet, **qu'elles aient amélioré les
 ou non**. Chaque modification est comparée à l'état du projet **juste avant** elle,
 mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 
+## Résumé
+
+| # | Axe | Ce qui a été testé | Effet mesuré | Décision |
+|---|---|---|---|---|
+| E01 | D | Calcul de l'IoU (masques d'indices passés à `MeanIoU`) | IoU publiés faux (0.50 → ~0.33) | corrigé |
+| E02 | D | Reproduction sur RTX 3090 | Dice à ±0.006 de l'origine ; B et C ne détectent aucune artère | référence |
+| E03 | D | lr de la tête de B/C : 5e-5 → 1e-3 | B 0.039 → 0.097, C 0.039 → 0.091 | gardé |
+| E04 | D | Tête U-Net à la résolution du latent (B/C) | B → 0.409, C → 0.398 : le latent est exploitable | gardé |
+| E06 | D | 3 seeds par condition | variabilité ±0.01 ; D > A pour les 3 seeds | protocole |
+| E07 | D | Bruit d'augmentation ramené à l'intensité voulue | A +0.010 (faible) | gardé |
+| E08 | D | Validation sur le seg_val officiel (1000 images d'entraînement) | A +0.030 | gardé |
+| E09 | D | Dice / IoU sur les artères seules (fond exclu) | ~0.024 sous le Dice avec fond, classement inchangé | ajouté |
+| E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | en cours | — |
+| E11 | A | Robustesse mesurée par rapport à l'image propre | débruite le Poisson (+1.2 à +6.6 dB), ne restaure ni JPEG ni flou | refait |
+| E12 | A | Segmentation d'images dégradées (A, A*, D) | à venir | — |
+| E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c non utilisé | refait |
+| E14 | C | JEPA refait (test exclu du pré-entraînement, linear probe) | en cours | — |
+
+Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
+A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
+
 ## Protocole
 
 1. **Avant** : le run de référence est celui de l'état courant du projet. S'il n'existe
