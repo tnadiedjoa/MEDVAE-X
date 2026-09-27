@@ -118,6 +118,8 @@ def main():
     parser.add_argument("--img-size", type=int, default=256)
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--film-lr", type=float, default=None,
+                        help="learning rate des couches FiLM (défaut : --lr)")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--kl-weight", type=float, default=1e-6)
     parser.add_argument("--val-every", type=int, default=250)
@@ -141,9 +143,16 @@ def main():
                                "data": {"n_train": len(train_df), "n_val": len(val_df), "n_test": len(test_df)}},
                               name))
 
-    # Entraînement : tous les paramètres, AdamW + cosine, loss = MSE + kl_weight * KL
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(args.steps, 1), eta_min=args.lr / 10)
+    # Entraînement : tous les paramètres, AdamW + cosine (lr → lr/10), loss = MSE + kl_weight * KL
+    film_params = [p for n, p in model.named_parameters() if n.startswith("film.")]
+    base_params = [p for n, p in model.named_parameters() if not n.startswith("film.")]
+    groups = [{"params": base_params, "lr": args.lr}]
+    if film_params:
+        groups.append({"params": film_params, "lr": args.film_lr or args.lr})
+    optimizer = torch.optim.AdamW(groups, weight_decay=1e-4)
+    T = max(args.steps, 1)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lambda s: 0.1 + 0.9 * (1 + math.cos(math.pi * min(s, T) / T)) / 2)
     history, best = [], (val_mse(model, loaders["val"], device), 0)
     best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
     history.append({"step": 0, "val_mse": best[0]})
