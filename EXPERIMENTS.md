@@ -262,3 +262,49 @@ segmentation, les 26 classes du modèle (fond + 25 segments) sont donc correctes
 **Effet** : le fond, facile (Dice ~0.99), gonflait la moyenne : le Dice sur les artères est
 ~0.024 plus bas que `dice_mean` pour toutes les conditions (ex. A : 0.424 → 0.400). Le
 classement des conditions est inchangé.
+
+## E10 — Nouvel état de référence : E07 + E08 sur A, B, C, D (en cours)
+
+Configs A à D avec validation officielle et bruit léger (commit `f3b6538`), 3 seeds par
+condition, et A* sur le U-Net A seed 42. Runs `2026-09-27_*_e10_seed4{2,3,4}_condition_*`.
+
+## E11 — Robustesse de MedVAE aux dégradations, mesure corrigée (2026-09-27)
+
+**Constat sur l'étude d'origine** (axe A, `medvae_eval/scripts/run_maskedPSNR_sweep.py`) :
+- la métrique principale compare la reconstruction à l'entrée **dégradée** : une image
+  floue étant plus facile à reproduire, « les images floues se reconstruisent mieux » est
+  presque tautologique et ne dit rien de la robustesse ;
+- les images sont ramenées dans [-1, 1] par un min-max propre à chaque image (qui change
+  avec la dégradation) : les trois métriques ne sont pas sur la même échelle ;
+- le latent est tiré au hasard, le bruit n'est pas seedé, 50 images de seg_train seulement.
+
+**Nouveau protocole** (`medvae_eval/robustness/sweep.py`, commit `34b8619`) : latent
+déterministe (moyenne du posterior), échelle fixe [0, 1], bruit seedé par image et par
+niveau, 100 images de seg_val, 3 dégradations × 10 niveaux (mêmes plages qu'à l'origine),
+IC 95 % par bootstrap sur les images. La question posée est
+**Δ = PSNR(propre, reconstruction) − PSNR(propre, entrée dégradée)** : Δ > 0 signifie que
+MedVAE rapproche l'image de sa version propre.
+
+**Résultats** (`experiments/robustness/e11_sweep/`, figures `robustness_*.png`) :
+MedVAE reconstruit l'image propre à 33.1 dB (vaisseaux : 33.1 dB), ce qui fixe un plafond.
+
+| Dégradation | Δ PSNR image (dB), du plus faible au plus fort niveau | Δ vaisseaux (dB) | Images restaurées |
+|---|---|---|---|
+| Bruit de Poisson | **+1.2 → +6.6** | +0.9 → +6.8 | 99-100 % |
+| JPEG (qualité 95 → 5) | −11.7 → −0.6 | −11.3 → −0.1 | 0-9 % |
+| Flou gaussien (noyau 5 → 31) | −2.0 → +0.08 | −2.8 → −0.2 | 3-82 % |
+
+(IC 95 % de largeur < 0.5 dB partout)
+
+**Conclusions**
+
+- **MedVAE débruite réellement le bruit de Poisson**, d'autant plus que le bruit est fort
+  (+6.6 dB au niveau le plus bruité) : la conclusion d'origine (« véritable débruiteur »)
+  est confirmée, cette fois avec une mesure correcte.
+- **Il ne restaure ni le JPEG ni le flou.** Pour le JPEG, son erreur de reconstruction
+  propre (plafond à 33 dB) dépasse les artefacts de compression : il dégrade toujours
+  l'image. Pour le flou, il ne récupère aucun détail ; la reconstruction suit simplement
+  l'entrée floue (Δ ≈ 0 sur l'image, légèrement négatif sur les vaisseaux).
+- Le résultat d'origine sur le flou (« les images floues se reconstruisent mieux », r ≈ −0.998)
+  venait de la métrique : la courbe orange des figures (reconstruction vs entrée dégradée)
+  monte avec le flou, alors que la courbe bleue (vs image propre) descend.
