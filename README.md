@@ -25,7 +25,7 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 
 | Axis | Question | Lead | Code |
 |------|----------|------|------|
-| **A. Robustness** | How does reconstruction fidelity behave under degraded inputs? | Elias Corlou | [`medvae_eval/`](medvae_eval/) |
+| **A. Robustness** | Can MedVAE restore degraded inputs? | Elias Corlou | [`medvae_eval/robustness/`](medvae_eval/robustness/) |
 | **B. FiLM conditioning** | Can MedVAE be made *acquisition-aware* via a quality score? | Théophile Nadiedjoa | [`medvae_eval/cvae/`](medvae_eval/cvae/) |
 | **C. JEPA adaptation** | Can self-supervision replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
 | **D. Segmentation** | Is the latent usable for coronary vessel segmentation? | Théo Palagi | [`finetune/`](finetune/) |
@@ -41,29 +41,32 @@ organized nor acquisition-aware** enough to be segmented or conditioned directly
 
 ![Robustness pipeline](assets/pipeline_robustness.jpg)
 
-We measure how reconstruction fidelity degrades when the input is corrupted, motivated by low-dose
-acquisition noise, compression and motion artefacts. Using a fully **full-reference** protocol with a
-**vessel-masked PSNR (mPSNR)** restricted to ARCADE's coronary annotations, we sweep ~50 levels over
-three degradation types and correlate reconstruction quality against degradation amplitude.
+We ask whether MedVAE can *restore* degraded angiograms (low-dose noise, compression, blur).
+For each image and degradation level we compare the reconstruction **to the clean image**:
+Δ = PSNR(clean, reconstruction) − PSNR(clean, degraded input), on the whole image and on vessel pixels
+(deterministic latent, fixed [0, 1] intensity scale, seeded noise, 100 `seg_val` images × 10 levels,
+95 % bootstrap CIs — experiment E11 in [EXPERIMENTS.md](EXPERIMENTS.md)).
 
-- **Gaussian blur** → strong anti-correlation (r ≈ −0.998): blurred inputs reconstruct *better*
-  (spectral bias toward low frequencies).
-- **Poisson noise** → strong positive correlation (r ≈ +0.998): the latent bottleneck discards
-  stochastic high-frequency noise — a genuine but partial denoiser.
-- **JPEG compression** → non-monotone: a "blur-like" regime that helps, then a low-quality regime where
-  structured block artefacts collapse the reconstruction.
+| Degradation | Δ PSNR (weakest → strongest) | Images restored |
+|---|---|---|
+| Poisson noise | **+1.2 → +6.6 dB** | 99–100 % |
+| JPEG (quality 95 → 5) | −11.7 → −0.6 dB | 0–9 % |
+| Gaussian blur (kernel 5 → 31) | −2.0 → +0.1 dB (vessels: −2.8 → −0.2) | — |
 
-**Conclusion:** MedVAE acts as an intelligent low-pass filter and non-linear denoiser, but collapses on
-*structured* out-of-distribution high frequencies — the **nature** of the degradation matters more than
-its intensity.
+![Robustness](experiments/robustness/e11_sweep/robustness_full_image.png)
+
+**Conclusion:** MedVAE is a genuine **denoiser** for Poisson noise (the stronger the noise, the larger
+the gain), but it does **not** restore JPEG artefacts (its own 33 dB reconstruction error exceeds them)
+or blur (the reconstruction simply follows the blurred input). The original study's "blurred inputs
+reconstruct better" measured fidelity to the *degraded* input, which a blurred image trivially helps.
 
 ```bash
-# Scripts are configured via constants at the top of each file (degradation type, #levels, paths)
-cd medvae_eval/scripts
-python run_maskedPSNR_sweep.py     # sweep mPSNR over a degradation type
-python correlation_analysis.py     # correlate mPSNR(deg, recon) vs mPSNR(clean, deg)
-python visualize_degraded.py       # qualitative degradation panels
+python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
+python medvae_eval/robustness/analyze.py                            # summary table + figures with CIs
 ```
+
+The original scripts (fidelity to the degraded input, per-image min-max scaling) are kept in
+[`medvae_eval/scripts/`](medvae_eval/scripts/) for reference.
 
 ---
 
