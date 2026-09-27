@@ -7,7 +7,9 @@ une segmentation aussi efficace que le travail directement sur l'image pleine
 résolution ?**
 
 Point d'entrée : `python -m finetune.train --config finetune/configs/condition_{a,b,c,d}.yaml`
-(toujours depuis la racine du projet).
+(toujours depuis la racine du projet). Chaque run crée son dossier
+`experiments/runs/<date>_<nom>/` (config exacte, commit, GPU, historique, scores) ;
+toutes les expériences et leurs résultats sont dans [`EXPERIMENTS.md`](../EXPERIMENTS.md).
 
 ---
 
@@ -22,13 +24,17 @@ change d'une condition à l'autre. Le cœur logique vit dans
 - Images chargées en niveaux de gris (`convert("L")`), normalisées dans **`[0, 1]`**
   (`/ 255.0`). Le masque est reconstruit à partir des annotations COCO (RLE →
   `category_id` par pixel).
-- **Split** : 80 % train / 20 % val sur les images d'entraînement
-  (`split_dataset`, seed 42). Le **test set est un dataset séparé** (phase finale
-  ARCADE) — jamais vu pendant l'entraînement.
+- **Split** (`data.validation: official`, E08) : entraînement sur les **1000**
+  images de `seg_train`, sélection du modèle sur le **`seg_val` officiel** (200
+  images). Le **test set est un dataset séparé** (phase finale ARCADE, 300 images) —
+  jamais vu pendant l'entraînement. L'ancien découpage 80/20 de `seg_train` selon le
+  seed reste disponible (`data.validation: split`).
 - **Augmentation** (train uniquement, Albumentations, image+masque synchronisés) :
   `HorizontalFlip(0.5)`, `VerticalFlip(0.2)`, `ShiftScaleRotate` (shift 0.05,
   scale 0.1, rotate ±15°, p=0.7), `RandomBrightnessContrast(0.2/0.2, p=0.5)`,
-  `GaussNoise(0.3)`, `CLAHE(0.3)`. La val/test n'a qu'un `Resize`.
+  `GaussNoise` léger (écart-type 3–7 / 255, p=0.3, `data.gauss_noise_std_range`, E07 ;
+  sans paramètre, albumentations ≥ 2 ajoute un bruit de ~65–84 / 255), `CLAHE(0.3)`.
+  La val/test n'a qu'un `Resize`.
 
 ### 1.2 Fonction de coût ([`losses/seg_loss.py`](losses/seg_loss.py))
 
@@ -62,13 +68,20 @@ précision/sensibilité topologique. Il pousse le réseau à produire des struct
 Le **score** rapporté n'est *pas* la loss mais des métriques `torchmetrics`
 calculées sur les prédictions `argmax` :
 
-- **Dice mean** = `MulticlassF1Score(average="macro")` — le Dice score est
-  mathématiquement le F1 en segmentation. `macro` = **moyenne non pondérée sur
-  les 26 classes** (chaque artère compte autant, même rare). C'est la métrique de
-  sélection du meilleur modèle.
-- **IoU mean** = `MeanIoU` (Jaccard).
-- **Dice par classe** : vecteur de 26 valeurs, sauvegardé dans `results.json` pour
-  l'analyse fine (certaines artères rares tombent à 0 — voir résultats).
+Toutes les moyennes sont calculées sur l'ensemble du jeu évalué (pixels cumulés), puis
+moyennées sur les **classes présentes** (dans la prédiction ou la vérité terrain).
+
+- **Dice mean** = `MulticlassF1Score(average="macro")` (le Dice est le F1 en
+  segmentation), **fond compris**. C'est la métrique de sélection du meilleur modèle.
+- **IoU mean** = `MulticlassJaccardIndex(average="macro")`, même moyenne. *(Avant E01,
+  `MeanIoU` recevait des masques d'indices au lieu du one-hot attendu : les IoU publiés
+  à l'origine sont faux.)*
+- **Dice / IoU artères** (`dice_fg_mean`, `iou_fg_mean`, E09) : mêmes moyennes sur les
+  25 classes d'artères seules, **fond exclu** (standard ARCADE). Le fond, facile
+  (Dice ~0.99), gonfle `dice_mean` d'environ 0.02.
+- **Dice / IoU par classe** : vecteurs de 26 valeurs dans `results.json`.
+- Un run terminé peut être réévalué avec les métriques actuelles :
+  `python -m finetune.evaluate experiments/runs/<run>`.
 
 > ⚠️ Distinction importante : `dice_loss` (dans la loss, dérivable, sur logits) ≠
 > `dice_mean` (métrique d'éval, sur `argmax`, non dérivable). Les courbes
@@ -85,7 +98,7 @@ calculées sur les prédictions `argmax` :
 | **AMP** | `autocast` + `GradScaler` en **bfloat16** | activé **uniquement si CUDA** — le code tourne aussi en CPU sans erreur |
 | **Early stopping** | patience 15 epochs | surveille `dice_mean` de validation |
 | **Epochs max** | 100 | |
-| **Checkpoint** | `best_model_{experiment_name}.pth` | nommé par expérience → les conditions ne s'écrasent pas |
+| **Checkpoint** | `experiments/runs/<run>/best_model_{experiment_name}.pth` | un dossier par run → rien n'est écrasé (non versionné) |
 
 #### Le cosine annealing — comment et pourquoi
 
@@ -134,8 +147,8 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
 | Cond. | Pipeline | Modèle entraîné | Question scientifique |
 |-------|----------|-----------------|-----------------------|
 | **A** | U-Net sur image 512×512 | U-Net complet | Référence haute résolution |
-| **B** | MedVAE gelé (HF) → tête | tête légère | La compression généraliste suffit-elle ? |
-| **C** | MedVAE gelé (fine-tuné ARCADE) → tête | tête légère | Le fine-tuning du compresseur aide-t-il ? |
+| **B** | MedVAE gelé (HF) → tête U-Net sur le latent | tête (7.8 M params) | La compression généraliste suffit-elle ? |
+| **C** | MedVAE gelé (fine-tuné ARCADE) → même tête | tête (7.8 M params) | Le fine-tuning du compresseur aide-t-il ? |
 | **D** | MedVAE gelé (encode→decode) → U-Net | U-Net complet | S'adapter aux artefacts de compression compense-t-il ? |
 
 ### Condition A — référence U-Net ([`models/unet.py`](models/unet.py))
@@ -147,27 +160,33 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
 - **Rôle** : borne supérieure de référence. Combien peut-on atteindre sans
   aucune compression ?
 
-### Condition B — MedVAE pré-entraîné gelé + tête légère
+### Condition B — MedVAE pré-entraîné gelé + tête U-Net sur le latent
 
 - **Encodeur** : `MedVAEEncoder` chargé depuis les poids HuggingFace
   (`checkpoint_path = null`), **entièrement gelé** (`requires_grad=False`, `eval()`).
-- **Tête** : `SegHead` ([`models/seg_head.py`](models/seg_head.py)) — légère.
-  Reçoit le latent `128×128×1`, fait une projection 1×1 vers `base_channels=128`,
-  puis **2 blocs `interpolate ×2 + ConvBlock`** (`n_upsample=2`) pour remonter
-  `128 → 256 → 512`, et une conv 1×1 finale vers 26 classes.
-- `batch_size 4`, `lr 5e-5`. Seule la tête s'entraîne (peu de params).
+- **Tête** : `LatentUNetHead` ([`models/seg_head.py`](models/seg_head.py), E04) —
+  petit U-Net à la résolution du latent (`128 → 64 → 32 → 16 → 128`, connexions
+  skip, `base_channels=64`) pour capter le contexte global nécessaire à
+  l'identification des segments, puis 2 blocs `interpolate ×2 + ConvBlock`
+  (`n_upsample=2`) jusqu'à 512 et une conv 1×1 vers 26 classes (7.8 M paramètres).
+  L'ancienne tête `SegHead` (projection 1×1 puis upsampling, aucune convolution à la
+  résolution du latent) reste disponible (`model.architecture: seg_head`).
+- `batch_size 4`, **`lr 1e-3`** (E03 : avec 5e-5, la tête restait bloquée sur « tout
+  est du fond »). Seule la tête s'entraîne.
 - **Rôle** : un compresseur médical *généraliste* (entraîné sur ~1M d'images
   toutes modalités) préserve-t-il assez d'information pour segmenter des artères ?
 
-### Condition C — MedVAE fine-tuné ARCADE gelé + tête légère
+### Condition C — MedVAE fine-tuné ARCADE gelé + tête U-Net sur le latent
 
-- **Architecture identique à B**, à **un seul champ** près dans le YAML :
-  ```yaml
-  encoder:
-    checkpoint_path: "experiments/runs/<run medvae_finetune>/best_medvae_finetuned.pth"
+- **Architecture identique à B**, au checkpoint près, fourni au lancement :
+  ```bash
+  python -m finetune.train --config finetune/configs/condition_c.yaml \
+    --set encoder.checkpoint_path=experiments/runs/<run medvae_finetune>/best_medvae_finetuned.pth
+  # ou : MEDVAE_CKPT=<...>/best_medvae_finetuned.pth sbatch finetune/slurm/train_c.sbatch
   ```
   → l'encodeur charge les poids MedVAE **fine-tunés sur ARCADE** (voir §3), puis
-  est gelé comme en B.
+  est gelé comme en B. Sans checkpoint, l'entraînement s'arrête avec une erreur
+  (au lieu de tourner silencieusement comme B).
 - **Rôle** : isole l'effet du fine-tuning du compresseur. Tout le reste (tête,
   hyperparamètres) étant identique à B, **B vs C** mesure exactement le gain
   apporté par l'adaptation du MedVAE au domaine coronarien.
@@ -180,7 +199,8 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
   compression), de **même interface** que l'originale.
 - **U-Net entraînable** (même archi que A) placé *après*, qui apprend à segmenter
   ces images reconstruites.
-- `batch_size 8`, `lr 1e-4`.
+- `batch_size 8`, `lr 1e-4`. Le MedVAE traite les images par paquets de 2 (son
+  attention en 512×512 coûte ~1 Go par image ; sans effet sur le résultat).
 - **Rôle** : le U-Net *voit les artefacts de compression dès l'entraînement* et
   peut s'y adapter. **A vs D** mesure le coût pur de la compression à capacité de
   réseau égale.
@@ -188,7 +208,8 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
 ### Condition A* — variante d'évaluation ([`eval_astar.py`](eval_astar.py))
 
 Pas un entraînement : on prend le **U-Net de la condition A** (entraîné sur images
-*originales*) et on l'évalue sur des images **reconstruites par MedVAE**. Mesure le
+*originales*) et on l'évalue sur des images **reconstruites par MedVAE**
+(`CHECKPOINT_A=experiments/runs/<run A>/best_model_condition_a_unet.pth sbatch finetune/slurm/eval_astar.sbatch`). Mesure le
 **décalage de domaine** (domain shift) : un réseau entraîné en pleine résolution
 encaisse-t-il la dégradation au test ? À comparer avec D, où le réseau a été
 *entraîné* sur les images reconstruites.
@@ -197,8 +218,8 @@ encaisse-t-il la dégradation au test ? À comparer avec D, où le réseau a ét
 
 - Le `train()` est **overridé** dans `MedVAEEncoder` et `MedVAEAutoencoder` :
   même quand le trainer appelle `model.train()`, le MedVAE reste forcé en `eval()`
-  → ses **BatchNorm gardent leurs statistiques fixes** (sinon elles dériveraient
-  sur les batchs ARCADE et fausseraient l'encodage).
+  (MedVAE n'utilise que des GroupNorm, sans statistiques qui dériveraient, mais le
+  mode `eval()` garantit un comportement identique à l'inférence).
 - L'`encode`/`forward` du MedVAE est sous `torch.no_grad()`.
 
 ---
@@ -248,7 +269,7 @@ Avant la condition C, on **ré-adapte tout le MedVAE** au domaine coronarien —
 fine-tuning léger et volontairement simple (≠ les stages complexes du papier) :
 
 - **Dataset** : images ARCADE *seules* (sans masque), redimensionnées 512,
-  normalisées `[0,255] → [-1,1]` (`/127.5 − 1`). Split 90 % / 10 %.
+  normalisées `[0,255] → [-1,1]` (`/127.5 − 1`). Split 90 % / 10 % de `seg_train`.
 - **Tout le MedVAE est dégelé** (`requires_grad=True`, `mvae.train()`) — c'est le
   seul moment où il s'entraîne.
 - **Loss = `L1` pure** entre image originale et `decode(encode(image))`. Pas de
@@ -258,12 +279,17 @@ fine-tuning léger et volontairement simple (≠ les stages complexes du papier)
   entraînement *from scratch*), `weight_decay = 0`.
 - **Scheduler** : `CosineAnnealingLR`, `T_max = 50` (= nb d'epochs), `eta_min =
   1e-7` — même logique cosinus que §1.4, adaptée à la durée du fine-tuning.
+- Batch de 4 traité en 4 micro-batchs de 1 avec accumulation de gradient
+  (`micro_batch_size: 1`) pour tenir sur une RTX 3090 (24 Go) ; identique au batch
+  entier (L1 moyenne, normalisations par image).
 - `grad_clip = 1.0`, **early stopping** patience 10 sur la **L1 de validation**.
-- Sauvegarde `best_medvae_finetuned.pth` → renseigné dans `condition_c.yaml`.
+- Sauvegarde `best_medvae_finetuned.pth` dans le dossier du run → passé à la
+  condition C (`--set encoder.checkpoint_path=...` ou `MEDVAE_CKPT`).
 
 À l'usage (condition C), `MedVAEEncoder._load_finetuned` recharge ces poids
-(supporte les formats `state_dict` / Lightning / `Phase1Trainer`), ne garde que
-l'**encodeur** (`encoder.*`), puis re-gèle tout.
+(formats `state_dict` / Lightning / `Phase1Trainer`) : les clés du MedVAE commencent
+par `model.` et non `encoder.`, c'est donc le **modèle complet** qui est rechargé
+(0 clé manquante, vérifié), puis tout est re-gelé.
 
 ---
 
@@ -271,14 +297,15 @@ l'**encodeur** (`encoder.*`), puis re-gèle tout.
 
 | | Cond. A | Cond. B | Cond. C | Cond. D | FT MedVAE |
 |---|---|---|---|---|---|
-| Modèle entraîné | U-Net r34 | SegHead | SegHead | U-Net r34 | MedVAE complet |
+| Modèle entraîné | U-Net r34 | LatentUNetHead | LatentUNetHead | U-Net r34 | MedVAE complet |
 | MedVAE | — | gelé (HF) | gelé (FT) | gelé (enc→dec) | **entraîné** |
 | Entrée réseau | image 512 | latent 128 | latent 128 | image reconstr. 512 | image 512 |
 | `batch_size` | 8 | 4 | 4 | 8 | 4 |
-| `learning_rate` | 1e-4 | 5e-5 | 5e-5 | 1e-4 | 4.5e-6 |
+| `learning_rate` | 1e-4 | 1e-3 | 1e-3 | 1e-4 | 4.5e-6 |
 | `weight_decay` | 1e-4 | 1e-4 | 1e-4 | 1e-4 | 0 |
 | Scheduler | cosine T=100 | cosine T=100 | cosine T=100 | cosine T=100 | cosine T=50 |
 | Loss | Dice+CE | Dice+CE | Dice+CE | Dice+CE | L1 |
+| Validation | seg_val officiel | seg_val | seg_val | seg_val | 10 % de seg_train |
 | Early stop (patience) | 15 (Dice val) | 15 | 15 | 15 | 10 (L1 val) |
 | AMP bf16 | ✓ (GPU) | ✓ | ✓ | ✓ | — |
 
