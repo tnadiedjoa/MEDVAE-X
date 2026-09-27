@@ -12,7 +12,8 @@ Protocole (corrige l'étude d'origine, notebooks 04 à 07) :
     - évaluation test : PSNR, SSIM, HaarPSI (piq) et PSNR sur les vaisseaux ; pour FiLM,
       avec le vrai c, un c mélangé entre images et un c constant (moyenne d'entraînement).
       Si c est réellement utilisé, le vrai c doit battre les deux contrôles.
-    - --steps 0 : évalue le MedVAE pré-entraîné sans aucun entraînement.
+    - --steps 0 : évalue le MedVAE pré-entraîné sans aucun entraînement ;
+    - loss = MSE moyenne + kl_weight × KL / nombre de pixels (convention MedVAE, cf. main).
 
 Usage (racine du repo) :
     python medvae_eval/film/train_film.py --model film --approach C --seed 42
@@ -115,7 +116,7 @@ def main():
                         help="score de qualité c (colonne de labels_quality.csv)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--img-size", type=int, default=256)
-    parser.add_argument("--steps", type=int, default=5000)
+    parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--kl-weight", type=float, default=1e-6)
@@ -157,7 +158,12 @@ def main():
         x, c = x.to(device), c.to(device)
         rec, posterior = model(x, c, sample_posterior=True)
         rec_loss = F.mse_loss(rec, x)
-        loss = rec_loss + args.kl_weight * posterior.kl().mean()
+        # KL sommé sur le latent, rapporté au nombre de pixels : comme dans MedVAE /
+        # latent-diffusion, où KL et erreur de reconstruction sont tous deux sommés.
+        # Sans cette normalisation, en 256×256 le terme KL (x1e-6) pèse ~700 fois la MSE
+        # moyenne et l'entraînement dégrade la reconstruction.
+        kl = posterior.kl().mean() / x[0].numel()
+        loss = rec_loss + args.kl_weight * kl
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
