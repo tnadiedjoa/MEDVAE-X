@@ -205,7 +205,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
       $c \in [0,1]$, injected via FiLM, should let it adapt to the
       degradation level actually present.
     \item Three independent ways to compute $c$ (A: weighted, B: PCA,
-      C: learned) $\rightarrow$ run the \emph{same} pipeline three times.
+      C: learned): in-depth study with C (3 seeds), checks with A and B.
   \end{itemize}
 \end{frame}
 
@@ -226,34 +226,60 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \end{center}
 \end{frame}
 
-% FiLM conditioning + training
-\begin{frame}{FiLM conditioning \& training}
+% FiLM conditioning + revised protocol
+\begin{frame}{FiLM conditioning \& revised protocol}
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{theophile/pipeline_C_film.pdf}
-  \end{center}
-\end{frame}
-
-% Main result
-\begin{frame}{Result: conditioning hurts reconstruction}
-  \begin{center}
-    \includegraphics[height=0.5\textheight]{theophile/result_boxplots_eval.png}
+    \includegraphics[width=0.92\textwidth]{theophile/pipeline_film_corrected.pdf}
   \end{center}
   \footnotesize
   \begin{itemize}
-    \item Baseline $>$ cVAE on \textbf{all 3 approaches} $\times$
-      \textbf{all 4 metrics} (MSE, SSIM, PSNR, HaarPSI), even masked
+    \item FiLM after each of the 19 ResNet blocks: $h \leftarrow (1+\gamma(c))\,h + \beta(c)$, zero-initialised (+1.7M parameters, +3\,\%)
+    \item \alert{Revised}: $256\times256$ (was $64\times64$, where MedVAE only reaches 20.7 dB), KL normalised per pixel, same training for both models, 3 seeds
   \end{itemize}
 \end{frame}
 
-% Ablation
-\begin{frame}{Ablation: does the network actually use $c$?}
+% Main result
+\begin{frame}{Result: fine-tuning helps, conditioning does not}
   \begin{center}
-    \includegraphics[width=0.85\textwidth]{theophile/result_delta_ablation.png}
+    \includegraphics[width=\textwidth]{theophile/film_results.pdf}
   \end{center}
-  \begin{center}
-    \footnotesize Real $c$ vs.\ constant $c{=}0.5$ (approach C): gap grows
-    with image quality: the network's response genuinely depends on $c$.
-  \end{center}
+  \footnotesize
+  \begin{itemize}
+    \item Fine-tuning MedVAE on ARCADE: \textbf{+7.4 dB} (vessels: +5.3 dB), same for all seeds
+    \item FiLM vs baseline: +0.03 dB --- negligible
+  \end{itemize}
+\end{frame}
+
+% Is c used?
+\begin{frame}{Does the network use $c$?}
+  \begin{columns}[T]
+  \begin{column}{0.5\textwidth}
+  \centering\footnotesize
+  \begin{tabular}{@{}lc@{}}
+  \toprule
+  Paired difference (PSNR) & dB \\
+  \midrule
+  true $c$ $-$ shuffled $c$ & $+0.002$ \\
+  true $c$ $-$ constant $c$ & $-0.013$ \\
+  \midrule
+  \multicolumn{2}{@{}l}{\emph{Checks (seed 42)}} \\
+  Score C, FiLM lr $\times100$: true $-$ constant & $-0.001$ \\
+  Score A: true $-$ shuffled & $+0.009$ \\
+  Score B: true $-$ shuffled & $+0.037$ \\
+  \bottomrule
+  \end{tabular}
+  \end{column}
+  \begin{column}{0.5\textwidth}
+  \footnotesize
+  \begin{itemize}
+    \item \textbf{Score C: no}. Another image's score, or a constant, does as well
+    \item \textbf{Scores A, B: barely} ($\leq 0.04$ dB)
+    \item FiLM gains come from the added parameters, not from the quality information
+    \item $c$ is computed \emph{from the image}: for an autoencoder of that image, it carries nothing new
+    \item \alert{The earlier ``only C is exploited''} compared two separately trained single runs
+  \end{itemize}
+  \end{column}
+  \end{columns}
 \end{frame}
 
 % ############################################################################
