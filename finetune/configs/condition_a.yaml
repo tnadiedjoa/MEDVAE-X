@@ -8,11 +8,13 @@ data:
   train_ann:    "dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
   val_images:   "dataset_final_phase/test_case_segmentation/images"
   val_ann:      "dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
-  train_ratio:  0.8
+  train_ratio:  0.8        # utilisé seulement si validation: split
   num_classes:  26
   img_size:     512
   num_workers:  4
   pin_memory:   true
+  validation:   official          # E08 : entraînement sur tout seg_train, sélection sur seg_val
+  gauss_noise_std_range: [0.0124, 0.0277]   # E07 : bruit léger (écart-type ~3-7 / 255)
 
 model:
   architecture:    "unet"
