@@ -37,7 +37,7 @@ Deep learning on medical images is constrained by the high resolution required t
 
 We study this question on coronary angiography, using the public ARCADE dataset~\cite{popov2024arcade}, which provides $1\,200$ annotated X-ray angiographies ($512\times512$, grayscale) together with COCO segmentation annotations of the coronary tree. We deliberately chose an unfavourable setting for a generic compressor: the structures of interest are thin, tubular, and low-contrast, the acquisitions suffer from quantum noise, compression, and motion artefacts, and the relevant signal occupies only a tiny fraction of the image. This domain therefore stresses every property we would expect from a medical foundation model: robustness to degraded inputs, a semantically structured latent space, and the preservation of fine anatomical information.
 
-Starting from MedVAE and ARCADE, we identify and investigate four complementary axes. \textbf{(i) Robustness to input degradations} (Section~\ref{sec:medvae-robustness}): we characterise how MedVAE's reconstruction fidelity behaves when we degrade the input with Poisson noise, JPEG compression, or blur, revealing its low-pass and denoising character and its vulnerability to structured artefacts. \textbf{(ii) Image-quality inductive bias} (Section~\ref{sec:theophile}): we ask whether explicitly conditioning the autoencoder on an estimated quality score, injected through FiLM modulation, lets it adapt to the degradation level actually present at its input. \textbf{(iii) Semantic structuring of the latent space} (Section~\ref{sec:jepa}): we replace MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective trained directly on coronary angiographies, removing any dependency on an external model. \textbf{(iv) Latent representation for segmentation} (Section~\ref{sec:segmentation}): we test whether the compressed representation preserves enough anatomical information to support fine multi-class coronary segmentation, and at which point of the pipeline the compression should be integrated.
+Starting from MedVAE and ARCADE, we identify and investigate four complementary axes. \textbf{(i) Robustness to input degradations} (Section~\ref{sec:medvae-robustness}): we measure whether MedVAE brings a degraded input (Poisson noise, JPEG compression, blur) closer to the clean image, showing that it genuinely removes Poisson noise but restores neither JPEG artefacts nor blur. \textbf{(ii) Image-quality inductive bias} (Section~\ref{sec:theophile}): we ask whether explicitly conditioning the autoencoder on an estimated quality score, injected through FiLM modulation, lets it adapt to the degradation level actually present at its input. \textbf{(iii) Semantic structuring of the latent space} (Section~\ref{sec:jepa}): we replace MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective trained directly on coronary angiographies, removing any dependency on an external model. \textbf{(iv) Latent representation for segmentation} (Section~\ref{sec:segmentation}): we test whether the compressed representation preserves enough anatomical information to support fine multi-class coronary segmentation, and at which point of the pipeline the compression should be integrated.
 
 We each took on one of these axes --- Elias Corlou the robustness analysis, Théophile Nadiedjoa the image-quality conditioning, Yanic Rothlingshofer the JEPA adaptation, and Théo Palagi the segmentation study --- and we present our four contributions in the corresponding sections before bringing them together in a common discussion of perspectives and a shared conclusion.
 
@@ -48,33 +48,28 @@ We each took on one of these axes --- Elias Corlou the robustness analysis, Thé
 MedVAE was evaluated, in its original paper~\cite{varma2025medvae}, on
 clean inputs --- by PSNR and MS-SSIM as well as by expert reader
 studies. One question remains open for real-world deployment:
-\emph{how does MedVAE's reconstruction quality behave when the input
-image is not clean, but degraded?} In coronary angiography, this
-question is far from theoretical: low-dose acquisition induces
-significant quantum noise, and clinical images undergo compression,
-motion blur, and various artefacts~\cite{cesarelli2013xray}.
+\emph{what does MedVAE do with an input image that is not clean, but
+degraded?} In coronary angiography, this question is far from
+theoretical: low-dose acquisition induces significant quantum noise,
+and clinical images undergo compression, motion blur, and various
+artefacts~\cite{cesarelli2013xray}.
 
-We evaluate this robustness on the ARCADE
-dataset~\cite{popov2023arcade}. The framework is entirely
-\emph{full-reference}: for
-each image we simultaneously have the clean image, a controlled
-degraded version, and the reconstruction produced by MedVAE from the
-degraded input. This configuration allows everything to be quantified
-by direct comparison, without resorting to a no-reference quality
-metric. Rather than seeking a single axis of ``input quality'', we
-distinguish two complementary measures: the gap between the clean and
-the degraded image (the amplitude of the applied degradation) on one
-hand, and the fidelity of the reconstruction to its degraded input on
-the other. The research question then becomes: \textbf{how does
-MedVAE's reconstruction fidelity evolve as a function of the type and
-intensity of the degradation applied at the input?}
+We evaluate this on the ARCADE dataset~\cite{popov2024arcade}. The
+framework is entirely \emph{full-reference}: for each image we
+simultaneously have the clean image, a controlled degraded version, and
+the reconstruction produced by MedVAE from the degraded input. The
+research question is: \textbf{does passing a degraded image through
+MedVAE bring it closer to, or further from, the clean image?} We show
+that the answer depends on the \emph{nature} of the degradation: MedVAE
+genuinely removes Poisson noise, but restores neither JPEG artefacts nor
+blur.
 
-We show that the answer depends strongly on the \emph{nature} of the
-degradation, and not only on its intensity. By isolating three types of
-degradation (Poisson noise, JPEG compression, Gaussian blur), we
-highlight qualitatively distinct regimes that reveal the low-pass and
-denoising character of MedVAE, as well as its limitations against
-structured artefacts.
+\emph{Note on this revised version.} An earlier version of this study
+measured the fidelity of the reconstruction to the \emph{degraded}
+input, with a per-image min-max normalisation that placed the clean and
+degraded images on different intensity scales. Both choices biased the
+conclusions (Section~\ref{sec:cadre}); the protocol and all results
+below were redone accordingly.
 
 \subsection{Evaluation Framework}
 \label{sec:cadre}
@@ -88,51 +83,49 @@ reconstruction quality. We explored this route with
 ARNIQA~\cite{agnolucci2024arniqa}, as well as with a custom score
 aggregating sharpness indices. Two limitations disqualified it. On one
 hand, these metrics are calibrated on natural photographs and transfer
-poorly to X-ray images, where the notion of ``high perceptual quality''
-does not carry the same meaning: on the raw images of the dataset, the
+poorly to X-ray images: on the raw images of the dataset, the
 correlation between the no-reference score and the reconstruction PSNR
-is nearly zero, the intrinsic quality variance between clean images
-being too small to be exploitable. On the other hand, under controlled
-degradation, these scores are dominated by blur and do not provide a
-monotone quality axis, a bias consistent with the fact that, in
-ARNIQA's representation space, blur distortions do not form a
-separable cluster~\cite{agnolucci2024arniqa}.
+is nearly zero. On the other hand, under controlled degradation, these
+scores are dominated by blur and do not provide a monotone quality
+axis~\cite{agnolucci2024arniqa}. Our protocol being full-reference, we
+instead \emph{measure} input quality by comparison to the clean image.
 
-Yet the difficulty is in fact circumventable: our protocol is entirely
-\emph{full-reference}. Having access to the clean image, we do not need
-to estimate input quality ``blindly'' --- we can \emph{measure} it
-directly by comparison to the reference. We therefore abandon the
-no-reference axis and redefine the two quantities of the study in a
-purely comparative manner:
+\subsubsection{Measuring Restoration, Not Fidelity to the Input}
+\label{sec:measures}
+
+Three PSNR values can be computed for each degraded image:
 \begin{itemize}
 \itemsep0.2em
-\item \textbf{Degradation amplitude}: $\mathrm{PSNR}(\text{clean},
-      \text{degraded})$, which measures how far the input deviates
-      from the clean image;
-\item \textbf{Reconstruction fidelity}: $\mathrm{PSNR}(\text{degraded},
-      \text{reconstructed})$, which measures MedVAE's fidelity to the
-      input it is given.
+\item $\mathrm{PSNR}(\text{clean}, \text{degraded})$: how far the input
+      is from the clean image (degradation amplitude);
+\item $\mathrm{PSNR}(\text{clean}, \text{reconstructed})$: how far
+      MedVAE's output is from the clean image;
+\item $\mathrm{PSNR}(\text{degraded}, \text{reconstructed})$: how
+      faithfully MedVAE reproduces the input it was given.
 \end{itemize}
-These two measures address distinct questions and must not be confused:
-the second characterises the model's behaviour, while the first serves
-solely as a controlled x-axis.
+The third quantity, used in the earlier version of this study, does not
+measure robustness: a blurred image, stripped of its high frequencies,
+is simply easier to reproduce, so this fidelity rises with blur even if
+the output moves away from the clean image. The quantity that answers
+our question is the restoration gain
+\begin{equation}
+\Delta = \mathrm{PSNR}(\text{clean}, \text{reconstructed}) - \mathrm{PSNR}(\text{clean}, \text{degraded}),
+\label{eq:delta}
+\end{equation}
+positive when MedVAE's output is closer to the clean image than its
+input was. All images are compared on the same fixed intensity scale
+($[0,1]$, pixel value$/255$).
 
 \subsubsection{Vessel-Masked PSNR}
 \label{sec:masked-psnr}
 
-A PSNR computed over the full image is misleading in coronary
-angiography: the background occupies the vast majority of the surface,
-so a global PSNR mostly reflects the fidelity of the background rather
-than that of the vessels, the only clinically relevant region. This
-bias is such that the global PSNR can \emph{increase} as the image
-degrades, the smoothed background becoming ``easier'' to reproduce. We
-therefore restrict the computation to vessel pixels, obtained by
+A PSNR computed over the full image mostly reflects the fidelity of the
+background, which occupies the vast majority of the surface. We
+therefore also restrict the computation to vessel pixels, obtained by
 rasterising ARCADE's polygonal annotations (COCO format) into a binary
-mask, which defines a masked PSNR denoted $\mathrm{mPSNR}$. Both
-measures above (degradation amplitude and reconstruction fidelity) are
-computed in this masked version. The full calculation details, equation,
-and an illustration on a real example are given in
-Appendix~\ref{app:mpsnr}.
+mask, which defines a masked PSNR denoted $\mathrm{mPSNR}$. Every
+quantity above is computed both on the full image and in this masked
+version (details in Appendix~\ref{app:mpsnr}).
 
 \subsection{Method}
 \label{sec:methode}
@@ -140,130 +133,147 @@ Appendix~\ref{app:mpsnr}.
 \subsubsection{Protocol}
 \label{sec:protocole}
 
-We use the \texttt{medvae\_4\_1\_2d} autoencoder (X-ray modality),
-applied to the angiographies of ARCADE's segmentation subset. The
-preprocessing is the one provided by MedVAE
-(\texttt{apply\_transform}). For each degradation type, the protocol
-is as follows: $50$ clean images are drawn at random from the $1000$
-available (without replacement, fixed seed for reproducibility), then
-a linear ramp of $20$ intensity levels of increasing severity is
-applied. At each level and for each image, the two masked measures
-$\mathrm{mPSNR}(\text{clean}, \text{degraded})$ and
-$\mathrm{mPSNR}(\text{degraded}, \text{reconstructed})$ are computed,
-averaged over the $50$ images. The vessel mask is shared between both
-measures for a given image. MedVAE inference is integrated into the
-sweep loop, producing the reconstruction of each degraded input. The
-intentionally modest sample sizes ($50$ images, $20$ levels) are
-constrained by available compute.
+We use the \texttt{medvae\_4\_1\_2d} autoencoder (X-ray modality) on
+$100$ images of ARCADE's official segmentation validation split
+(\texttt{seg\_val}). Each image, scaled to $[-1,1]$ as MedVAE expects,
+is encoded and decoded \emph{deterministically} (mean of the
+approximate posterior, instead of a random sample). For each
+degradation type, $10$ levels of increasing severity are applied, the
+noise being drawn with a generator seeded per image and per level; the
+clean image is also reconstructed as a reference. Metrics are averaged
+over images, with $95\%$ confidence intervals obtained by bootstrap
+over images. The code is in \texttt{medvae\_eval/robustness/}.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.92\textwidth]{figures/elias/pipeline.pdf}
+  \includegraphics[width=0.92\textwidth]{figures/elias/pipeline_corrected.pdf}
   \caption{Evaluation pipeline. A batch of clean images is degraded in
-  a controlled manner over $N$ levels, then reconstructed by MedVAE.
-  Two vessel-masked measures are computed per level and averaged over
-  the batch: $\mathrm{mPSNR}(\text{clean}, \text{degraded})$
-  quantifies the amplitude of the applied degradation, and
-  $\mathrm{mPSNR}(\text{degraded}, \text{recon})$ the reconstruction
-  fidelity. A separate sweep is conducted per degradation type
-  (Poisson, JPEG, blur).}
+  a controlled manner over $N$ levels, then reconstructed by MedVAE. The
+  reconstruction is compared to the \emph{clean} image, and the
+  restoration gain $\Delta$ (Eq.~\ref{eq:delta}) compares this distance
+  to that of the degraded input. A separate sweep is conducted per
+  degradation type (Poisson, JPEG, blur).}
   \label{fig:pipeline}
 \end{figure*}
-
-\subsubsection{Separate Sweeps per Degradation Type}
-\label{sec:sweeps-separes}
-
-In line with the previous analysis, which showed that a ramp combining
-several degradations makes interpretation impossible --- blur
-overwhelming the other effects --- we conduct \emph{a separate sweep
-per degradation type}. This isolates the specific effect of each
-perturbation on reconstruction.
 
 \subsection{Degradation Types}
 \label{sec:degradations}
 
-Three degradations are studied, each swept independently:
+Three degradations are studied, each swept independently, over the same
+ranges as in the earlier version of the study:
 
 \textbf{Poisson noise.} More realistic than Gaussian noise for X-rays,
 where quantum noise (\emph{shot noise}) dominates at low
 dose~\cite{cesarelli2013xray}. Intensity is controlled by a decreasing
-scale factor: as the scale decreases, fewer photons are simulated and
-the noise becomes more pronounced.
+scale factor (from $1$ to $0.05$): as the scale decreases, fewer
+photons are simulated and the noise becomes more pronounced.
 
 \textbf{JPEG compression.} Quality factor decreasing from $95$ to $5$,
 successively introducing quantisation of DCT coefficients and then
 $8\times8$ block artefacts.
 
-\textbf{Gaussian blur.} Increasing kernel size (kernels forced to odd
-values). The lowest level, with a unit kernel, corresponds to the
-clean image.
+\textbf{Gaussian blur.} Kernel size increasing from $1$ (clean image)
+to $31$ pixels.
 
 \subsection{Results and Interpretation}
 \label{sec:resultats}
 
-For each degradation type, we plot the evolution of the metrics as a function of intensity level (Fig.~\ref{fig:sweep-all}). The \emph{degradation amplitude} curve, $\mathrm{mPSNR}(\text{clean}, \text{degraded})$, decreases by construction and serves as the controlled x-axis. The curve of interest is the \emph{reconstruction fidelity}, $\mathrm{mPSNR}(\text{degraded}, \text{reconstructed})$, which characterises MedVAE's behaviour. A third curve, $\mathrm{mPSNR}(\text{clean}, \text{reconstructed})$, is plotted only for Poisson noise, where it tests the denoising hypothesis (Section~\ref{sec:poisson}).
-
-The overall conclusion is that MedVAE's response depends not only on the intensity of the degradation but on its \emph{spectral nature}: depending on whether the perturbation removes or adds high frequencies, and whether those high frequencies are structured or not, the reconstruction fidelity varies in opposite directions. This behaviour is consistent with the spectral bias of neural networks~\cite{rahaman2019spectral} and with the well-known low-pass character of autoencoders. The correlation values associated with these observations are summarised in Table~\ref{tab:stats-correlation}.
+MedVAE reconstructs a clean image at $33.1$~dB, both on the full image
+and on vessels: this intrinsic reconstruction error sets a ceiling that
+no restoration can exceed. Fig.~\ref{fig:sweep-all} shows the three
+PSNR curves and the restoration gain $\Delta$ on vessel pixels, and
+Table~\ref{tab:restoration} summarises $\Delta$ over the sweep.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/elias/metrics_by_level_all_masked.pdf}
-  \caption{Evolution of mPSNR metrics for Poisson noise, JPEG compression, and Gaussian blur. Reconstruction fidelity (blue) reacts differently depending on the nature of the degradation.}
+  \includegraphics[width=\linewidth]{figures/elias/robustness_corrected.png}
+  \caption{Robustness of MedVAE on vessel pixels ($100$ \texttt{seg\_val}
+  images, $95\%$ bootstrap confidence intervals). Top: PSNR of the
+  degraded input (grey) and of MedVAE's reconstruction (blue) with
+  respect to the clean image; in orange, the fidelity of the
+  reconstruction to the degraded input, the measure used in the earlier
+  version of this study. Bottom: restoration gain $\Delta$; positive
+  values mean that MedVAE brings the image closer to the clean one.}
   \label{fig:sweep-all}
 \end{figure*}
 
 \begin{table}[h]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{4pt}
-\caption{Correlations between reconstruction fidelity and degradation amplitude ($r$: Pearson, $\rho$: Spearman).}
-\label{tab:stats-correlation}
-\begin{tabular}{@{}llrrr@{}}
+\setlength{\tabcolsep}{3pt}
+\caption{Restoration gain $\Delta$ (dB, Eq.~\ref{eq:delta}) from the weakest to the strongest degradation level, and share of images restored ($\Delta > 0$, full image). $95\%$ confidence intervals are narrower than $0.5$~dB.}
+\label{tab:restoration}
+\begin{tabular}{@{}lrrr@{}}
 \toprule
-Degradation & Regime & $r$ & $\rho$ & $p$-value \\
+Degradation & $\Delta$ full image & $\Delta$ vessels & Restored \\
 \midrule
-Blur    & Global      & $-0.998$ & $-0.998$ & $< 10^{-4}$ \\
-Poisson & Global      & $+0.998$ & $+1.000$ & $< 10^{-4}$ \\
-\midrule
-JPEG & Global      & $+0.030$ & $-0.439$ & $0.90$ \\
-     & Before peak & $-0.990$ & $-1.000$ & $< 10^{-4}$ \\
-     & After peak  & $+0.990$ & $+1.000$ & $< 10^{-4}$ \\
+Poisson noise & $+1.2 \rightarrow +6.6$ & $+0.9 \rightarrow +6.8$ & $99$--$100\%$ \\
+JPEG ($95 \rightarrow 5$) & $-11.7 \rightarrow -0.6$ & $-11.3 \rightarrow -0.1$ & $0$--$9\%$ \\
+Blur (kernel $5 \rightarrow 31$) & $-2.0 \rightarrow +0.1$ & $-2.8 \rightarrow -0.2$ & $3$--$82\%$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Gaussian Blur: Anti-Correlation}
-\label{sec:flou}
-
-Most striking result: as the input degrades, reconstruction \emph{improves}, rising from approximately $28.9$ to $39.2$~dB. The two curves are nearly symmetric, and the correlation between fidelity and degradation amplitude is very strongly negative (cf. Table~\ref{tab:stats-correlation}), with a regression slope of $-0.84$~dB per dB of degradation.
-
-The explanation lies in the low-pass character of autoencoders. A VAE compresses towards a low-dimensional latent space: it faithfully reproduces low frequencies but poorly reproduces high ones, a phenomenon known as spectral bias, whereby networks preferentially learn the low-frequency components of a signal~\cite{rahaman2019spectral}. A blurred image already lives essentially in this low-frequency subspace that MedVAE reproduces well: it is ``easy'' to reconstruct. What blur removes from the input, it simultaneously makes easy to reconstruct, hence the observed symmetry. This result cleanly and monotonically confirms the particular role of blur, which had motivated the abandonment of no-reference metrics.
-
-\subsubsection{Poisson Noise: Positive Correlation and Denoising}
+\subsubsection{Poisson Noise: Genuine Denoising}
 \label{sec:poisson}
 
-Mirror behaviour of blur, and expected: Poisson noise adds decorrelated high frequencies, precisely what the latent does not encode. The input moves away from the clean image and reconstruction degrades in parallel, the two curves being nearly superimposed. The correlation is very strongly positive and reconstruction fidelity drops from $19.5$ to $9.5$~dB over the sweep.
+Poisson noise adds decorrelated high frequencies, precisely what the
+latent bottleneck cannot represent, so MedVAE suppresses
+it~\cite{vincent2008denoising}. The reconstruction is closer to the
+clean image than the noisy input for $99$ to $100\%$ of the images at
+every level, and the gain grows with the noise, from $+1.2$~dB at the
+weakest level to $+6.6$~dB ($+6.8$~dB on vessels) at the strongest. The
+denoising is therefore real and directional. It remains bounded by the
+reconstruction ceiling: even for mild noise, the output ($28$~dB) stays
+well below the reconstruction of the clean image ($33$~dB).
 
-The underlying mechanism is that of autoencoder denoising: the latent bottleneck cannot represent high-frequency noise, so it suppresses it~\cite{vincent2008denoising}. We verify this directly through the third curve: across the entire sweep ($100\%$ of levels), the reconstruction is closer to the \emph{clean} image than to the \emph{degraded} image that was presented as input, i.e. $\mathrm{mPSNR}(\text{clean}, \text{reconstructed}) > \mathrm{mPSNR}(\text{degraded}, \text{reconstructed})$, with a mean gap of $+1.94$~dB. MedVAE's output thus points towards the signal and not towards the noise: the denoising is real and directional.
-
-This restoration remains however partial. Compared not to the input but to the degradation amplitude, $\mathrm{mPSNR}(\text{clean}, \text{reconstructed})$ remains \emph{below} $\mathrm{mPSNR}(\text{clean}, \text{degraded})$ on vessel pixels: passing through MedVAE does not bring the image closer to the clean image any more than the noisy input left as-is would. The model's intrinsic reconstruction error, due to lossy latent compression, outweighs the denoising gain in the clinically relevant region. In other words, MedVAE denoises in the right direction, but this denoising is not sufficient to restore a diagnostically faithful image.
-
-\subsubsection{JPEG Compression: Two Regimes}
+\subsubsection{JPEG Compression: No Restoration}
 \label{sec:jpeg}
 
-JPEG compression produces a \emph{non-monotone} response: reconstruction fidelity first rises slightly up to level~$14$ (peak at approximately $26$~dB), then collapses. This non-monotonicity has a direct statistical consequence: a correlation coefficient computed over the entire sweep is misleading. This illustrates the fact that global correlation coefficients (Pearson for linearity, Spearman for monotonicity) are blind to non-monotone relationships and mask here a two-regime dynamic. By splitting at the peak, each regime is on the contrary nearly perfectly correlated (Table~\ref{tab:stats-correlation}).
+JPEG artefacts are small in PSNR terms (the input is at $44.7$~dB of
+the clean image at quality $95$), far below MedVAE's own reconstruction
+error. Passing the image through MedVAE therefore always moves it away
+from the clean image, by $11.7$~dB at quality $95$ and $0.6$~dB at
+quality $5$. The earlier observation of a ``two-regime'' response
+concerned the fidelity to the degraded input and does not translate
+into any restoration.
 
-These two regimes correspond to two distinct physical behaviours. At high and medium quality, JPEG quantises DCT coefficients and suppresses high frequencies: it acts as a block-wise low-pass filter, behaves like blur, and makes the input more ``compatible'' with MedVAE's latent, hence the slight fidelity increase. At low quality, $8\times8$ block artefacts and \emph{ringing} around edges appear --- \emph{spatially organised} high-frequency structures absent from the training data. MedVAE can neither encode nor properly ignore them, hence the reconstruction collapse. JPEG thus combines the two previous mechanisms: the ``blur'' regime that helps, followed by the ``structured noise'' regime that breaks reconstruction.
+\subsubsection{Gaussian Blur: No Restoration}
+\label{sec:flou}
+
+Blur removes high frequencies that the latent cannot recover. The
+reconstruction simply follows the blurred input: $\Delta$ is negative
+for mild blur (the reconstruction error adds to the blur) and close to
+zero for strong blur on the full image, while it remains slightly
+negative on vessels. The earlier finding that ``blurred inputs
+reconstruct better'' (fidelity rising from $28.9$ to $39.2$~dB) is
+visible in the orange curve of Fig.~\ref{fig:sweep-all}: it measures
+how easy a blurred image is to reproduce, not how well MedVAE recovers
+the clean one, which is the opposite trend (blue curve).
 
 \subsection{Discussion and Perspectives}
 \label{sec:discussion}
 
-The cross-study of these three perturbations sheds light on MedVAE's internal mechanics. The model fundamentally acts as an intelligent low-pass filter and a non-linear denoiser: it is optimised to faithfully reproduce low frequencies (Gaussian blur) and to reject stochastic high frequencies (Poisson noise). Its major limitation however lies in its vulnerability to \emph{structured} out-of-distribution high frequencies (JPEG artefacts), which it can neither ignore nor reconstruct, thereby corrupting the output image.
+MedVAE acts as a low-pass, denoising autoencoder: it rejects stochastic
+high frequencies (Poisson noise), but it cannot recover information
+removed by blur, and its own reconstruction error exceeds the mild
+artefacts of JPEG compression. Beyond the degradation itself, the
+$33$~dB reconstruction ceiling is the main limit of any restoration
+through MedVAE on this out-of-distribution modality.
 
-These characteristics call for several clinical evaluation perspectives. First, it will be necessary to quantify the impact of this low-pass dynamic on stenosis detection, the central task of the ARCADE dataset, as these pathologies constitute fine structures particularly sensitive to smoothing. Furthermore, the exploration of the latent space (detailed in Section~\ref{sec:jepa}) reveals that MedVAE massively encodes luminosity and contrast gradients. Evaluating its robustness to alterations of the grey-level dynamic range (gamma variations, underexposure) therefore constitutes a natural next step. Finally, the protocol would benefit from integrating motion blur: induced by cardiac and respiratory dynamics~\cite{topol1995luminology}, this directional blur constitutes an omnipresent clinical artefact in coronary angiography, whose spectral signature is far more complex than the isotropic blur modelled here.
-
-
-
+These characteristics call for several clinical evaluation perspectives.
+First, it will be necessary to quantify the impact of this low-pass
+dynamic on stenosis detection, the central task of the ARCADE dataset,
+as these pathologies constitute fine structures particularly sensitive
+to smoothing; a first step is to measure segmentation quality on
+degraded images with and without MedVAE (Section~\ref{sec:segmentation}).
+Furthermore, the exploration of the latent space (Section~\ref{sec:jepa})
+suggests that MedVAE largely encodes luminosity and contrast gradients:
+evaluating its robustness to alterations of the grey-level dynamic range
+(gamma variations, underexposure) is a natural next step. Finally, the
+protocol would benefit from integrating motion blur, induced by cardiac
+and respiratory dynamics~\cite{topol1995luminology}, whose spectral
+signature is far more complex than the isotropic blur modelled here.
 
 \newpage
 \section{Image-quality inductive bias for MedVAE}
