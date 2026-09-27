@@ -52,11 +52,11 @@ def _penultimate_hook(encoder, store):
     return encoder.conv_out.register_forward_pre_hook(lambda m, inp: store.append(inp[0]))
 
 
-def build_encoder(model: str, ckpt: str, device):
-    """Renvoie f(x ∈ [-1,1], B×1×512×512) → (features, z), à 64×64."""
+def load_autoencoder(model: str, ckpt: str, device):
+    """AutoencoderKL (encodeur + décodeur) du modèle demandé, en mode eval."""
     if model == "medvae":
         from medvae import MVAE
-        ae = MVAE(model_name="medvae_4_1_2d", modality="xray").to(device).eval().model
+        return MVAE(model_name="medvae_4_1_2d", modality="xray").to(device).eval().model
     else:
         sys.path.insert(0, str(JEPA_ROOT))
         from utils.launch import bootstrap, load_config as jepa_config
@@ -74,7 +74,12 @@ def build_encoder(model: str, ckpt: str, device):
             state = {k[len(prefix):]: v for k, v in raw["model"].items() if k.startswith(prefix)}
         missing, unexpected = mvae.model.load_state_dict(state, strict=False)
         print(f"{model} : {len(state)} tenseurs chargés, {len(missing)} manquants, {len(unexpected)} inattendus")
-        ae = mvae.model.to(device).eval()
+        return mvae.model.to(device).eval()
+
+
+def build_encoder(model: str, ckpt: str, device):
+    """Renvoie f(x ∈ [-1,1], B×1×512×512) → (features, z), à 64×64."""
+    ae = load_autoencoder(model, ckpt, device)
 
     @torch.no_grad()
     def encode(x):
