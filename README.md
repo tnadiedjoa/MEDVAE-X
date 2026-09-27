@@ -26,7 +26,7 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 | Axis | Question | Lead | Code |
 |------|----------|------|------|
 | **A. Robustness** | Can MedVAE restore degraded inputs? | Elias Corlou | [`medvae_eval/robustness/`](medvae_eval/robustness/) |
-| **B. FiLM conditioning** | Can MedVAE be made *acquisition-aware* via a quality score? | Théophile Nadiedjoa | [`medvae_eval/cvae/`](medvae_eval/cvae/) |
+| **B. FiLM conditioning** | Does a quality score help MedVAE reconstruct? | Théophile Nadiedjoa | [`medvae_eval/film/`](medvae_eval/film/) |
 | **C. JEPA adaptation** | Can self-supervision replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
 | **D. Segmentation** | Is the latent usable for coronary vessel segmentation? | Théo Palagi | [`finetune/`](finetune/) |
 
@@ -72,21 +72,41 @@ The original scripts (fidelity to the degraded input, per-image min-max scaling)
 
 ## B — Image-Quality Inductive Bias (FiLM conditioning)
 
-![FiLM pipeline](assets/pipeline_film.png)
+![FiLM protocol](final_report/figures/theophile/pipeline_film_corrected.png)
 
-We make MedVAE *acquisition-aware* by injecting a scalar quality score `c ∈ [0, 1]` through **FiLM**
-modulation (a shared MLP feeding per-block `(γ, β)` heads, zero-initialised), and compare against an
-identically-trained baseline VAE with the same budget but no conditioning.
+We ask whether MedVAE (`vae_4x_4c_2D`) reconstructs better when told how degraded its input is: a
+scalar quality score `c ∈ [0, 1]` (three constructions: A weighted IQA metrics, B PCA, C learned) is
+injected through **FiLM** after each of the 19 ResNet blocks (zero-initialised heads, +1.7M parameters).
+Protocol (experiment E13 in [EXPERIMENTS.md](EXPERIMENTS.md)): 256×256, baseline and FiLM trained
+identically (all weights, 3000 steps), tested on the 200 unseen `seg_val` images, 3 seeds; each FiLM
+model is also evaluated with **another image's score** and with a **constant score**.
 
-**Conclusion:** the network genuinely exploits the conditioning signal, but FiLM conditioning *slightly
-degrades* the reconstruction — an architectural trade-off rather than a free gain.
+| Test PSNR (dB), score C | mean ± std (3 seeds) |
+|---|---|
+| MedVAE pre-trained | 34.81 |
+| Baseline (fine-tuned, no `c`) | 42.26 ± 0.01 |
+| FiLM, true `c` | 42.29 ± 0.02 |
+| FiLM, shuffled `c` | 42.29 ± 0.02 |
+| FiLM, constant `c` | 42.30 ± 0.02 |
+
+![FiLM results](final_report/figures/theophile/film_results.png)
+
+**Conclusion:** fine-tuning MedVAE on ARCADE gains **+7.4 dB**; FiLM adds almost nothing on top
+(+0.03 dB) and **does not use the quality score**: another image's score or a constant does as well
+(scores A and B are used marginally, ≤ 0.04 dB). The score is computed from the image itself, so an
+autoencoder of that image gains no information from it. The original study (64×64, KL-dominated loss,
+unequal training, single runs) had concluded that conditioning hurts and that score C is exploited.
 
 ```bash
-# Exploratory notebooks (run top to bottom)
-medvae_eval/cvae/03_Inductive_Bias_Generation.ipynb
-medvae_eval/cvae/04_MedVAE_Architecture_Mod.ipynb     # FiLM-conditioned MedVAE
-medvae_eval/cvae/06_Ablation_c_Constant.ipynb         # ablation vs baseline
+python medvae_eval/film/train_film.py --model baseline --seed 42
+python medvae_eval/film/train_film.py --model film --approach C --seed 42
+python medvae_eval/film/analyze.py --group baseline='*_e13_film_baseline_seed4?' \
+    --group film_C='*_e13_film_C_seed4?' --ref baseline
+python medvae_eval/film/figures.py      # report figures
 ```
+
+The quality scores are built in notebooks 01–03 of [`medvae_eval/cvae/`](medvae_eval/cvae/)
+(IQA metrics, then the three scores); notebooks 04–07 are the original FiLM study, kept for reference.
 
 ---
 
