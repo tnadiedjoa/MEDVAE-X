@@ -120,14 +120,17 @@ def get_pretraining_datasets(
     val_ratio: float = 0.1,
     seed: int = 42,
     augment: bool = True,
+    include_test: bool = False,
 ) -> tuple[Dataset, Dataset]:
     """
     Datasets pour le pretraining self-supervised (à passer aux trainers stage 1 & 2).
 
-    Utilise toutes les images ARCADE (seg_train + seg_val + seg_test) sans masks.
+    Images ARCADE sans masques : seg_train + seg_val. Les 300 images de test
+    (dataset_final_phase) sont exclues par défaut, car les évaluations en aval sont
+    faites sur elles ; include_test=True reproduit l'ancien comportement.
     Renvoie (train_dataset, val_dataset).
     """
-    all_dirs = [_SEG_TRAIN_IMAGES, _SEG_VAL_IMAGES, _SEG_TEST_IMAGES]
+    all_dirs = [_SEG_TRAIN_IMAGES, _SEG_VAL_IMAGES] + ([_SEG_TEST_IMAGES] if include_test else [])
     all_files = []
     for d in all_dirs:
         all_files += [
