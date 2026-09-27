@@ -61,6 +61,7 @@ def main():
             val_ratio=float(data_cfg.get("val_ratio", 0.1)),
             seed=int(data_cfg.get("seed", 42)),
             augment=bool(data_cfg.get("augment", True)),
+            include_test=bool(data_cfg.get("include_test", False)),
         )
     else:
         common = dict(
