@@ -1,0 +1,14 @@
+{
+  "run": "2026-09-26_175553_e07_light_noise_seed42_condition_a",
+  "date": "2026-09-26T17:55:53",
+  "git_commit": "6dca6a26b4f50fbb3e83ba3de288f924fbc44f99",
+  "git_dirty": true,
+  "overrides": [
+    "experiment.seed=42",
+    "data.gauss_noise_std_range=[0.0124,0.0277]"
+  ],
+  "host": "nodemm01",
+  "slurm_job_id": "1009828",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}

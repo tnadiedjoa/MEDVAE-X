@@ -175,3 +175,90 @@ Test préalable sur 8 images (lr 1e-3, 1000 pas) : Dice 0.995 contre 0.749 pour 
   les courbes plafonnent quand le learning rate atteint son minimum (100 epochs, meilleur
   score aux epochs 90-97) : une tête plus large ou un entraînement plus long pourraient
   encore réduire l'écart avec A.
+
+## E05 — Validation de E04 (2026-09-26)
+
+`LatentUNetHead` (`base_channels: 64`) devient la tête de B et C dans les configs
+(commit `e361732`) et les runs E04 sont promus en résultats officiels.
+
+## E06 — Variabilité d'un seed à l'autre (2026-09-26)
+
+**Objectif** : jusqu'ici chaque condition n'avait qu'un run ; sans connaître la
+variabilité d'un entraînement à l'autre, on ne peut pas dire si un écart est réel.
+**Modification** : aucune ; seeds 43 et 44 pour A, B, C et D (le seed 42 = runs E02 pour
+A et D, E04 pour B et C, même configuration). Le seed fixe aussi le découpage
+entraînement/validation (80/20 de seg_train) : la variabilité mesurée inclut cet effet.
+**Runs** : `2026-09-26_*_e06_seed4{3,4}_condition_{a,b,c,d}` (commit `e361732`)
+
+| Condition | Dice | Dice artères | IoU artères |
+|---|---|---|---|
+| A — U-Net | 0.424 ± 0.010 | 0.400 ± 0.011 | 0.294 ± 0.007 |
+| B — latent MedVAE + tête U-Net | 0.409 ± 0.009 | 0.385 ± 0.009 | 0.276 ± 0.005 |
+| C — latent MedVAE fine-tuné + tête U-Net | 0.397 ± 0.005 | 0.372 ± 0.005 | 0.264 ± 0.004 |
+| D — MedVAE → U-Net | 0.441 ± 0.003 | 0.418 ± 0.003 | 0.305 ± 0.003 |
+
+(moyenne ± écart-type sur 3 seeds ; « artères » = moyenne sur les 25 classes d'artères,
+fond exclu, cf. E09 ; tableau produit par `scripts/summarize_runs.py`)
+
+**Conclusions**
+
+- **La variabilité d'un seed à l'autre est d'environ ±0.01 de Dice** (jusqu'à 0.02 d'écart
+  entre deux seeds pour A) : aucun écart plus petit ne doit être interprété sur un run.
+- **D bat A pour les 3 seeds** (+0.009, +0.020, +0.024 ; +0.018 en moyenne) : l'avantage de
+  D annoncé à l'origine tient, alors qu'il n'était pas démontrable sur un seul run (E02).
+- **B < A** (−0.015 en moyenne) et **C < B** pour les 3 seeds : le latent MedVAE seul reste
+  un peu en dessous de l'image entière, et fine-tuner MedVAE sur ARCADE dégrade légèrement.
+
+## E07 — Intensité du bruit gaussien d'augmentation (2026-09-26)
+
+**Constat** : `A.GaussNoise(p=0.3)` sans paramètre ajoute, avec albumentations ≥ 2 (2.0.8
+installé), un bruit d'écart-type 20 à 44 % du maximum (~65-84 niveaux sur 255) : 30 % des
+images d'entraînement sont presque détruites. Avec albumentations 1.x, la même ligne donnait
+un bruit d'écart-type ~3-7 niveaux, sans doute l'intention d'origine.
+**Modification** : option `data.gauss_noise_std_range` (commit `6dca6a2`), testée avec
+`[0.0124, 0.0277]` (écart-type 3.2-7.1 / 255, l'équivalent de l'ancien défaut) sur A.
+**Runs** : avant = A de E06 — après `2026-09-26_*_e07_light_noise_seed4{2,3,4}_condition_a`
+
+| A | Dice | Dice artères | IoU artères |
+|---|---|---|---|
+| Avant (E06) | 0.424 ± 0.010 | 0.400 ± 0.011 | 0.294 ± 0.007 |
+| Bruit léger | 0.433 ± 0.008 | 0.410 ± 0.008 | 0.294 ± 0.006 |
+
+Écart apparié par seed : +0.004, +0.007, +0.018 (+0.010 en moyenne).
+
+**Conclusion** : gardé. Le gain est positif pour les 3 seeds mais du même ordre que la
+variabilité, et nul en IoU : l'effet est faible. La modification est conservée surtout parce
+qu'elle rétablit l'augmentation voulue à l'origine.
+
+## E08 — Validation sur le seg_val officiel (2026-09-26)
+
+**Constat** : ARCADE fournit une validation officielle (`seg_val`, 200 images annotées)
+jamais utilisée : la validation était prise sur 20 % de `seg_train`, et le modèle
+s'entraînait sur 800 images au lieu de 1000.
+**Modification** : option `data.validation: official` (commit `6dca6a2`) : entraînement sur
+les 1000 images de `seg_train`, sélection du modèle sur `seg_val`. Le seed ne change plus
+le découpage, seulement l'initialisation et l'ordre des batchs. Testée sur A.
+**Runs** : avant = A de E06 — après `2026-09-26_*_e08_official_val_seed4{2,3,4}_condition_a`
+
+| A | Dice | Dice artères | IoU artères |
+|---|---|---|---|
+| Avant (E06) | 0.424 ± 0.010 | 0.400 ± 0.011 | 0.294 ± 0.007 |
+| Validation officielle | **0.454 ± 0.018** | **0.431 ± 0.019** | **0.316 ± 0.011** |
+
+Écart apparié par seed : +0.028, +0.015, +0.048 (+0.030 en moyenne).
+
+**Conclusion** : gardé. Gain net et positif pour les 3 seeds, sur toutes les métriques.
+
+## E09 — Métriques sur les artères seules (2026-09-26)
+
+**Modification** : `SegMetrics` calcule aussi `dice_fg_mean` et `iou_fg_mean`, moyennes sur
+les 25 classes d'artères présentes (prédites ou réelles), fond exclu, comme le challenge
+ARCADE (commit `f3c156c`). `finetune/evaluate.py` réévalue un run terminé avec les
+métriques actuelles ; tous les runs E02 à E06 ont été réévalués (Dice identique à 1e-4
+près ; D varie de 2e-4 car MedVAE tire son latent au hasard). La classe 12 est absente du
+test set ; la catégorie 26 (« stenosis ») n'apparaît jamais dans les annotations de
+segmentation, les 26 classes du modèle (fond + 25 segments) sont donc correctes.
+
+**Effet** : le fond, facile (Dice ~0.99), gonflait la moyenne : le Dice sur les artères est
+~0.024 plus bas que `dice_mean` pour toutes les conditions (ex. A : 0.424 → 0.400). Le
+classement des conditions est inchangé.
