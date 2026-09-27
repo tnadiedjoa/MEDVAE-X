@@ -1,0 +1,18 @@
+experiment:
+  name: e13_film_C_seed42
+  seed: 42
+film:
+  model: film
+  approach: C
+  seed: 42
+  img_size: 256
+  steps: 3000
+  lr: 1.0e-05
+  batch_size: 4
+  kl_weight: 1.0e-06
+  val_every: 250
+  run_name: e13_film_C_seed42
+data:
+  n_train: 900
+  n_val: 100
+  n_test: 200
