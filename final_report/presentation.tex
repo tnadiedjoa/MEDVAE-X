@@ -350,7 +350,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \item extreme imbalance ($\approx 95\,\%$ background)
 \end{itemize}
 \vspace{0.6em}
-\textbf{Tool.} MedVAE, a pre-trained medical variational autoencoder: $\times 16$ compression ($512^2 \to 128^2 \times 1$), but \alert{lossy}.
+\textbf{Tool.} MedVAE, a pre-trained medical variational autoencoder: $\times 16$ compression in area ($512^2 \to 128^2 \times 1$), but \alert{lossy}.
 \end{column}
 \begin{column}{0.44\textwidth}
 \begin{block}{Two questions}
@@ -364,95 +364,85 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{frame}
 
 \begin{frame}{Method: five conditions}
-\begin{columns}[T]
-\begin{column}{0.52\textwidth}
-\small
-\begin{itemize}
+\begin{columns}[c]
+\begin{column}{0.36\textwidth}
+\footnotesize
+\begin{itemize}\setlength\itemsep{0.1em}
   \item \textbf{A} — full-resolution U-Net (reference)
   \item \textbf{A*} — U-Net from A on reconstructed images, \alert{without retraining} (control)
-  \item \textbf{B} — lightweight head on the frozen latent
-  \item \textbf{C} — like B, encoder fine-tuned on ARCADE
+  \item \textbf{B} — U-Net head at the latent resolution, frozen MedVAE encoder
+  \item \textbf{C} — like B, MedVAE fine-tuned on ARCADE
   \item \textbf{D} — U-Net retrained on reconstructed images
 \end{itemize}
-\vspace{0.6em}
-\footnotesize \textbf{Latent} space: B, C \quad ; \quad \textbf{pixel} space: A*, D.
+\vspace{0.3em}
+\scriptsize 3 seeds per condition; artery Dice (background excluded) on the 300 test images.
 \end{column}
-\begin{column}{0.48\textwidth}
+\begin{column}{0.64\textwidth}
 \centering
-\includegraphics[width=\linewidth]{theo/cond_B.pdf}\\[0.5em]
-\includegraphics[width=\linewidth]{theo/cond_D.pdf}
+\includegraphics[width=\linewidth]{theo/conditions.pdf}
 \end{column}
 \end{columns}
 \end{frame}
 
-\begin{frame}{Result 1: segmentation from the latent fails}
+\begin{frame}{Result 1: segmentation from the latent works}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
+\small
 \begin{itemize}
-  \item B and C: Dice $\approx 0.04$ (vs 0.433 for A)
-  \item only the background is predicted, IoU $\to 0$
+  \item B: \textbf{0.393}, C: \textbf{0.403} artery Dice, i.e.\ \textbf{91--94\,\%} of A (0.430), from a $16\times$ smaller input
+  \item \alert{Earlier ``the latent fails'' (Dice 0.04)} was a training issue:
+    \begin{itemize}\footnotesize
+      \item head learning rate $5\times10^{-5}$, too low $\rightarrow 10^{-3}$
+      \item no convolution at the latent resolution $\rightarrow$ small U-Net head
+    \end{itemize}
+  \item Fine-tuning MedVAE (C) helps slightly: C $\geq$ B on all seeds (+0.010)
 \end{itemize}
-\textbf{Why?}
-\begin{itemize}
-  \item $95\,\%$ background imbalance $\Rightarrow$ trivial minimum is a strong attractor
-  \item single-channel latent, \alert{no multi-scale features} (nor skip connections)
-\end{itemize}
-Fine-tuning the compressor (C) changes nothing.
 \end{column}
 \begin{column}{0.52\textwidth}
 \centering
-\includegraphics[width=\linewidth]{theo/comparaison_conditions.png}
+\includegraphics[width=\linewidth]{theo/seg_curves.pdf}
+
+\footnotesize Validation Dice, mean over 3 seeds
 \end{column}
 \end{columns}
 \end{frame}
 
-\begin{frame}{Result 2: pixel space preserves, adaptation helps}
+\begin{frame}{Result 2: pixel space preserves, adaptation adds nothing}
 \begin{columns}[T]
 \begin{column}{0.42\textwidth}
 \centering
-\small
+\footnotesize
 \begin{tabular}{lcc}
 \toprule
-Cond. & Dice & IoU \\
+Cond. & Artery Dice & Artery IoU \\
 \midrule
-A   & 0.433 & 0.499 \\
-A*  & 0.434 & 0.497 \\
-B   & 0.038 & 0.005 \\
-C   & 0.039 & 0.000 \\
-D   & \textbf{0.451} & 0.495 \\
+A   & 0.430 $\pm$ 0.005 & 0.308 \\
+A*  & 0.425 & 0.303 \\
+B   & 0.393 $\pm$ 0.008 & 0.277 \\
+C   & 0.403 $\pm$ 0.002 & 0.285 \\
+D   & 0.432 $\pm$ 0.004 & 0.311 \\
 \bottomrule
 \end{tabular}
 \end{column}
 \begin{column}{0.58\textwidth}
 \small
 \begin{itemize}
-  \item \textbf{Compression is neutral}: A* $\approx$ A (0.434 vs 0.433)
-  \item \alert{Key result: $D - A^{*} = +0.017$} \\ pure gain from adaptation (same input, only retraining differs)
-  \item gain concentrated on the rare, thin segments (C11, C18, C19)
+  \item \textbf{Compression alone costs little}: A* $\approx$ A ($-0.006$)
+  \item \textbf{D $\approx$ A} ($+0.003$, within seed variability)
+  \item \alert{Earlier ``D gains on thin segments'' (+0.017)}: gone with 3 seeds and the corrected augmentation
 \end{itemize}
 \end{column}
 \end{columns}
-\vspace{-0.2em}
+\vspace{0.2em}
 \centering
-\includegraphics[width=0.86\textwidth]{theo/dice_per_class.png}
+\includegraphics[width=0.84\textwidth]{theo/seg_results.pdf}
 \end{frame}
 
 \begin{frame}{Qualitative predictions}
-\vspace{0.3em}
-\begin{columns}[T]
-\begin{column}{0.5\textwidth}
 \centering
-Pixel space: structures well segmented.
-\includegraphics[width=\linewidth]{theo/predAstar.png}\\[0.4em]
-\includegraphics[width=\linewidth]{theo/conDmieux.png}
-\end{column}
-\begin{column}{0.5\textwidth}
-\centering
-Latent space: everything is predicted as background.
-\includegraphics[width=\linewidth]{theo/predB.png}\\[0.4em]
-\includegraphics[width=\linewidth]{theo/predC.png}
-\end{column}
-\end{columns}
+\includegraphics[width=0.9\textwidth]{theo/seg_predictions.png}
+
+\footnotesize Seed-42 models on three test images: A, A* and D nearly identical; B and C follow the coronary tree from the $128\times128$ latent.
 \end{frame}
 
 % ############################################################################
