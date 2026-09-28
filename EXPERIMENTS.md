@@ -16,7 +16,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E07 | D | Bruit d'augmentation ramené à l'intensité voulue | A +0.010 (faible) | gardé |
 | E08 | D | Validation sur le seg_val officiel (1000 images d'entraînement) | A +0.030 | gardé |
 | E09 | D | Dice / IoU sur les artères seules (fond exclu) | ~0.024 sous le Dice avec fond, classement inchangé | ajouté |
-| E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | en cours | — |
+| E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence |
 | E11 | A | Robustesse mesurée par rapport à l'image propre | débruite le Poisson (+1.2 à +6.6 dB), ne restaure ni JPEG ni flou | refait |
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | à venir | — |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
@@ -284,10 +284,36 @@ segmentation, les 26 classes du modèle (fond + 25 segments) sont donc correctes
 ~0.024 plus bas que `dice_mean` pour toutes les conditions (ex. A : 0.424 → 0.400). Le
 classement des conditions est inchangé.
 
-## E10 — Nouvel état de référence : E07 + E08 sur A, B, C, D (en cours)
+## E10 — Nouvel état de référence : E07 + E08 sur A, B, C, D (2026-09-28)
 
-Configs A à D avec validation officielle et bruit léger (commit `f3b6538`), 3 seeds par
-condition, et A* sur le U-Net A seed 42. Runs `2026-09-27_*_e10_seed4{2,3,4}_condition_*`.
+**Modification** : les deux changements validés sur A (validation sur seg_val, E08 ; bruit
+d'augmentation léger, E07) appliqués aux configs A à D (commit `f3b6538`), 3 seeds par
+condition ; A* = U-Net A du seed 42 appliqué aux reconstructions MedVAE.
+**Runs** : avant = E06 (mêmes seeds) — après `2026-09-2{7,8}_*_e10_seed4{2,3,4}_condition_{a,b,c,d}`
+et `2026-09-28_*_e10_seed42_condition_astar`
+
+| Condition | Dice avant (E06) | Dice après (E10) | Dice artères | IoU artères | Écart par seed (42 / 43 / 44) |
+|---|---|---|---|---|---|
+| A — U-Net | 0.424 ± 0.010 | **0.452 ± 0.005** | 0.430 ± 0.005 | 0.308 ± 0.002 | +0.018 / +0.028 / +0.039 |
+| A* — U-Net A sur reconstructions | — | 0.448 (seed 42) | 0.425 | 0.303 | −0.006 par rapport à A |
+| B — latent MedVAE | 0.409 ± 0.009 | **0.417 ± 0.008** | 0.393 ± 0.008 | 0.277 ± 0.005 | +0.017 / +0.014 / −0.007 |
+| C — latent MedVAE fine-tuné | 0.397 ± 0.005 | **0.427 ± 0.002** | 0.403 ± 0.002 | 0.285 ± 0.002 | +0.028 / +0.028 / +0.035 |
+| D — MedVAE → U-Net | 0.441 ± 0.003 | **0.455 ± 0.004** | 0.432 ± 0.004 | 0.311 ± 0.003 | +0.015 / +0.015 / +0.011 |
+
+**Conclusions**
+
+- **Toutes les conditions progressent**, surtout A et C (+0.03) ; B le moins (+0.008, un
+  seed en baisse). Résultats promus (seed 42 de chaque condition, comme jusqu'ici).
+- **D ≈ A** : +0.003 en moyenne (+0.005, +0.006, −0.004), dans la variabilité. L'avantage de
+  D mesuré en E06 (+0.018, 3 seeds sur 3) disparaît presque. Hypothèse : avec le bruit
+  d'augmentation trop fort d'avant E07, 30 % des images d'entraînement de A étaient presque
+  détruites, alors que D les voyait après MedVAE, qui débruite (E11) ; D était donc moins
+  pénalisé par ce bruit. A a d'ailleurs gagné deux fois plus que D (+0.028 contre +0.013).
+- **C ≥ B pour les 3 seeds** (+0.010 en moyenne), l'inverse de E06 : fine-tuner MedVAE sur
+  ARCADE aide peut-être un peu la segmentation depuis le latent, mais l'écart est de l'ordre
+  de la variabilité.
+- **A* ≈ A** (−0.006 sur un seed) : la compression seule coûte peu.
+- La segmentation depuis le latent (B, C) reste ~0.03 en dessous de A (92-94 % de son Dice).
 
 ## E11 — Robustesse de MedVAE aux dégradations, mesure corrigée (2026-09-27)
 
