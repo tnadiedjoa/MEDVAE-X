@@ -10,14 +10,58 @@ from pycocotools import mask as coco_mask
 
 # data augmentation pour mask et image 
 import albumentations as A
+import cv2
 from albumentations.pytorch import ToTensorV2 
 
-def get_train_transforms(img_size: int = 512, noise_std_range=None) -> A.Compose:
+class PoissonNoise(A.ImageOnlyTransform):
+    """Bruit quantique : x ← Poisson(x·s) / s, s tiré dans scale_range (petit s = fort bruit).
+
+    Même modèle et mêmes plages que l'évaluation de robustesse (medvae_eval/robustness).
+    """
+
+    def __init__(self, scale_range=(0.05, 1.0), p: float = 0.5):
+        super().__init__(p=p)
+        self.scale_range = scale_range
+
+    def get_params(self):
+        return {"scale": self.py_random.uniform(*self.scale_range)}
+
+    def apply(self, img, scale=1.0, **params):
+        noisy = self.random_generator.poisson(img.astype(np.float32) * scale) / scale
+        return np.clip(noisy, 0, 255).astype(np.uint8)
+
+
+class OpenCVGaussianBlur(A.ImageOnlyTransform):
+    """Flou gaussien d'OpenCV, σ déduit de la taille (impaire) du noyau, comme l'évaluation."""
+
+    def __init__(self, kernel_range=(3, 31), p: float = 0.5):
+        super().__init__(p=p)
+        self.kernel_range = kernel_range
+
+    def get_params(self):
+        return {"ksize": self.py_random.randint(*self.kernel_range) | 1}
+
+    def apply(self, img, ksize=3, **params):
+        return cv2.GaussianBlur(img, (ksize, ksize), 0)
+
+
+def degradation_transform(p: float) -> A.OneOf:
+    """Une dégradation d'acquisition, avec probabilité p : bruit de Poisson, JPEG ou flou."""
+    return A.OneOf([
+        PoissonNoise(scale_range=(0.05, 1.0)),
+        A.ImageCompression(quality_range=(5, 95)),
+        OpenCVGaussianBlur(kernel_range=(3, 31)),
+    ], p=p)
+
+
+def get_train_transforms(img_size: int = 512, noise_std_range=None, degradation_p=None) -> A.Compose:
     # GaussNoise sans paramètre : écart-type de 20 à 44 % du max avec albumentations
     # >= 2 (~84/255, image quasi détruite), contre ~3-7/255 en 1.x. noise_std_range
     # (fraction du max) permet de retrouver un bruit léger ; None = comportement actuel.
     gauss_noise = (A.GaussNoise(std_range=tuple(noise_std_range), p=0.3)
                    if noise_std_range is not None else A.GaussNoise(p=0.3))
+    # E15 : dégradations réalistes (Poisson, JPEG, flou) ; None = pas de dégradation
+    degradation = [degradation_transform(degradation_p)] if degradation_p else []
     return A.Compose([
         A.Resize(img_size, img_size),
         A.HorizontalFlip(p=0.5),
@@ -35,6 +79,7 @@ def get_train_transforms(img_size: int = 512, noise_std_range=None) -> A.Compose
             p=0.5,
         ),
         gauss_noise,
+        *degradation,
         A.CLAHE(clip_limit=2.0, p=0.3),
     ])
 
@@ -53,10 +98,11 @@ class ArcadeDataset(Dataset):
         img_size: int = 512,
         augment: bool = False,
         noise_std_range=None,
+        degradation_p=None,
     ):
         self.images_dir = images_dir
         self.img_size   = img_size
-        self.transforms = get_train_transforms(img_size, noise_std_range) if augment \
+        self.transforms = get_train_transforms(img_size, noise_std_range, degradation_p) if augment \
                   else get_val_transforms(img_size)
 
         # Charge le JSON 
