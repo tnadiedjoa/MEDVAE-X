@@ -1,0 +1,8 @@
+{
+  "model": "medvae",
+  "ckpt": null,
+  "n_pixels": 200000,
+  "effective_rank": 251.2710418701172,
+  "dims_90pct_variance": 61,
+  "n_channels": 512
+}
