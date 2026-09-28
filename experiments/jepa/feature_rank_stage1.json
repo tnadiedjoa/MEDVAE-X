@@ -1,0 +1,8 @@
+{
+  "model": "stage1",
+  "ckpt": "jepa_adaptation/outputs/stage1/best.pt",
+  "n_pixels": 200000,
+  "effective_rank": 111.54008483886719,
+  "dims_90pct_variance": 22,
+  "n_channels": 256
+}

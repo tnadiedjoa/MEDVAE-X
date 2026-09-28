@@ -1,0 +1,8 @@
+{
+  "model": "stage1",
+  "ckpt": "jepa_adaptation/outputs/stage1/best.pt",
+  "n_images": 300,
+  "psnr": 30.244106352040696,
+  "mpsnr": 30.926920425267152,
+  "ssim": 0.8599426352977753
+}

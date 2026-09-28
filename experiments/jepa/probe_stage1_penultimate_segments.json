@@ -1,0 +1,52 @@
+{
+  "model": "stage1",
+  "ckpt": "jepa_adaptation/outputs/stage1/best.pt",
+  "representation": "penultimate",
+  "task": "segments",
+  "epochs": 20,
+  "lr": 0.001,
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 9,
+      "val_dice_fg": 0.040251340717077255,
+      "dice_mean": 0.06706049293279648,
+      "dice_fg_mean": 0.03059435449540615,
+      "iou_fg_mean": 0.01625065691769123
+    },
+    {
+      "seed": 43,
+      "best_epoch": 9,
+      "val_dice_fg": 0.03816676884889603,
+      "dice_mean": 0.06863309442996979,
+      "dice_fg_mean": 0.0322829894721508,
+      "iou_fg_mean": 0.01717607118189335
+    },
+    {
+      "seed": 44,
+      "best_epoch": 9,
+      "val_dice_fg": 0.039069827646017075,
+      "dice_mean": 0.06844639778137207,
+      "dice_fg_mean": 0.032030995935201645,
+      "iou_fg_mean": 0.017024468630552292
+    }
+  ],
+  "mean_std": {
+    "dice_mean": [
+      0.06804666171471278,
+      0.0008591336097890216
+    ],
+    "dice_fg_mean": [
+      0.03163611330091953,
+      0.000910945246606259
+    ],
+    "iou_fg_mean": [
+      0.01681706557671229,
+      0.0004963465625485945
+    ],
+    "val_dice_fg": [
+      0.039162645737330117,
+      0.0010453809673795444
+    ]
+  }
+}
