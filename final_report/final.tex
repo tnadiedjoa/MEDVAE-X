@@ -713,115 +713,96 @@ The high resolution of medical images is necessary to preserve diagnostic detail
 
 This compression remains however intrinsically destructive, and nothing guarantees that it preserves information useful for all downstream tasks. The benefits of MedVAE have been established primarily on classification and detection tasks, which rely on global features. Fine coronary artery segmentation constitutes on the contrary an unfavourable case. Indeed, the structures to be delineated are thin, tubular, and low-contrast, the number of classes is high (26 classes: background and 25 arterial segments), and their distribution is heavily imbalanced. The central question we pose is therefore: \textbf{does lossy medical compression preserve sufficient anatomical information to enable multi-class coronary segmentation? A second methodological question arises alongside: at which point in the processing pipeline must the compression be integrated for this information to remain exploitable?}
 
-To answer this, we evaluate on the public ARCADE dataset \cite{popov2024arcade} the extent to which MedVAE can serve as an intermediate representation for segmentation. We compare three strategies accounting for compression against a full-resolution baseline, namely a U-Net \cite{ronneberger2015unet} trained on original images: (i) segmenting directly from the compressed latent representation using a lightweight segmentation head, (ii) first adapting the compressor to the coronary domain by fine-tuning before segmenting from the latent, and (iii) training a segmentation model on the decompressed images. These three strategies cover both latent-space and reconstructed pixel-space usage, with and without domain adaptation. Our results show that direct segmentation from the single-channel latent fails, that reconstruction-oriented fine-tuning is not sufficient to make this latent exploitable, but that the decompressed pixel space preserves coronary structures and even yields a slight gain, concentrated on the most difficult classes, compared to the baseline.
+To answer this, we evaluate on the public ARCADE dataset \cite{popov2024arcade} the extent to which MedVAE can serve as an intermediate representation for segmentation. We compare three strategies accounting for compression against a full-resolution baseline, namely a U-Net \cite{ronneberger2015unet} trained on original images: (i) segmenting directly from the compressed latent representation with a dedicated segmentation head, (ii) first adapting the compressor to the coronary domain by fine-tuning before segmenting from the latent, and (iii) training a segmentation model on the decompressed images. These three strategies cover both latent-space and reconstructed pixel-space usage, with and without domain adaptation. Our results show that the compression preserves the information needed for segmentation in both spaces: segmenting the decompressed images is as accurate as segmenting the originals, and segmenting directly from the single-channel latent reaches more than $90\,\%$ of the baseline's Dice.
+
+\emph{Note on this revised version.} In an earlier version of this study, segmentation from the latent collapsed to predicting the background everywhere (Dice $0.04$), which led us to conclude that the latent was unfit for dense prediction. This collapse came from the training, not from the latent: the head was trained from scratch with a learning rate of $5\times10^{-5}$, too low to leave the trivial solution, and it had no convolution at the latent resolution, hence almost no spatial context. The earlier version also reported IoU values computed incorrectly (index masks passed to a metric expecting one-hot masks, which yielded IoU values above the Dice), selected models on 20\,\% of the training images instead of the official validation split, used a Gaussian-noise augmentation that the current version of Albumentations makes more than ten times stronger than intended, and relied on a single training run per condition. All results below were obtained after correcting these points, with three training seeds per condition.
 
 \subsection{Methods}
 
 \paragraph{Data and Preprocessing.}
-We use the public ARCADE dataset \cite{popov2024arcade} (1\,200 greyscale angiographies, $512 \times 512$), whose COCO annotations are converted into dense 26-class masks. We adopt an 80\,\%/20\,\% split for training and validation, and report all performance on the official test set of 300 images. Intensities are normalised in $[0,1]$ and training employs standard augmentation (flips, affine transforms, contrast and brightness adjustments, Gaussian noise, CLAHE) via Albumentations \cite{buslaev2020albumentations}. Geometric transforms are applied jointly to the image and its mask to preserve alignment.
+We use the segmentation subset of ARCADE \cite{popov2024arcade} ($512 \times 512$ greyscale angiographies), whose COCO annotations are converted into dense 26-class masks (background and 25 arterial segments). Models are trained on the 1\,000 training images, selected on the 200 images of the official validation split, and evaluated on the official test set of 300 images. Intensities are normalised in $[0,1]$ and training employs standard augmentation (flips, affine transforms, contrast and brightness adjustments, light Gaussian noise of standard deviation $3$ to $7$ grey levels, CLAHE) via Albumentations \cite{buslaev2020albumentations}. Geometric transforms are applied jointly to the image and its mask to preserve alignment.
 
 \paragraph{MedVAE Compressor.}
 The compressor is the \texttt{medvae\_4\_1\_2d} variant of MedVAE \cite{varma2025medvaeefficientautomatedinterpretation}, which reduces each spatial dimension by a factor of 4: a $512 \times 512$ image is encoded into a single-channel $128 \times 128$ latent, a factor-16 reduction in area. Unless stated otherwise, its weights are frozen.
 
 \paragraph{Experimental Conditions.}
-We compare three strategies accounting for compression against a full-resolution baseline, as well as a diagnostic control. Each condition is illustrated by its processing diagram.
+We compare three strategies accounting for compression against a full-resolution baseline, as well as a diagnostic control (Fig.~\ref{fig:conditions}).
 
-\textbf{A (baseline).} A U-Net \cite{ronneberger2015unet} with a ResNet-34 \cite{he2016resnet} encoder pre-trained on ImageNet, trained end-to-end on original images (Fig.~\ref{fig:pipe_a}).
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/cond_A2.pdf}
-\caption{Condition A. Full-resolution baseline: a U-Net segments the original angiography directly.}
-\label{fig:pipe_a}
-\end{figure}
+\textbf{A (baseline).} A U-Net \cite{ronneberger2015unet} with a ResNet-34 \cite{he2016resnet} encoder pre-trained on ImageNet (24.4M parameters), trained end-to-end on original images.
 
-\textbf{A$^{*}$ (out-of-distribution control).} The U-Net from condition A, without any retraining, is applied to images first encoded then decoded by MedVAE (Fig.~\ref{fig:pipe_astar}). This condition isolates the raw effect of pixel-space compression on an unadapted model, independently of any learning.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/cond_Astar.pdf}
-\caption{Condition A$^{*}$. The frozen U-Net from A is evaluated on MedVAE-reconstructed images, without retraining.}
-\label{fig:pipe_astar}
-\end{figure}
+\textbf{A$^{*}$ (compression alone).} The U-Net from condition A, without any retraining, is applied to images first encoded then decoded by MedVAE. This condition isolates the raw effect of pixel-space compression on an unadapted model, independently of any learning.
 
-\textbf{B (segmentation from the latent).} The $128 \times 128 \times 1$ latent produced by the frozen MedVAE encoder feeds a lightweight segmentation head (Fig.~\ref{fig:pipe_b}): a $1 \times 1$ projection to 128 channels, two convolutional blocks interleaved with bilinear upsampling to return to $512 \times 512$, and a final classification into 26 classes.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/cond_B.pdf}
-\caption{Condition B. A lightweight head segments directly from the single-channel compressed latent of the frozen pre-trained MedVAE encoder.}
-\label{fig:pipe_b}
-\end{figure}
+\textbf{B (segmentation from the latent).} The $128 \times 128 \times 1$ latent produced by the frozen MedVAE encoder feeds a segmentation head trained from scratch: a small U-Net operating at the latent resolution (three downsampling levels, $128 \to 64 \to 32 \to 16$, with skip connections and 64 base channels), followed by two $\times 2$ upsampling blocks back to $512 \times 512$ and a $1 \times 1$ classifier into 26 classes (7.8M parameters). The convolutions at the latent resolution give the head the spatial context needed to identify a segment, which depends on its position in the coronary tree.
 
-\textbf{C (domain fine-tuning).} Identical to B, but the MedVAE encoder is first fine-tuned on ARCADE with a reconstruction loss before being frozen (Fig.~\ref{fig:pipe_c}), in order to test whether domain adaptation to the coronary domain enriches the latent.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/cond_C.pdf}
-\caption{Condition C. Like B, with the MedVAE encoder first fine-tuned on ARCADE then frozen.}
-\label{fig:pipe_c}
-\end{figure}
+\textbf{C (domain fine-tuning).} Identical to B, but the MedVAE autoencoder is first fine-tuned on ARCADE with a reconstruction loss before being frozen, in order to test whether domain adaptation enriches the latent.
 
-\textbf{D (segmentation of reconstructed images).} A U-Net identical to A is trained not on original images but on their MedVAE-reconstructed versions (Fig.~\ref{fig:pipe_d}). Unlike A$^{*}$, the network here adapts to the compression artefacts.
-\begin{figure}[H]
+\textbf{D (segmentation of reconstructed images).} A U-Net identical to A is trained not on original images but on their MedVAE-reconstructed versions. Unlike A$^{*}$, the network here adapts to the compression artefacts.
+
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/theo/cond_D.pdf}
-\caption{Condition D. The U-Net is retrained on MedVAE-reconstructed images, adapting it to compression artefacts.}
-\label{fig:pipe_d}
-\end{figure}
+\includegraphics[width=0.85\textwidth]{figures/theo/conditions.pdf}
+\caption{The five segmentation conditions, illustrated on a test image: the input angiography, the MedVAE latent or reconstruction, and the 26-class mask. Dark boxes are trained, light dashed boxes are frozen.}
+\label{fig:conditions}
+\end{figure*}
 
 \paragraph{Training and Evaluation.}
 All models minimise a composite loss combining Dice loss and cross-entropy in equal parts:
 \begin{equation}
 \mathcal{L} = 0.5\,\mathcal{L}_{\text{Dice}} + 0.5\,\mathcal{L}_{\text{CE}}.
 \end{equation}
-This choice directly addresses the massive class imbalance. The Dice loss \cite{milletari2016vnet} measures the overlap between prediction and ground truth independently of region size, preventing the dominant background from controlling optimisation. Cross-entropy, computed pixel-wise, provides a more stable gradient, especially at the start of training. Optimisation uses AdamW, cosine learning rate scheduling, and mixed precision, with early stopping on the validation Dice. Performance is reported via the Dice coefficient and IoU, averaged over the 26 classes.
+This choice directly addresses the massive class imbalance. The Dice loss \cite{milletari2016vnet} measures the overlap between prediction and ground truth independently of region size, preventing the dominant background from controlling optimisation. Cross-entropy, computed pixel-wise, provides a more stable gradient, especially at the start of training. Optimisation uses AdamW with cosine learning-rate scheduling (initial learning rate $10^{-4}$ for the U-Nets, $10^{-3}$ for the heads of B and C, which are trained from scratch), mixed precision, at most 100 epochs and early stopping on the validation Dice. Each condition is trained with three seeds; A$^{*}$ uses the seed-42 model of A. Dice and IoU are computed per class over the whole test set and averaged over the artery segments present in the ground truth or in the prediction (background excluded), which we call the \emph{artery Dice} and \emph{artery IoU}.
 
 \subsection{Results}
 
-Table~\ref{tab:results} summarises test performance, and Fig.~\ref{fig:val_curves} shows training dynamics. Examples of qualitative predictions for each condition are reported in the appendix (Figs.~\ref{fig:pred_a} to~\ref{fig:pred_d}).
-
 \begin{table}[H]
-\caption{Performance on the ARCADE test set (300 images), averaged over 26 classes.}
+\caption{Performance on the ARCADE test set (300 images): mean $\pm$ standard deviation over three training seeds (A$^{*}$: seed 42 only). The last column includes the background class.}
 \centering
-\begin{tabular}{llcc}
+\resizebox{\columnwidth}{!}{\begin{tabular}{llccc}
 \toprule
-Cond. & Trained on & Dice & IoU \\
+Cond. & Input of the trained model & Artery Dice & Artery IoU & Dice (all) \\
 \midrule
-A        & Original images (pixel)              & 0.433 & 0.499 \\
-A$^{*}$  & Reconstructed images (eval. only)    & 0.434 & 0.497 \\
-B        & Pre-trained latent                   & 0.038 & 0.005 \\
-C        & Fine-tuned latent                    & 0.039 & 0.000 \\
-D        & Reconstructed images (pixel)         & \textbf{0.451} & 0.495 \\
+A        & Original images                   & 0.430 $\pm$ 0.005 & 0.308 $\pm$ 0.002 & 0.452 \\
+A$^{*}$  & Reconstructed images (eval. only) & 0.425 & 0.303 & 0.448 \\
+B        & Pre-trained latent                & 0.393 $\pm$ 0.008 & 0.277 $\pm$ 0.005 & 0.417 \\
+C        & Fine-tuned latent                 & 0.403 $\pm$ 0.002 & 0.285 $\pm$ 0.002 & 0.427 \\
+D        & Reconstructed images              & \textbf{0.432 $\pm$ 0.004} & \textbf{0.311 $\pm$ 0.003} & 0.455 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \label{tab:results}
 \end{table}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/theo/seg_results.pdf}
+\caption{Left: artery Dice on the test set per condition (bars: mean over seeds, dots: individual seeds). Right: per-class Dice, averaged over seeds. Conditions A, A$^{*}$ and D are nearly indistinguishable; B and C follow the same per-class profile a few points lower, with the largest gaps on thin, rare segments.}
+\label{fig:seg_results}
+\end{figure*}
+
+Table~\ref{tab:results} and Fig.~\ref{fig:seg_results} summarise test performance; Fig.~\ref{fig:val_curves} shows training dynamics and Fig.~\ref{fig:predictions} (appendix) qualitative predictions.
+
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/theo/comparaison_conditions.png}
-\caption{Validation Dice during training. Conditions A and D converge to a Dice of approximately 0.50, with D slightly outperforming A at the end. Conditions B and C, which segment from the compressed latent, remain stuck around 0.04 from the first epochs and trigger early stopping before epoch 30: the head never learns, whether the compressor is pre-trained (B) or domain fine-tuned (C).}
+\includegraphics[width=0.9\columnwidth]{figures/theo/seg_curves.pdf}
+\caption{Validation Dice during training (mean over the three seeds). B and C, which segment from the compressed latent, learn more slowly and plateau a few points below A and D.}
 \label{fig:val_curves}
 \end{figure}
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/theo/dice_per_class.png}
-\caption{Per-class Dice on the test set (C0 = background, C1 to C25 = coronary segments). Conditions A, A$^{*}$, and D correctly segment frequent and thick segments (C1 to C7) while B and C predict only background. D's gain over A is concentrated on rare and thin segments that A fails to learn (e.g. C11, C18, C19), whereas A and A$^{*}$ are nearly indistinguishable, confirming that pixel-space compression does not degrade segmentation.}
-\label{fig:dice_class}
-\end{figure*}
+\paragraph{Segmentation from the latent works.}
+With an adequate head and learning rate, conditions B and C reach an artery Dice of $0.393$ and $0.403$, that is $91\,\%$ and $94\,\%$ of the baseline A ($0.430$), from a representation sixteen times smaller than the image. They detect the same segments as A (Fig.~\ref{fig:seg_results}), with the largest gaps on thin and rare branches, and their predictions follow the coronary tree (Fig.~\ref{fig:predictions}). Fine-tuning the compressor on ARCADE helps slightly: C beats or equals B for the three seeds ($+0.010$ on average), a gap of the order of the seed-to-seed variability.
 
-\paragraph{Segmentation from the latent fails.}
-Conditions B and C collapse to a Dice of 0.038 and 0.039 respectively, against 0.433 for the baseline A; Fig.~\ref{fig:dice_class} shows that only the background (C0) is correctly predicted, with no arterial segment being learnt; predictions are almost entirely assigned to the background (Figs.~\ref{fig:pred_b} and~\ref{fig:pred_c}). This collapse results from the conjunction of two factors. On one hand, class imbalance is extreme: the background represents nearly 95\,\% of pixels. Although the composite loss (Dice and cross-entropy) is partly designed to counter this imbalance, the trivial solution of predicting everything as background remains a strongly attractive local minimum whenever the model does not receive a sufficiently rich input signal; B and C reach it from the first epochs and never leave it (Fig.~\ref{fig:val_curves}). On the other hand, the segmentation head operates on a single-channel latent and has no multi-scale representation: unlike the U-Net, it has neither skip connections nor resolution hierarchy capable of providing the fine spatial signal needed to localise thin tubular structures. These two factors reinforce each other: without an exploitable signal, the head has no useful gradient to escape the trivial minimum. Fine-tuning the compressor (C) changes nothing: optimising MedVAE for reconstruction improves the visual fidelity of images but does not enrich the latent's discriminative power for segmentation. The IoU of C even drops to 0.000, the model predicting only background: the intersection with the ground truth is zero for each of the 25 artery classes, which nullifies the mean IoU over these classes.
+\paragraph{Pixel-space compression is nearly neutral.}
+Condition A$^{*}$ measures the effect of compression alone: applying the baseline model, without retraining, to MedVAE-reconstructed images costs only $0.006$ of artery Dice ($0.425$ against $0.431$ for the same seed), and its predictions are nearly identical to those of A (Fig.~\ref{fig:predictions}). The $16\times$ compression therefore preserves the anatomical information exploited by the network when rendered in pixel space.
 
-\paragraph{Pixel-space compression is neutral.}
-Condition A$^{*}$ serves as a control: by applying the reference model, without retraining, to MedVAE-reconstructed images, it measures the effect of compression alone, independently of any network adaptation. Its Dice of 0.434 is nearly identical to that of the baseline A (0.433), and Fig.~\ref{fig:dice_class} shows a nearly perfect class-by-class correspondence, with the predictions of A and A$^{*}$ being visually identical (Figs.~\ref{fig:pred_a} and~\ref{fig:pred_astar}). The 16$\times$ compression therefore preserves the anatomical information exploited by the network when rendered in pixel space, to the point that an unadapted model is unaffected.
+\paragraph{Adapting to reconstruction brings no measurable gain.}
+Condition D reaches an artery Dice of $0.432 \pm 0.004$, against $0.430 \pm 0.005$ for A: the difference ($+0.003$ of Dice, with one of the three seeds in favour of A) is within the seed-to-seed variability, and the per-class profiles of A and D are nearly identical. The earlier version of this study reported a gain of D over A concentrated on thin segments; with several seeds and the corrected augmentation this gain disappears. A plausible explanation is the overly strong noise augmentation of the earlier version, which degraded about 30\,\% of A's training images while D received them after MedVAE, which removes such noise (Section~\ref{sec:medvae-robustness}).
 
-\paragraph{Adapting to reconstruction yields a targeted gain.}
-Condition D achieves the best Dice (0.451). This Dice improvement is accompanied by a slightly lower IoU than A (0.495 vs. 0.499), consistent with the occasional over-segmentations observed in the appendix: D captures more true positives on rare segments, at the cost of excess false positives in some cases. The specific contribution of adapting to compression is most clearly read in the gap between D and A$^{*}$: these two conditions handle exactly the same input, namely MedVAE-reconstructed images, and differ only on one point --- D's network having been retrained on these images while A$^{*}$'s has not. Their gap, $\Delta = 0.451 - 0.434 = +0.017$, therefore measures the benefit of adapting to compression artefacts alone, without conflating it with the effect of compression itself (which is null, A$^{*}$ $\approx$ A). This gain, real but modest, is entirely concentrated on the rare and thin segments that the baseline failed to learn: C11 goes from 0.000 to 0.126, C18 from 0.031 to 0.113, and C19 from 0.015 to 0.191, whilst D loses slightly on large segments (C1: 0.789 to 0.753). These thin branches, absent from A's predictions, reappear in those of D (Fig.~\ref{fig:pred_d}). We interpret this effect as regularisation: MedVAE reconstruction would act as a denoiser which, by attenuating high-frequency acquisition variability, would facilitate the learning of fine structures. Our experiments do not however allow us to establish this mechanism directly, and this interpretation remains to be confirmed.
+%%E12%%
 
 \subsection{Discussion}
 
-Our experiments address both aspects of the problem. Regarding information preservation, a factor-16 lossy medical compression retains sufficient anatomical information for multi-class coronary segmentation, provided it is exploited in pixel space: degradation is null (A$^{*}$ $\approx$ A) and adapting to compression even yields a specific gain, measured without confusion by the controlled gap D vs. A$^{*}$ ($+0.017$), concentrated on the most difficult segments. Regarding the integration point, MedVAE's single-channel latent is however ill-suited to a dense and fine task: direct segmentation from the latent fails, and reconstruction-oriented fine-tuning does not unlock it.
+Our experiments address both aspects of the problem. Regarding information preservation, a factor-16 lossy medical compression retains sufficient anatomical information for multi-class coronary segmentation: in pixel space, compression alone costs almost nothing (A$^{*}$ $\approx$ A) and a model trained on reconstructions matches the baseline (D $\approx$ A). Regarding the integration point, MedVAE's single-channel latent is directly exploitable for dense prediction, provided the head has convolutions at the latent resolution and is trained with an adequate learning rate: it then reaches more than $90\,\%$ of the baseline's Dice, with a head three times smaller than the baseline U-Net and inputs sixteen times smaller.
 
-The main limitation lies in the compression variant studied. A multi-channel latent, or exploiting intermediate encoder feature maps rather than the sole bottleneck, could restore the lost information; likewise, fine-tuning supervised by a segmentation objective rather than a reconstruction one is a natural direction. Our results thus clearly delineate the regime in which a generic medical compressor is useful for segmentation: not as a latent space to be segmented directly, but as a pixel-space preprocessor whose denoising benefits the most difficult structures.
+A gap of about $0.03$ of Dice nevertheless remains between the latent and the image, concentrated on thin and rare segments. A multi-channel latent, or exploiting intermediate encoder feature maps rather than the sole bottleneck, could reduce it; likewise, fine-tuning the encoder with a segmentation objective rather than a reconstruction one is a natural direction. Our results thus delineate the regime in which a generic medical compressor is useful for segmentation: as a pixel-space preprocessor, it is harmless, and as a latent representation, it is a compact and nearly sufficient input for dense prediction.
 
 \section{Perspectives}
 
@@ -855,37 +836,9 @@ Taken together, our results sketch a coherent picture: MedVAE's compression is a
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\columnwidth]{figures/theo/predictions_condition_a_unet.png}
-\caption{Condition A (reference U-Net on original images). From left to right: input image, ground truth, prediction; four test cases. Main segments are well delineated, but thin branches and rare segments are frequently omitted.}
-\label{fig:pred_a}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/predAstar.png}
-\caption{Condition A$^{*}$ (U-Net from A applied without retraining to MedVAE-reconstructed images), a representative example. The prediction is visually identical to that of A, illustrating that 16$\times$ pixel-space compression preserves the information exploited by the network.}
-\label{fig:pred_astar}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/predB.png}
-\caption{Condition B (segmentation from the pre-trained MedVAE latent via a lightweight head), a representative example. The prediction is almost entirely assigned to the background: the single-channel latent does not carry the information needed to discriminate segments.}
-\label{fig:pred_b}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/predC.png}
-\caption{Condition C (identical to B, compressor fine-tuned on ARCADE), a representative example. Domain adaptation brings no visible improvement; the prediction remains dominated by the background.}
-\label{fig:pred_c}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/theo/conDmieux.png}
-\caption{Condition D (U-Net retrained on MedVAE-reconstructed images), a representative example. Delineation of thick segments remains comparable to A and several thin branches absent from A are recovered here, at the cost of occasional over-segmentations.}
-\label{fig:pred_d}
+\includegraphics[width=\columnwidth]{figures/theo/seg_predictions.png}
+\caption{Predictions of the seed-42 models on three test images (one colour per artery segment). A, A$^{*}$ and D are nearly identical; B and C, which segment from the $128\times128$ latent, recover the main tree with slightly less regular contours and miss or confuse some thin branches.}
+\label{fig:predictions}
 \end{figure}
 
 \newpage

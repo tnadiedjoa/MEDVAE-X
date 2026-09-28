@@ -14,11 +14,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from matplotlib.colors import ListedColormap
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 from finetune.config import REPO_ROOT, load_config
 from finetune.dataset import ArcadeDataset
+from finetune.figures_report import mask_to_rgb
 
 OUT = REPO_ROOT / "final_report" / "figures" / "theo" / "conditions.pdf"
 TRAINED, FROZEN = "#3d7ab8", "#dbe8f5"
@@ -56,11 +56,7 @@ def arrow(ax, x1, x2, y):
 
 def main():
     image, latent, rec, mask = thumbnails()
-    colors = plt.get_cmap("tab20")(np.linspace(0, 1, 20))[:, :3].tolist()
-    colors += plt.get_cmap("Set2")(np.linspace(0, 1, 8))[:, :3].tolist()
-    mask_rgb = np.ones((*mask.shape, 3)) * 0.12
-    for c in range(1, 26):
-        mask_rgb[mask == c] = colors[c - 1]
+    mask_rgb = mask_to_rgb(mask)
 
     s, gap = 0.95, 1.55   # taille des vignettes, hauteur d'une ligne
     rows = [
