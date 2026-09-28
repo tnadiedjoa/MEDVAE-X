@@ -36,12 +36,14 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
     data_cfg = config["data"]
 
     noise = data_cfg.get("gauss_noise_std_range")   # E07 ; None = comportement d'origine
+    degradation = data_cfg.get("degradation_aug_p")  # E15 ; None = pas de dégradation
 
     if data_cfg.get("validation", "split") == "official":
         # E08 : tout seg_train (1000 images) pour l'entraînement, seg_val officiel
         # (200 images) pour la sélection du modèle
         train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
-                                      augment=True, noise_std_range=noise)
+                                      augment=True, noise_std_range=noise,
+                                      degradation_p=degradation)
         seg_val = arcade_root() / "dataset_phase_1" / "segmentation_dataset" / "seg_val"
         val_dataset   = ArcadeDataset(
             data_cfg.get("official_val_images", str(seg_val / "images")),
@@ -56,7 +58,8 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
             seed=config["experiment"]["seed"],
         )
         train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
-                                      train_ids, augment=True, noise_std_range=noise)
+                                      train_ids, augment=True, noise_std_range=noise,
+                                      degradation_p=degradation)
         val_dataset   = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
                                       val_ids,   augment=False)
     test_dataset  = ArcadeDataset(data_cfg["val_images"],   data_cfg["val_ann"],

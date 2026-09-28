@@ -54,3 +54,24 @@ def test_gauss_noise_strength_is_configurable():
 
     assert noise_std((0.0124, 0.0277)) < 10        # ~3-7 niveaux sur 255 : bruit léger
     assert noise_std(None) > 30                    # défaut albumentations >= 2 : très fort
+
+
+def test_degradation_augmentation_is_optional_and_degrades():
+    from finetune.dataset import degradation_transform, get_train_transforms
+
+    names = lambda t: [type(x).__name__ for x in t.transforms]   # noqa: E731
+    assert "OneOf" not in names(get_train_transforms(64, (0.0124, 0.0277)))
+    assert "OneOf" in names(get_train_transforms(64, (0.0124, 0.0277), degradation_p=0.3))
+
+    rng = np.random.default_rng(0)
+    image = (rng.random((128, 128)) * 200 + 20).astype(np.uint8)   # texture : le flou la lisse
+    for member in degradation_transform(1.0).transforms:
+        member.p = 1.0
+        out = member(image=image)["image"]
+        name = type(member).__name__
+        assert out.shape == image.shape and out.dtype == np.uint8
+        assert np.abs(out.astype(float) - image).mean() > 1, name          # l'image change
+        assert abs(out.mean() - image.mean()) < 10, name                   # mais reste la même image
+    blur = degradation_transform(1.0).transforms[-1]
+    blur.p = 1.0
+    assert blur(image=image)["image"].std() < image.std()                  # le flou lisse
