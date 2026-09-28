@@ -28,7 +28,7 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 | **A. Robustness** | Can MedVAE restore degraded inputs? | Elias Corlou | [`medvae_eval/robustness/`](medvae_eval/robustness/) |
 | **B. FiLM conditioning** | Does a quality score help MedVAE reconstruct? | Théophile Nadiedjoa | [`medvae_eval/film/`](medvae_eval/film/) |
 | **C. JEPA adaptation** | Can self-supervision replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
-| **D. Segmentation** | Is the latent usable for coronary vessel segmentation? | Théo Palagi | [`finetune/`](finetune/) |
+| **D. Segmentation** | Is the compressed representation enough to segment coronary arteries? | Théo Palagi | [`finetune/`](finetune/) |
 
 ### Key takeaway
 
@@ -145,45 +145,54 @@ SLURM job scripts for the cluster live in [`jepa_adaptation/jobs/`](jepa_adaptat
 
 ## D — MedVAE as a Latent Representation for Coronary Segmentation
 
-We test whether MedVAE's latent can drive **26-class coronary vessel segmentation** on ARCADE, across
-four comparable conditions:
+We test whether MedVAE's latent can drive **26-class coronary segmentation** on ARCADE (background +
+25 artery segments), across comparable conditions:
 
 | Condition | Pipeline | Question |
 |-----------|----------|----------|
-| **A** | U-Net ResNet34 on original 512×512 images | High-resolution reference |
-| **B** | Frozen pre-trained MedVAE + lightweight head | Does generic compression suffice? |
-| **C** | Frozen ARCADE-finetuned MedVAE + lightweight head | Does fine-tuning the compressor help? |
-| **D** | Frozen MedVAE (encode→decode) + trainable U-Net | Does adapting to artefacts compensate? |
+| **A** | U-Net ResNet-34 on original 512×512 images | High-resolution reference |
+| **A\*** | U-Net of A applied, without retraining, to MedVAE reconstructions | What does compression alone cost? |
+| **B** | Frozen pre-trained MedVAE encoder + U-Net head at the latent resolution | Is the 128×128×1 latent enough? |
+| **C** | Same as B, MedVAE first fine-tuned on ARCADE | Does domain fine-tuning help? |
+| **D** | Frozen MedVAE (encode→decode) + U-Net trained on reconstructions | Does adapting to artefacts help? |
 
-| | |
-|:---:|:---:|
-| ![Condition A](assets/cond_A.png) | ![Condition B](assets/cond_B.png) |
-| ![Condition C](assets/cond_C.png) | ![Condition D](assets/cond_D.png) |
+![Conditions](final_report/figures/theo/conditions.png)
 
-All conditions are evaluated by mean Dice across the 26 arterial classes on a held-out test set.
+Trained on the 1000 `seg_train` images, selected on the official `seg_val` (200), evaluated on the
+official test set (300), 3 seeds per condition (experiment E10 in [EXPERIMENTS.md](EXPERIMENTS.md)).
+Artery Dice / IoU = mean over the artery segments (background excluded).
 
-**Conclusion:** ×16 compression preserves the anatomy **in pixel space** (targeted gain on thin
-vessels), but the single-channel latent remains unsuited to direct dense prediction.
+| Condition | Artery Dice | Artery IoU | Dice incl. background |
+|---|---|---|---|
+| A | 0.430 ± 0.005 | 0.308 ± 0.002 | 0.452 |
+| A\* (seed 42) | 0.425 | 0.303 | 0.448 |
+| B | 0.393 ± 0.008 | 0.277 ± 0.005 | 0.417 |
+| C | 0.403 ± 0.002 | 0.285 ± 0.002 | 0.427 |
+| D | 0.432 ± 0.004 | 0.311 ± 0.003 | 0.455 |
+
+![Segmentation results](final_report/figures/theo/seg_results.png)
+
+**Conclusion:** the ×16 compression (in area) preserves what segmentation needs. In pixel space,
+compression alone costs almost nothing (A\* ≈ A) and training on reconstructions matches the baseline
+(D ≈ A). The single-channel **latent is directly usable**: with a U-Net head at the latent resolution,
+B and C reach 91–94 % of A's Dice. The original study concluded the opposite (latent Dice 0.04); that
+collapse came from a too-low learning rate and a head without spatial context (E03, E04).
 
 ```bash
 # Always run from the repo root, as a module (imports are absolute)
 
-# (optional, condition C only) fine-tune MedVAE on ARCADE first
+# (condition C only) fine-tune MedVAE on ARCADE first; prints the command to launch C
 python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
 
-# train a condition (a | b | c | d)
-python -m finetune.train --config finetune/configs/condition_a.yaml
+# train a condition (a | b | c | d); every run gets its folder in experiments/runs/
+python -m finetune.train --config finetune/configs/condition_a.yaml --set experiment.seed=43
 
-# comparative plots
-python -m finetune.plot \
-  --history \
-    finetune/results/condition_a_unet_history.json \
-    finetune/results/condition_b_medvae_history.json \
-    finetune/results/condition_c_medvae_finetuned_history.json \
-    finetune/results/condition_d_unet_medvae_reconstructed_history.json \
-  --labels "Condition A" "Condition B" "Condition C" "Condition D" \
-  --save_dir finetune/figures
+# summarise seeds, report figures
+python scripts/summarize_runs.py "A=*_e10_seed4?_condition_a" "D=*_e10_seed4?_condition_d" --ref A
+python -m finetune.figures_report
 ```
+
+See [`finetune/README.md`](finetune/README.md) for the full pipeline (A\*, Slurm scripts, hyperparameters).
 
 ---
 
