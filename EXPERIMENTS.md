@@ -18,9 +18,9 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E09 | D | Dice / IoU sur les artères seules (fond exclu) | ~0.024 sous le Dice avec fond, classement inchangé | ajouté |
 | E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence |
 | E11 | A | Robustesse mesurée par rapport à l'image propre | débruite le Poisson (+1.2 à +6.6 dB), ne restaure ni JPEG ni flou | refait |
-| E12 | A | Segmentation d'images dégradées (A, A*, D) | à venir | — |
+| E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
-| E14 | C | JEPA refait (test exclu du pré-entraînement, linear probe) | en cours | — |
+| E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
 A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
@@ -249,7 +249,8 @@ un bruit d'écart-type ~3-7 niveaux, sans doute l'intention d'origine.
 
 **Conclusion** : gardé. Le gain est positif pour les 3 seeds mais du même ordre que la
 variabilité, et nul en IoU : l'effet est faible. La modification est conservée surtout parce
-qu'elle rétablit l'augmentation voulue à l'origine.
+qu'elle rétablit l'augmentation voulue à l'origine. *Ajout après E12 : ce gain se paie en
+robustesse aux dégradations (Dice 0.34 → 0.02 au bruit de Poisson maximal), cf. E12 et E15.*
 
 ## E08 — Validation sur le seg_val officiel (2026-09-26)
 
@@ -356,6 +357,47 @@ MedVAE reconstruit l'image propre à 33.1 dB (vaisseaux : 33.1 dB), ce qui fixe 
   venait de la métrique : la courbe orange des figures (reconstruction vs entrée dégradée)
   monte avec le flou, alors que la courbe bleue (vs image propre) descend.
 
+## E12 — Segmentation d'images dégradées : MedVAE rend-il la segmentation plus robuste ? (2026-09-29)
+
+**Question** : E11 montre que MedVAE débruite le bruit de Poisson (+1.2 à +6.6 dB). Est-ce que
+cela aide à segmenter des images dégradées ?
+**Protocole** (`medvae_eval/robustness/downstream.py`, commits `dccc438` et `91e77bf`) : les 300
+images de test sont dégradées (Poisson, JPEG, flou ; mêmes modèles et plages que E11, niveaux
+0, 3, 6, 9 sur 10, bruit seedé, mêmes images dégradées pour tous les modèles), puis segmentées
+par A, A* (MedVAE puis U-Net de A) et D, pour les 3 seeds de E10. Dice artères.
+**Résultats** : `experiments/robustness/e12_downstream/` (`main.md`, `main.png`)
+
+| Dice artères (3 seeds) | A | A* | D |
+|---|---|---|---|
+| Image propre | 0.429 ± 0.005 | 0.426 ± 0.006 | 0.432 ± 0.004 |
+| Poisson, niveaux 0 / 6 / 9 | 0.400 / 0.345 / 0.025 | 0.379 / 0.307 / 0.040 | 0.400 / 0.353 / 0.079 |
+| JPEG, niveaux 3 / 6 / 9 | 0.426 / 0.414 / 0.051 | 0.421 / 0.413 / 0.087 | 0.429 / 0.425 / 0.113 |
+| Flou, niveaux 3 / 6 / 9 | 0.393 / 0.297 / 0.151 | 0.395 / 0.304 / 0.158 | 0.397 / 0.287 / 0.168 |
+
+- **Le débruitage de MedVAE n'aide pas la segmentation** : sous bruit de Poisson, A* (images
+  débruitées par MedVAE) fait *moins bien* que A aux niveaux faibles et moyens (−0.02 à −0.04) ;
+  le U-Net de A est plus gêné par les reconstructions d'images bruitées que par le bruit lui-même.
+- **D ≈ A** à tous les niveaux faibles et moyens ; aux niveaux extrêmes, tous s'effondrent
+  (Dice < 0.12), D un peu moins.
+- JPEG : sans effet jusqu'au niveau 6 (qualité ≥ 35), effondrement au niveau 9 (qualité 5).
+
+**Complément : effet du bruit d'augmentation (E07) sur la robustesse.** Même protocole sur
+les modèles entraînés avec l'ancien bruit trop fort (A et D de E02/E06) et avec le bruit
+corrigé (A de E07), tous avec l'ancien découpage 80/20 (`experiments/robustness/e12_aug_noise/`).
+
+| Dice artères de A (3 seeds) | Bruit fort (E06) | Bruit léger (E07) |
+|---|---|---|
+| Image propre | 0.400 ± 0.011 | 0.410 ± 0.008 |
+| Poisson, niveaux 6 / 9 | 0.379 / **0.340** | 0.341 / **0.021** |
+| JPEG, niveau 9 | 0.131 | 0.029 |
+| Flou, niveaux 6 / 9 | 0.325 / 0.253 | 0.283 / 0.166 |
+
+- **E07 a un coût caché** : le bruit d'augmentation trop fort, involontaire, rendait A très
+  robuste aux dégradations (Dice 0.34 au bruit de Poisson maximal, contre 0.02 avec le bruit
+  corrigé). Le gain de +0.010 sur images propres s'est payé en robustesse.
+- D'où E15 : une augmentation par dégradations réalistes peut-elle récupérer cette robustesse
+  sans perdre le gain sur images propres ?
+
 ## E13 — Axe B refait : conditionnement FiLM par un score de qualité (2026-09-27)
 
 **Constat sur l'étude d'origine** (notebooks 04 à 07 de `medvae_eval/cvae/`) :
@@ -445,3 +487,44 @@ lentement. Runs `*_e13_film_{A,B,C_filmlr1e-3}_seed42` ; analyse `experiments/fi
   la reconstruction**. Le score C (appris) n'est pas utilisé ; A et B le sont très
   légèrement. C'est l'inverse de l'étude d'origine (C exploité, A inversé), qui comparait
   des modèles entraînés séparément sur un seul run.
+
+## E14 — Axe C refait : JEPA à l'étape 2, évaluation corrigée (2026-09-29)
+
+**Constats sur l'étude d'origine** (`jepa_adaptation/`, notebook `pretraining_analysis.ipynb`) :
+- les images de test d'ARCADE faisaient partie du pré-entraînement (corrigé : 1080 / 120
+  images de seg_train + seg_val, test exclu ; commit `dfca730`) ;
+- **l'« étape 1 » n'est pas MedVAE** : c'est un autoencodeur de la même famille mais plus
+  petit (`ch` 64, `ch_mult` [1, 2, 4, 4] : facteur 8 par côté, latent 64×64×1, 21 M
+  paramètres), entraîné **de zéro** sur ARCADE (15 epochs, pertes de reconstruction,
+  perceptuelle et adversariale). La comparaison « MedVAE → étape 1 → étape 2 » mélange donc
+  architecture, taux de compression (×4 contre ×8 par côté) et données ;
+- **les mesures de structure du latent portaient sur une couche jamais entraînée** : la
+  sortie `channel_proj(channel_ds(z) + z)`, ignorée par la loss de l'étape 1 et hors du chemin
+  de la loss JEPA (qui porte sur les features avant `conv_out`). Le « 90 % de la variance sur
+  25 dimensions » décrivait une projection aléatoire du latent ;
+- le linear probe prédisait la classe d'artère dominante de chaque image, sur 60 images.
+
+**Nouvelle évaluation** (commits `dfca730`, `a1cf08b`, `8f4086f`), sur les 300 images de test,
+avec les modèles réentraînés sans le test : reconstruction (`eval/reconstruction.py`), linear
+probe par pixel vaisseau / fond sur la couche entraînée par JEPA (`eval/probe.py` : features
+standardisées, convolution 1×1, entraînement sur seg_train, sélection sur seg_val, 3 seeds),
+dimensionnalité de cette couche (`eval/feature_rank.py`). Résultats : `experiments/jepa/`.
+
+| | MedVAE (×4, pré-entraîné) | Étape 1 (×8, de zéro) | Étape 2 JEPA |
+|---|---|---|---|
+| Reconstruction : PSNR / vaisseaux (dB) | 34.8 / 35.5 | 30.2 / 30.9 | **17.8** / 24.5 |
+| Linear probe vaisseaux, Dice (lr 1e-2, 100 epochs) | 0.517 ± 0.005 | **0.541 ± 0.005** | 0.485 ± 0.006 |
+| Rang effectif des features (canaux) | 251 (512) | 111 (256) | 139 (256) |
+| Composantes pour 90 % de la variance | 61 | 22 | 34 |
+
+- **Le probe doit converger** : à 20 epochs (lr 1e-3), les scores étaient 0.39 / 0.43 / 0.39 et
+  le meilleur epoch était le dernier ; à 60 epochs 0.45 / 0.50 / 0.45 ; le classement est le
+  même dans les trois réglages. Le probe sur les 26 segments (Dice ~0.03) et sur le latent à
+  1 canal (~0.03) ne distinguent rien : un classifieur linéaire par pixel ne peut pas nommer un
+  segment, ni séparer les vaisseaux avec un seul canal.
+- **JEPA dégrade la représentation qu'il part améliorer** : −0.056 de Dice par rapport à
+  l'étape 1, et en dessous du MedVAE d'origine ; la reconstruction s'effondre (décodeur figé).
+- **Pas de contraction dimensionnelle** : sur la couche entraînée, JEPA *augmente* le rang
+  effectif (111 → 139) et le nombre de composantes (22 → 34), ce qui est l'effet attendu de la
+  régularisation SIGReg. La conclusion d'origine (« latent plus compact et plus discriminant »)
+  n'est pas confirmée.
