@@ -662,13 +662,13 @@ At the end of stage 2, one expects a latent space where patches that are anatomi
 
 \subsection{Results}
 
-\emph{Note on this revised version.} In an earlier version of this study, the ARCADE test images were part of the pre-training data, and the latent-space analysis (effective rank, number of principal components, $k$-NN and linear probe) was computed on the output of the channel-projection head $\texttt{channel\_proj}(\texttt{channel\_ds}(z)+z)$, a layer trained neither by the stage-1 loss nor by the JEPA loss; its conclusion that stage 2 concentrates the variance on 25 dimensions described a random projection of the latent. Both stages were retrained without the test images, and the representation is now evaluated on the layer that JEPA actually trains, on the 300 test images.
+\emph{Note on this revised version.} In an earlier version of this study, the ARCADE test images were part of the pre-training data, and the latent-space analysis (effective rank, number of principal components, $k$-NN and linear probe) was computed on the output of the channel-projection head $\texttt{channel\_proj}(\texttt{channel\_ds}(z)+z)$, a layer trained neither by the stage-1 loss nor by the JEPA loss; its conclusion that stage 2 concentrates the variance on 25 dimensions described a random projection of the latent. Both stages were retrained without the test images, and the representation is now evaluated on the layer that JEPA actually trains, on the 300 test images. The pre-training pipeline was then corrected once more (the augmentation noise reduced to its intended level, random augmentations made to differ across data-loading workers and epochs, fixed masks for the stage-2 validation that selects the checkpoint), and each stage was pre-trained with three seeds: the figures below are means over these three pre-trainings.
 
 \paragraph{Reconstruction quality.}
-During stage 2 the decoder remains frozen, so any displacement of the encoder into a subspace incompatible with the decoder directly degrades reconstruction (Table~\ref{tab:jepa}, Fig.~\ref{fig:recon}). Stage 1 reconstructs at $30.2$~dB, below the released MedVAE ($34.8$~dB), which compresses half as much per side and was trained on a million images; stage 2 collapses to $17.8$~dB, the frozen decoder no longer reading the representation of the adapted encoder.
+During stage 2 the decoder remains frozen, so any displacement of the encoder into a subspace incompatible with the decoder directly degrades reconstruction (Table~\ref{tab:jepa}, Fig.~\ref{fig:recon}). Stage 1 reconstructs at $31.1$~dB, below the released MedVAE ($34.8$~dB), which compresses half as much per side and was trained on a million images; stage 2 collapses to $18.6$~dB (between $17.6$ and $20.5$~dB depending on the pre-training), the frozen decoder no longer reading the representation of the adapted encoder.
 
 \paragraph{What the encoder has learnt.}
-We measure how linearly the trained features separate vessels from background: a linear probe (per-channel standardisation, $1\times1$ convolution, bilinear upsampling to $512\times512$) is trained on the 1\,000 training images, selected on the 200 validation images and evaluated on the test set, with three seeds. The probe must be trained to convergence: with a learning rate of $10^{-3}$ and 20 epochs, all scores were still rising at the last epoch; we report the converged setting (learning rate $10^{-2}$, 100 epochs), whose ranking is the same as with 20 and 60 epochs. A probe predicting the 25 artery segments, or using the single-channel latent, reaches a Dice of about $0.03$ for every model: a per-pixel linear classifier can neither name a segment nor separate vessels from a single channel. We also measure the dimensionality of the trained features (effective rank of the per-pixel feature vectors and number of principal components explaining $90\,\%$ of their variance).
+We measure how linearly the trained features separate vessels from background: a linear probe (per-channel standardisation, $1\times1$ convolution, bilinear upsampling to $512\times512$) is trained on the 1\,000 training images, selected on the 200 validation images and evaluated on the test set, with three seeds. The probe must be trained to convergence (with 20 epochs, all scores were still rising at the last epoch): we train it for 100 epochs and choose its learning rate, $10^{-3}$ or $10^{-2}$, on the validation Dice, which selects $10^{-2}$ for all three encoders. Stages 1 and 2 are compared pre-training by pre-training, with a 95\,\% confidence interval over the three pre-training seeds (Student); MedVAE is a single released model. A probe predicting the 25 artery segments, or using the single-channel latent, reaches a Dice of about $0.03$ for every model: a per-pixel linear classifier can neither name a segment nor separate vessels from a single channel. We also measure the dimensionality of the trained features (effective rank of the per-pixel feature vectors and number of principal components explaining $90\,\%$ of their variance).
 
 \begin{table}[htbp]
 \centering
@@ -677,37 +677,37 @@ We measure how linearly the trained features separate vessels from background: a
  & MedVAE & Stage 1 & Stage 2 JEPA \\
  & ($\times4$, released) & ($\times8$, from scratch) & \\
 \midrule
-PSNR / vessel PSNR (dB) & 34.8 / 35.5 & 30.2 / 30.9 & 17.8 / 24.5 \\
-Vessel probe, Dice & 0.517 $\pm$ 0.005 & \textbf{0.541 $\pm$ 0.005} & 0.485 $\pm$ 0.006 \\
-Effective rank (channels) & 251 (512) & 111 (256) & 139 (256) \\
-Components for 90\,\% variance & 61 & 22 & 34 \\
+PSNR / vessel PSNR (dB) & 34.8 / 35.5 & 31.1 / 31.7 & 18.6 / 22.9 \\
+Vessel probe, Dice & 0.517 $\pm$ 0.005 & \textbf{0.561 $\pm$ 0.006} & 0.536 $\pm$ 0.011 \\
+Effective rank (channels) & 251 (512) & 147 (256) & 156 (256) \\
+Components for 90\,\% variance & 61 & 46 & 50 \\
 \bottomrule
 \end{tabular}}
-\caption{Reconstruction and representation of the three encoders on the 300 ARCADE test images. The probe and the dimensionality are computed on the encoder features before \texttt{conv\_out}, the layer trained by the JEPA loss.}
+\caption{Reconstruction and representation of the three encoders on the 300 ARCADE test images. The probe and the dimensionality are computed on the encoder features before \texttt{conv\_out}, the layer trained by the JEPA loss. Stages 1 and 2: mean ($\pm$ standard deviation) over three pre-trainings; MedVAE: over three probe seeds.}
 \label{tab:jepa}
 \end{table}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\columnwidth]{figures/yanic/recon.png}
-    \caption{Reconstruction of a test image by MedVAE, stage 1 and stage 2 (left to right after the original).}
+    \caption{Reconstruction of a test image by MedVAE, stage 1 and stage 2 (left to right after the original; pre-training seed 42).}
     \label{fig:recon}
 \end{figure}
 
-Stage 1, trained on coronary angiographies only, yields the features that best separate vessels from background ($0.541$), above the released MedVAE ($0.517$). JEPA degrades this representation instead of refining it: $0.485$ after stage 2, $0.056$ below its starting point and below the released MedVAE. It does not produce a dimensional contraction either: on the trained layer, the effective rank rises from 111 to 139 and the number of components from 22 to 34, which is the expected effect of the SIGReg term, designed to keep the embedding distribution isotropic.
+JEPA lowers the linear separability of the vessels instead of refining it: relative to the stage-1 encoder it starts from, the probe Dice drops by $0.025$ (95\,\% CI $[-0.045, -0.005]$), for each of the three pre-trainings ($-0.019$, $-0.022$, $-0.034$) and on the validation set as well. The adapted encoder ends up level with the released MedVAE ($+0.019$, CI $[-0.008, +0.045]$). Stage 1 gives the most separable features ($0.561$, against $0.517$ for MedVAE); since the two models differ in architecture, compression factor and training data, we do not attribute this gap to any one of these factors. JEPA does not produce a dimensional contraction either: the effective rank goes from 147 to 156 on average, without a consistent direction across pre-trainings ($+5$, $-2$, $+26$).
 
 \paragraph{Intermediate feature visualisation --- RGB PCA.}
-Projecting the same features on their first three principal components (PC1$\to$R, PC2$\to$G, PC3$\to$B, percentile normalisation [2\%, 98\%]), following the visualisation protocol of DINO~\cite{caron2021emergingpropertiesselfsupervisedvision} and LeJEPA~\cite{balestriero2025lejepaprovablescalableselfsupervised}, illustrates these results (Fig.~\ref{fig:pca}). The features of MedVAE and stage 1 follow the vascular tree, stage 1 with a cleaner separation from the background; those of stage 2 are dominated by large regions of homogeneous intensity, in which the vessels are only faintly visible: the patch-prediction objective favours a coarse, global description of the image over the fine local structure that segmentation needs.
+Projecting the same features on their first three principal components (PC1$\to$R, PC2$\to$G, PC3$\to$B, percentile normalisation [2\%, 98\%]), following the visualisation protocol of DINO~\cite{caron2021emergingpropertiesselfsupervisedvision} and LeJEPA~\cite{balestriero2025lejepaprovablescalableselfsupervised}, illustrates these results (Fig.~\ref{fig:pca}). The features of MedVAE and stage 1 follow the vascular tree, stage 1 with a cleaner separation from the background; in those of stage 2 the vessels are still visible, but large regions of homogeneous colour dominate, which is consistent with a coarser description of the image, less suited to the fine local structure that segmentation needs.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\columnwidth]{figures/yanic/pca.png}
-    \caption{RGB PCA of the encoder features before \texttt{conv\_out} for three test angiographies (PCA fitted on 50 other test images). Columns: image, MedVAE, stage 1, stage 2.}
+    \caption{RGB PCA of the encoder features before \texttt{conv\_out} for three test angiographies (PCA fitted on 50 other test images; pre-training seed 42). Columns: image, MedVAE, stage 1, stage 2.}
     \label{fig:pca}
 \end{figure}
 
 \paragraph{Summary.}
-Replacing BioMedCLIP by a self-supervised JEPA objective on ARCADE, with a frozen decoder, degrades both the reconstruction and the linear separability of the vessels relative to the stage-1 autoencoder it starts from. Learning on coronary angiographies helps (stage 1 beats the released MedVAE on the probe), but the benefit comes from the domain-specific reconstruction training, not from the JEPA stage.
+Replacing BioMedCLIP by a self-supervised JEPA objective on ARCADE, with a frozen decoder, degrades both the reconstruction and the linear separability of the vessels relative to the stage-1 autoencoder it starts from, consistently over three pre-trainings; the adapted encoder is no better than the released MedVAE. In our experiments, the most separable features are those of the stage-1 autoencoder trained on ARCADE, before any JEPA training.
 
 \newpage
 \section{MedVAE as a Latent Representation for Coronary Segmentation}
