@@ -190,8 +190,7 @@ def split_dataset(
 
     all_ids = [img["id"] for img in coco["images"]]
 
-    random.seed(seed)
-    random.shuffle(all_ids)
+    random.Random(seed).shuffle(all_ids)   # générateur local : pas d'effet sur le random global
 
     split = int(len(all_ids) * train_ratio)
     return all_ids[:split], all_ids[split:]

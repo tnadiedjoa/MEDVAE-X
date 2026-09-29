@@ -103,6 +103,7 @@ moyennées sur les **classes présentes** (dans la prédiction ou la vérité te
 | **Early stopping** | patience 15 epochs | surveille `dice_mean` de validation |
 | **Epochs max** | 100 | |
 | **Checkpoint** | `experiments/runs/<run>/best_model_{experiment_name}.pth` | un dossier par run → rien n'est écrasé (non versionné) |
+| **Seed** | `experiment.seed` | fixe torch, numpy, random et, via `worker_init_fn`, les augmentations de chaque worker (avant la correction de l'audit, les 4 workers rejouaient la même suite d'augmentations à chaque epoch). `cudnn.deterministic` est activé, mais certaines opérations CUDA (backward de l'interpolation bilinéaire) restent non déterministes : deux runs de même seed peuvent différer légèrement |
 
 #### Le cosine annealing — comment et pourquoi
 
@@ -177,8 +178,10 @@ fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
   résolution du latent) reste disponible (`model.architecture: seg_head`).
 - `batch_size 4`, **`lr 1e-3`** (E03 : avec 5e-5, la tête restait bloquée sur « tout
   est du fond »). Seule la tête s'entraîne.
-- **Rôle** : un compresseur médical *généraliste* (entraîné sur ~1M d'images
-  toutes modalités) préserve-t-il assez d'information pour segmenter des artères ?
+- **Rôle** : un compresseur médical *généraliste* (les modèles 2D de MedVAE sont entraînés
+  sur des radiographies thoraciques et des mammographies) préserve-t-il assez d'information
+  pour segmenter des artères ? B segmente le latent de l'étape 1 de MedVAE (celui de la
+  reconstruction), pas la sortie des couches de projection de l'étape 2.
 
 ### Condition C — MedVAE fine-tuné ARCADE gelé + tête U-Net sur le latent
 

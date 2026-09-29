@@ -1,3 +1,8 @@
+> **Document historique (première version de l'étude).** Les notebooks 01 à 03 (construction
+> des scores de qualité) restent valables ; l'étude FiLM des notebooks 04 à 07 a été refaite
+> (E13, E18 : `medvae_eval/film/`), et ses conclusions sont remplacées : voir
+> [EXPERIMENTS.md](../../EXPERIMENTS.md). Le dossier s'appelait `theophile_metrics/`.
+
 # Récapitulatif – Pipeline Biais Inductif & Qualité d'Image (ARCADE)
 
 > Ce dossier `theophile_metrics/` contient **7 notebooks** formant un pipeline complet :

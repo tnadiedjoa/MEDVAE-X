@@ -46,7 +46,7 @@
 
 % ---------- Title info ----------
 \title[MedVAE — Coronary segmentation]{MedVAE: adaptation, fine-tuning and analysis for medical imaging and coronary segmentation}
-\author{Yanic Rothlingshofer  \and Théo Palagi \and Elias Corlou \and Théophile Nadiedjoa}
+\author[Rothlingshofer, Palagi, Corlou, Nadiedjoa]{Yanic Rothlingshofer  \and Théo Palagi \and Elias Corlou \and Théophile Nadiedjoa}
 \institute[]{\large \it Télécom Paris}
 \date{\underline{Supervisor:} Elsa Angelini}
 
@@ -72,12 +72,12 @@
   compact latent.
   \begin{itemize}
     \item \textbf{MedVAE}: generic medical compressor ($>1$M images),
-      $\times 4$ per side, $\times 16$ in area ($512^2 \to 128^2 \times 1$), trained in two stages
+      $\times 4$ per side, $\times 16$ fewer values ($512^2 \to 128^2 \times 1$), trained in two stages
       (reconstruction then semantic enrichment).
   \end{itemize}
   \vspace{0.4em}
   \textbf{Domain.} Coronary angiography (ARCADE, $1\,500$ images):
-  thin, tubular, low-contrast structures, noise and artifacts.
+  thin, tubular, low-contrast structures, noise and artefacts.
   \end{column}
   \begin{column}{0.42\textwidth}
   \begin{block}{Central question}
@@ -373,7 +373,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \item extreme imbalance ($\approx 95\,\%$ background)
 \end{itemize}
 \vspace{0.6em}
-\textbf{Tool.} MedVAE, a pre-trained medical variational autoencoder: $\times 16$ compression in area ($512^2 \to 128^2 \times 1$), but \alert{lossy}.
+\textbf{Tool.} MedVAE, a pre-trained medical variational autoencoder: $\times 16$ compression in number of values ($512^2 \to 128^2 \times 1$), but \alert{lossy}.
 \end{column}
 \begin{column}{0.44\textwidth}
 \begin{block}{Two questions}
@@ -484,7 +484,7 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 % ############################################################################
 \begin{frame}{General conclusion}
   \footnotesize
-  Across four complementary axes, we probed the behavior of MedVAE,
+  Across four complementary axes, we probed the behaviour of MedVAE,
   a generic medical compressor, on the demanding domain of coronary angiography:
   \begin{itemize}
     \item \textbf{Robustness}: reduces Poisson noise (less than a simple filter), restores
