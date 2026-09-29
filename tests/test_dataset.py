@@ -75,3 +75,28 @@ def test_degradation_augmentation_is_optional_and_degrades():
     blur = degradation_transform(1.0).transforms[-1]
     blur.p = 1.0
     assert blur(image=image)["image"].std() < image.std()                  # le flou lisse
+
+
+def test_worker_augmentations_differ_between_workers_and_epochs(tmp_path):
+    """Sans réensemencement, albumentations >= 2 rejouait la même suite dans chaque worker."""
+    import hashlib
+
+    import torch
+    from torch.utils.data import DataLoader
+
+    from finetune.dataset import seed_worker_augmentations
+
+    images_dir, ann = make_coco(tmp_path, n_images=16)
+    ds = ArcadeDataset(images_dir, ann, img_size=64, augment=True, noise_std_range=(0.0124, 0.0277))
+
+    def epoch_hashes(loader):
+        return [hashlib.md5(x.numpy().tobytes()).hexdigest() for b, _ in loader for x in b]
+
+    torch.manual_seed(0)
+    loader = DataLoader(ds, batch_size=2, num_workers=2, worker_init_fn=seed_worker_augmentations)
+    e0, e1 = epoch_hashes(loader), epoch_hashes(loader)
+    # toutes les images sont identiques : seules les augmentations les distinguent
+    assert e0[:2] != e0[2:4]                  # worker 0 (batch 0) ≠ worker 1 (batch 1)
+    assert e0 != e1                           # une autre suite à l'epoch suivante
+    torch.manual_seed(0)
+    assert epoch_hashes(loader) == e0         # reproductible pour un même seed

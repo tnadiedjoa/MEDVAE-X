@@ -1,12 +1,14 @@
 """Résumé des runs FiLM (train_film.py) : niveaux et différences appariées.
 
 Pour chaque groupe (motif de dossiers de runs), moyenne ± écart-type entre seeds des
-métriques de test. Puis deux types de différences appariées image par image, avec un
-intervalle de confiance bootstrap à 95 % sur les images (différences moyennées sur les
-seeds) :
-    - dans un même run FiLM : vrai c − c mélangé, vrai c − c constant
-      (si c est utilisé, ces différences doivent être nettement positives) ;
-    - entre groupes, à seed égal : groupe − référence (variante real_c).
+métriques de test. Puis deux types de différences appariées :
+    - dans un même run FiLM : vrai c − c mélangé, vrai c − c constant (si c est utilisé,
+      ces différences doivent être nettement positives). Même modèle : la seule source
+      de variation est l'image, d'où un IC 95 % bootstrap sur les images ;
+    - entre groupes, à seed égal : groupe − référence (variante real_c). Ce sont des
+      modèles entraînés séparément : l'IC 95 % porte sur les seeds (loi de Student sur
+      les écarts moyens par seed), l'IC sur les images ignorerait la variabilité
+      d'entraînement. Avec un seul seed, pas d'IC.
 
 Usage (racine du repo) :
     python medvae_eval/film/analyze.py \
@@ -55,7 +57,7 @@ def paired(diffs_per_seed: list, metric: str) -> dict:
     per_seed = [float(d.mean()) for d in diffs_per_seed]
     per_image = pd.concat(diffs_per_seed, axis=1).mean(axis=1).to_numpy()
     lo, hi = bootstrap_ci(per_image)
-    return {"metric": metric, "mean": float(per_image.mean()), "ci_low": lo, "ci_high": hi,
+    return {"metric": metric, "mean": float(per_image.mean()), "ci_low": lo, "ci_high": hi, "ci": "images",
             "per_seed": " / ".join(f"{v:+.4f}" for v in per_seed)}
 
 
@@ -68,6 +70,20 @@ def matched_pairs(runs: dict, ref: dict) -> list:
         only = next(iter(ref.values()))
         return [(df, only) for df in runs.values()]
     return []
+
+
+def paired_seeds(diffs_per_seed: list, metric: str) -> dict:
+    """Écarts entre modèles entraînés séparément : IC de Student sur les moyennes par seed."""
+    from scipy import stats
+    per_seed = np.array([float(d.mean()) for d in diffs_per_seed])
+    mean, n = float(per_seed.mean()), len(per_seed)
+    if n > 1:
+        half = stats.t.ppf(0.975, n - 1) * per_seed.std(ddof=1) / np.sqrt(n)
+        lo, hi = mean - half, mean + half
+    else:
+        lo = hi = float("nan")
+    return {"metric": metric, "mean": mean, "ci_low": lo, "ci_high": hi, "ci": "seeds",
+            "per_seed": " / ".join(f"{v:+.4f}" for v in per_seed)}
 
 
 def variant(df: pd.DataFrame, name: str) -> pd.DataFrame:
@@ -118,13 +134,13 @@ def main():
             for m in METRICS:
                 if pairs:
                     diffs = [variant(a, "real_c")[m] - variant(b, "real_c")[m] for a, b in pairs]
-                    rows.append({"comparison": f"{name} − {args.ref}", **paired(diffs, m)})
+                    rows.append({"comparison": f"{name} − {args.ref}", **paired_seeds(diffs, m)})
     paired_df = pd.DataFrame(rows)
-    print("\n| comparaison | métrique | différence moyenne | IC 95 % (images) | par seed |")
-    print("|---|---|---|---|---|")
+    print("\n| comparaison | métrique | différence moyenne | IC 95 % | IC sur | par seed |")
+    print("|---|---|---|---|---|---|")
     for _, r in paired_df.iterrows():
-        print(f"| {r['comparison']} | {r['metric']} | {r['mean']:+.4f} | [{r['ci_low']:+.4f}, {r['ci_high']:+.4f}] "
-              f"| {r['per_seed']} |")
+        ci = "—" if np.isnan(r["ci_low"]) else f"[{r['ci_low']:+.4f}, {r['ci_high']:+.4f}]"
+        print(f"| {r['comparison']} | {r['metric']} | {r['mean']:+.4f} | {ci} | {r['ci']} | {r['per_seed']} |")
 
     if args.out:
         out = Path(args.out)

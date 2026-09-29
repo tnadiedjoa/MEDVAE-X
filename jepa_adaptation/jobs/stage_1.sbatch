@@ -17,7 +17,6 @@ PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage1/logs"
 cd "$PROJECT_ROOT"
 
-module load cuda
 source "$PROJECT_ROOT/.venv/bin/activate"
 
 nvidia-smi --query-gpu=name,driver_version --format=csv,noheader

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # racine du dépôt (finetune.runs)
 
 from utils.launch import bootstrap, load_config
 
@@ -19,11 +20,20 @@ def main():
     parser.add_argument("--config", default="jepa_adaptation/configs/stage_1.yaml")
     parser.add_argument("--model-config", default="jepa_adaptation/configs/model.yaml")
     parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument("--seed", type=int, default=None, help="seed d'entraînement (défaut : config)")
+    parser.add_argument("--run-name", default=None,
+                        help="crée experiments/runs/<date>_<nom>/ (config, commit, checkpoints)")
     args = parser.parse_args()
 
     cfg = load_config(args.config, args.model_config)
+    train_cfg = cfg.setdefault("training", {})
     if args.epochs is not None:
-        cfg.setdefault("training", {})["epochs"] = args.epochs
+        train_cfg["epochs"] = args.epochs
+    if args.seed is not None:
+        train_cfg["seed"] = args.seed
+    if args.run_name:
+        from finetune.runs import create_run
+        train_cfg["output_dir"] = create_run(cfg, args.run_name)
     data_cfg = cfg.get("data", {})
     model_cfg = cfg.get("model", {})
 

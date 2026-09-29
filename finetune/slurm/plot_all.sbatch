@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=im06_plots
+#SBATCH --partition=3090
 #SBATCH --output=finetune/slurm/logs/plot_all_%j.out
 #SBATCH --error=finetune/slurm/logs/plot_all_%j.err
 #SBATCH --time=01:00:00

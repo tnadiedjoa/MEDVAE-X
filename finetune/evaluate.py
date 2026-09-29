@@ -11,12 +11,13 @@ Usage (depuis la racine du repo) :
 import argparse
 import json
 import os
+from pathlib import Path
 
 import torch
 from torch.amp import autocast
 from torch.utils.data import DataLoader
 
-from finetune.config import load_config
+from finetune.config import REPO_ROOT, load_config
 from finetune.dataset import ArcadeDataset
 from finetune.metrics import SegMetrics
 
@@ -41,7 +42,9 @@ def build_eval_model(config: dict, run_dir: str, device: torch.device) -> torch.
         from finetune.models import build_unet
 
         unet = build_unet(config["model"])
-        unet.load_state_dict(torch.load(config["experiment"]["checkpoint_a"], map_location=device)["model"])
+        ckpt_a = Path(config["experiment"]["checkpoint_a"])
+        ckpt_a = ckpt_a if ckpt_a.is_absolute() else REPO_ROOT / ckpt_a
+        unet.load_state_dict(torch.load(ckpt_a, map_location=device)["model"])
         return AStar(MedVAEAutoencoder(device=device), unet).to(device)
 
     from finetune.train import build_model

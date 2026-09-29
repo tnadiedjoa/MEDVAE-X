@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from finetune.config import arcade_root, load_config
-from finetune.dataset import ArcadeDataset, split_dataset
+from finetune.dataset import ArcadeDataset, seed_worker_augmentations, split_dataset
 from finetune.models import build_unet, build_seg_head
 from finetune.runs import add_run_args, apply_overrides, create_run
 from finetune.trainer import Trainer
@@ -70,9 +70,10 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
     print(f"Test  : {len(test_dataset)} images")
 
     loader_kwargs = dict(
-        batch_size  = config["training"]["batch_size"],
-        num_workers = data_cfg["num_workers"],
-        pin_memory  = data_cfg["pin_memory"],
+        batch_size     = config["training"]["batch_size"],
+        num_workers    = data_cfg["num_workers"],
+        pin_memory     = data_cfg["pin_memory"],
+        worker_init_fn = seed_worker_augmentations,   # augmentations propres à chaque worker et epoch
     )
 
     return (
@@ -150,6 +151,25 @@ def build_model(config: dict, device: torch.device):
                 return self.unet(reconstructed)
 
         model = AutoencoderUNet(autoencoder, unet)
+
+    elif condition == "R":
+        import torch.nn as nn
+        import torch.nn.functional as F
+
+        # Témoin (E16) : même tête que B et C, sur l'image réduite à la taille du latent
+        # (128×128×1, autant de valeurs que le latent MedVAE) au lieu du latent
+        seg_head = build_seg_head(config["model"])
+
+        class DownsampledImageHead(nn.Module):
+            def __init__(self, head, factor):
+                super().__init__()
+                self.seg_head, self.factor = head, factor
+
+            def forward(self, x):
+                small = F.avg_pool2d(x, self.factor) * 2 - 1   # [0,1] → [-1,1], comme l'entrée de MedVAE
+                return self.seg_head(small)
+
+        model = DownsampledImageHead(seg_head, factor=2 ** config["model"].get("n_upsample", 2))
 
     else:
         raise ValueError(f"Condition inconnue : {condition}")

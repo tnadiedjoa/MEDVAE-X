@@ -5,8 +5,10 @@ from torch.utils.data import DataLoader
 
 try:
     from ..models.stage_2_loss import Stage2Loss
+    from ..datasets.arcade_dataset import seed_worker_augmentations
 except ImportError:
     from models.stage_2_loss import Stage2Loss
+    from datasets.arcade_dataset import seed_worker_augmentations
 
 try:
     from .launch import print_loader_sizes, print_model_summary
@@ -43,6 +45,7 @@ class TrainerStage2:
         self.train_loader = DataLoader(
             train_dataset, batch_size=bs, shuffle=True,
             num_workers=nw, pin_memory=pm, drop_last=True,
+            worker_init_fn=seed_worker_augmentations,
         )
         self.val_loader = (
             DataLoader(val_dataset, batch_size=bs, shuffle=False,
@@ -177,10 +180,13 @@ class TrainerStage2:
             return {}
         self.model.eval()
         totals, count = {}, 0
+        # Masques de validation fixes : la loss de validation (qui choisit best.pt) ne
+        # dépend plus du tirage des masques
+        generator = torch.Generator(device=self.device).manual_seed(0)
         for x in self.val_loader:
             x = x.to(self.device, non_blocking=True).float()
             with self._autocast():
-                outputs = self.model(x)
+                outputs = self.model(x, generator=generator)
                 loss, logs = self.criterion(outputs, split="val")
             metrics = {k: float(v) for k, v in logs.items()}
             metrics["loss"] = float(loss.detach())
