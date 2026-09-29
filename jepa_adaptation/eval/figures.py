@@ -1,4 +1,4 @@
-"""Figures de l'axe C (rapport) avec les modèles actuels : reconstructions et PCA des features.
+"""Figures de l'axe C (rapport) avec les modèles E19 (seed 42) : reconstructions et PCA des features.
 
     - recon.png : une image de test et ses reconstructions (MedVAE, étape 1, étape 2 JEPA) ;
     - pca.png   : features avant conv_out projetées sur 3 composantes principales (RGB),
@@ -27,9 +27,10 @@ from finetune.dataset import ArcadeDataset             # noqa: E402
 from probe import _penultimate_hook, load_autoencoder  # noqa: E402
 
 OUT = REPO_ROOT / "final_report" / "figures" / "yanic"
+RUNS = REPO_ROOT / "experiments" / "runs"                                       # pré-entraînement E19, seed 42
 MODELS = {"MedVAE": ("medvae", None),
-          "Stage 1": ("stage1", "jepa_adaptation/outputs/stage1/best.pt"),
-          "Stage 2 (JEPA)": ("stage2", "jepa_adaptation/outputs/stage2/best.pt")}
+          "Stage 1": ("stage1", str(sorted(RUNS.glob("*_e19_jepa_stage1_seed42"))[-1] / "best.pt")),
+          "Stage 2 (JEPA)": ("stage2", str(sorted(RUNS.glob("*_e19_jepa_stage2_seed42"))[-1] / "best.pt"))}
 SHOW = (144, 120, 219)
 
 
