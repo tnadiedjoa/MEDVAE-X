@@ -186,6 +186,14 @@ compression alone costs almost nothing (A\* ≈ A) and training on reconstructio
 B and C reach 91–94 % of A's Dice. The original study concluded the opposite (latent Dice 0.04); that
 collapse came from a too-low learning rate and a head without spatial context (E03, E04).
 
+**Degraded images (E12, E15).** MedVAE's denoising does not make segmentation more robust: on noisy test
+images, A\* (MedVAE then the U-Net of A) is no better than A, and D behaves like A. Robustness comes from
+training instead: adding realistic degradations (Poisson noise, JPEG, blur) to A's augmentation raises
+the artery Dice under the strongest blur from 0.15 to 0.37 and under the strongest JPEG from 0.05 to 0.29,
+for −0.007 on clean images (option `data.degradation_aug_p`, not enabled by default).
+
+![Robustness of segmentation](final_report/figures/theo/seg_robustness.png)
+
 ```bash
 # Always run from the repo root, as a module (imports are absolute)
 
