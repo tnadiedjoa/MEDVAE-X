@@ -33,7 +33,7 @@
 
 \section{Introduction}
 
-Deep learning on medical images is constrained by the high resolution required to preserve diagnostic detail, which inflates the computational and memory cost of every model. Large-scale variational autoencoders (VAE) offer a way out by compressing images into compact latent representations. We focus on MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation}, a representative example: trained on more than one million medical images, it learns a generic, reusable compression of medical images --- in the variant we use, reducing a $512\times512$ image by a factor of $4$ per side ($16$ in area) into a single-channel $128\times128$ latent --- while seeking to preserve clinically relevant structures, and is itself built in two stages: a first stage dedicated to faithful reconstruction, and a second stage meant to enrich the latent space with semantic knowledge. Such generalist models raise a natural question, which we take as our starting point: to what extent does a generic medical compressor remain trustworthy and useful once confronted with a specific, demanding clinical domain?
+Deep learning on medical images is constrained by the high resolution required to preserve diagnostic detail, which inflates the computational and memory cost of every model. Large-scale variational autoencoders (VAE) offer a way out by compressing images into compact latent representations. We focus on MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation}, a representative example: trained on more than one million medical images, it learns a generic, reusable compression of medical images --- in the variant we use, reducing a $512\times512$ image by a factor of $4$ per side (sixteen times fewer values) into a single-channel $128\times128$ latent --- while seeking to preserve clinically relevant structures, and is itself built in two stages: a first stage dedicated to faithful reconstruction, and a second stage meant to enrich the latent space with semantic knowledge. Such generalist models raise a natural question, which we take as our starting point: to what extent does a generic medical compressor remain trustworthy and useful once confronted with a specific, demanding clinical domain?
 
 We study this question on coronary angiography, using the public ARCADE dataset~\cite{popov2024arcade}, which provides $1\,500$ annotated X-ray angiographies ($512\times512$, grayscale; $1\,000$ training, $200$ validation and $300$ test images) together with COCO segmentation annotations of the coronary tree. We deliberately chose an unfavourable setting for a generic compressor: the structures of interest are thin, tubular, and low-contrast, the acquisitions suffer from quantum noise, compression, and motion artefacts, and the relevant signal occupies only a tiny fraction of the image. This domain therefore stresses every property we would expect from a medical foundation model: robustness to degraded inputs, a semantically structured latent space, and the preservation of fine anatomical information.
 
@@ -45,7 +45,7 @@ We each took on one of these axes --- Elias Corlou the robustness analysis, Thé
 \section{Robustness of MedVAE to Input Degradations}
 \label{sec:medvae-robustness}
 
-MedVAE was evaluated, in its original paper~\cite{varma2025medvae}, on
+MedVAE was evaluated, in its original paper~\cite{varma2025medvaeefficientautomatedinterpretation}, on
 clean inputs --- by PSNR and MS-SSIM as well as by expert reader
 studies. One question remains open for real-world deployment:
 \emph{what does MedVAE do with an input image that is not clean, but
@@ -326,12 +326,12 @@ characterised by 8 metrics per patch: Laplacian variance, RMS contrast,
 Shannon entropy, and the Tenengrad gradient broken down into 4
 directions, a directional analysis suited to the tubular structure of
 vessels \cite{wang2024noreference} (which allows detection of anisotropic
-cardiac motion blur). These metrics are aggregated into 36 features per
-image. A pre-trained ResNet-18 (frozen weights) extracts in parallel a
+cardiac motion blur). These per-patch metrics are then aggregated over
+the patches of each image (mean, minimum and similar statistics). A pre-trained ResNet-18 (frozen weights) extracts in parallel a
 512-dimensional feature vector, used only by the learned approach: the
 two branches of this feature pipeline (Figure~\ref{fig:featpipe}) never
-converge directly, they simply feed different score-computation methods
-(section~\ref{sec:score}).
+converge directly, they simply feed different score-computation methods,
+described below.
 
 \begin{figure}[t]
   \centering
@@ -345,8 +345,9 @@ These features are then merged into a single score $c$, with $1$
 corresponding to a clinically usable image, using three independent
 methods (Figure~\ref{fig:scorepipe}), all fitted exclusively on the TRAIN
 subset. Approach B applies a PCA (after standardisation) on 6 selected
-features (the 36 above plus two spatial-homogeneity and directional-balance
-features); the first axis explains 56.1\,\% of the variance, and its sign
+features (four of the aggregated metrics --- mean Laplacian variance,
+minimum RMS contrast, inverse entropy and mean Tenengrad --- plus a
+spatial-homogeneity and a directional-balance feature); the first axis explains 56.1\,\% of the variance, and its sign
 is corrected by correlation with Tenengrad ($r=0.952$). Approach A
 linearly weights the same 6 features by the absolute normalised loadings
 of this same PC1. Approach C, lacking human annotation on ARCADE, learns
@@ -407,7 +408,7 @@ image quality consistent with a clinical reading.
 \subsection{FiLM conditioning}
 \label{sec:film}
 
-To condition MedVAE \cite{varma2025medvae} on $c$ without modifying its
+To condition MedVAE \cite{varma2025medvaeefficientautomatedinterpretation} on $c$ without modifying its
 input topology, we use \emph{Feature-wise Linear Modulation}
 (FiLM \cite{perez2018film}) rather than channel concatenation. We work
 with the \texttt{vae\_4x\_4c\_2D} variant of MedVAE
@@ -599,11 +600,11 @@ As introduced above, MedVAE~\cite{varma2025medvaeefficientautomatedinterpretatio
 
 \subsection{Motivations}
 
-In its original formulation, MedVAE stage 2 aligns the latent space with BioMedCLIP representations, a foundation model pre-trained on paired medical image--text corpora. This approach has two structural limitations. First, it requires paired image--text data at inference time, which is unavailable for many clinical workflows. Second, and more fundamentally, the alignment inherits BioMedCLIP's biases and coverage gaps: coronary angiography represents a narrow and specialised sub-domain in large-scale medical vision--language pretraining, so the transmitted semantic signal may be weak or misleading. Aligning to a model that has never seen enough coronary images is unlikely to produce representations that are discriminative for vascular anatomy.
+In its original formulation, MedVAE stage 2 aligns the latent space with BioMedCLIP representations, a foundation model pre-trained on paired medical image--text corpora. In MedVAE, this stage freezes the encoder and decoder and trains only light projection layers on top of the latent, with an $L_2$ loss between their output and the BioMedCLIP image embedding of the same image; neither BioMedCLIP nor text is needed at inference. This approach has two limitations. First, training depends on an external model. Second, and more fundamentally, the alignment inherits BioMedCLIP's biases and coverage gaps: coronary angiography represents a narrow and specialised sub-domain in large-scale medical vision--language pretraining, so the transmitted semantic signal may be weak or misleading. Aligning to a model that has never seen enough coronary images is unlikely to produce representations that are discriminative for vascular anatomy.
 
 JEPA (\textit{Joint-Embedding Predictive Architecture}) architectures~\cite{assran2023selfsupervisedlearningimagesjointembedding} offer a self-supervised alternative that removes the dependency on any external model. Rather than reconstructing masked pixels --- which can waste capacity on low-level texture --- JEPA predicts in latent space the representations of masked regions. This forces the encoder to model the contextual relationships between visible patches and occluded areas, learning representations that are inherently structured and high-level. The approach has shown strong results across medical imaging modalities: US-JEPA~\cite{radhachandran2026usjepajointembeddingpredictive} for ultrasound, EchoJEPA~\cite{munim2026echojepalatentpredictivefoundation} for echocardiography, Brain-JEPA~\cite{NEURIPS2024_9c3828ad} for fMRI, and Seg-JEPA~\cite{10.1007/978-981-92-0068-9_7} for segmentation.
 
-We propose replacing stage 2's BioMedCLIP alignment with JEPA training directly on coronary angiography images, with no dependency on an external model. Following MedVAE's two-stage recipe on ARCADE, stage 1 trains an autoencoder of the MedVAE family from scratch with reconstruction, perceptual and adversarial losses (15 epochs on the 1\,200 images of ARCADE's training and validation splits, 1\,080 for training and 120 for model selection; the test images are never seen). This autoencoder is smaller than the released \texttt{medvae\_4\_1\_2d} (64 base channels, four resolution levels, 21M parameters) and compresses by a factor of 8 per side, into a $64\times64\times1$ latent. Stage 2 starts from the stage-1 weights and keeps the decoder frozen throughout, so any change in the encoder's representation can be evaluated independently of reconstruction quality.
+We propose replacing stage 2's BioMedCLIP alignment with JEPA training directly on coronary angiography images, with no dependency on an external model. Following MedVAE's two-stage recipe on ARCADE, stage 1 trains an autoencoder of the MedVAE family from scratch with reconstruction, perceptual and adversarial losses (15 epochs on the 1\,200 images of ARCADE's training and validation splits, 1\,080 for training and 120 for model selection; the test images are never seen). This autoencoder is smaller than the released \texttt{medvae\_4\_1\_2d} (64 base channels, four resolution levels, 21M parameters) and compresses by a factor of 8 per side, into a $64\times64\times1$ latent. Stage 2 starts from the stage-1 weights and keeps the decoder frozen throughout. Unlike MedVAE's stage 2, which trains only projection layers, it trains the encoder itself: our experiment therefore tests an \emph{adaptation of the encoder} by JEPA, and the reconstruction can degrade by construction, since the frozen decoder was trained on the stage-1 encoder.
 
 \subsection{Method}
 
@@ -721,7 +722,7 @@ To answer this, we evaluate on the public ARCADE dataset \cite{popov2024arcade} 
 We use the segmentation subset of ARCADE \cite{popov2024arcade} ($512 \times 512$ greyscale angiographies), whose COCO annotations are converted into dense 26-class masks (background and 25 arterial segments). Models are trained on the 1\,000 training images, selected on the 200 images of the official validation split, and evaluated on the official test set of 300 images. Intensities are normalised in $[0,1]$ and training employs standard augmentation (flips, affine transforms, contrast and brightness adjustments, light Gaussian noise of standard deviation $3$ to $7$ grey levels, CLAHE) via Albumentations \cite{buslaev2020albumentations}. Geometric transforms are applied jointly to the image and its mask to preserve alignment.
 
 \paragraph{MedVAE Compressor.}
-The compressor is the \texttt{medvae\_4\_1\_2d} variant of MedVAE \cite{varma2025medvaeefficientautomatedinterpretation}, which reduces each spatial dimension by a factor of 4: a $512 \times 512$ image is encoded into a single-channel $128 \times 128$ latent, a factor-16 reduction in area. Unless stated otherwise, its weights are frozen.
+The compressor is the \texttt{medvae\_4\_1\_2d} variant of MedVAE \cite{varma2025medvaeefficientautomatedinterpretation}, which reduces each spatial dimension by a factor of 4: a $512 \times 512$ image is encoded into a single-channel $128 \times 128$ latent, a factor-16 reduction in the number of values. Unless stated otherwise, its weights are frozen. Conditions B and C use the stage-1 latent (the mean-and-variance bottleneck used for reconstruction), not the output of MedVAE's stage-2 projection layers, which MedVAE intends for downstream tasks.
 
 \paragraph{Experimental Conditions.}
 We compare three strategies accounting for compression against a full-resolution baseline, as well as a diagnostic control (Fig.~\ref{fig:conditions}).
@@ -833,11 +834,11 @@ Across four complementary axes, we probed how a generic large-scale medical comp
 Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful, reusable in pixel space and, to a large extent, directly in its latent space; the attempts to make it acquisition-aware or semantically richer did not help in the forms we tested. Several conclusions of the first version of this study were reversed once measurement and training issues were corrected, which underlines how much such conclusions depend on the protocol: a metric comparing to the right reference, identical training for the compared models, several seeds, and an evaluation on the layer that is actually trained. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging, coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata.
 
 \newpage
-\bibliographystyle{plain}
+\bibliographystyle{ieeetr}
 \bibliography{references}
 
 \newpage
-\appendix
+\appendices
 \section{Qualitative Predictions}
 
 \begin{figure}[H]
@@ -864,7 +865,7 @@ where $D$ is the intensity range ($D = 1$ for images normalised in $[0,1]$).
   \includegraphics[width=0.65\linewidth]{figures/elias/mpsnr.pdf}
   \caption{Principle of vessel-masked PSNR on a real ARCADE example. The
   clean image and its degraded version share the same vessel mask $\mathcal{M}$
-  (red). The error is evaluated only on these pixels ($\approx 2\%$ of the area).}
+  (red). The error is evaluated only on these pixels ($\approx 2\%$ of the area in this example, $3.5\%$ on average).}
   \label{fig:masked-psnr}
 \end{figure}
 

@@ -12,6 +12,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E02 | D | Reproduction sur RTX 3090 | Dice à ±0.006 de l'origine ; B et C ne détectent aucune artère | référence |
 | E03 | D | lr de la tête de B/C : 5e-5 → 1e-3 | B 0.039 → 0.097, C 0.039 → 0.091 | gardé |
 | E04 | D | Tête U-Net à la résolution du latent (B/C) | B → 0.409, C → 0.398 : le latent est exploitable | gardé |
+| E05 | D | Validation de E04 (tête U-Net par défaut pour B et C) | — | gardé |
 | E06 | D | 3 seeds par condition | variabilité ±0.01 ; D > A pour les 3 seeds | protocole |
 | E07 | D | Bruit d'augmentation ramené à l'intensité voulue | A +0.010 (faible) | gardé |
 | E08 | D | Validation sur le seg_val officiel (1000 images d'entraînement) | A +0.030 | gardé |
@@ -31,8 +32,16 @@ A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des
 1. **Avant** : le run de référence est celui de l'état courant du projet. S'il n'existe
    pas dans les conditions actuelles, on le lance d'abord.
 2. **Modification** : on commite le changement, puis on lance le run (un run lancé avec
-   des modifications non commitées est marqué `git_dirty` dans son `meta.json`).
-3. **Après** : on compare, on note l'entrée ci-dessous, avec la conclusion.
+   des modifications non commitées est marqué `git_dirty` dans son `meta.json`, et le
+   `git diff` est enregistré dans `git_diff.patch`). Depuis l'audit (E16 et suivantes), les
+   jobs Slurm sont soumis depuis un worktree figé au commit testé (`~/MEDVAE-X_runs`) : un job
+   en file d'attente exécute ainsi exactement ce commit, même si le dépôt évolue entre-temps.
+3. **Après** : on compare, on note l'entrée ci-dessous, avec la conclusion. **La décision de
+   garder une modification se prend sur la validation (seg_val), pas sur le test** : le test
+   ne sert qu'à rapporter le résultat. Jusqu'à E15, les décisions s'appuyaient sur le Dice de
+   test (défaut relevé par l'audit du 2026-09-29) ; les conclusions de E03, E04, E07 et E08
+   restent valables sur la validation (cf. E17), mais les valeurs de test d'alors ne sont plus
+   des estimations tout à fait indépendantes.
 4. **Si la modification est conservée** : `python scripts/promote_run.py <run>` met à
    jour les résultats officiels (`finetune/results/`), puis README et figures.
 
@@ -49,7 +58,12 @@ python -m finetune.train --config finetune/configs/condition_a.yaml \
 
 **Métriques (segmentation, test set de 300 images).** Dice et IoU par classe, calculés
 sur l'ensemble du test set, puis moyennés sur les classes présentes (dans la prédiction
-ou la vérité terrain), fond compris. Dice ≥ IoU toujours.
+ou la vérité terrain), fond compris. Dice ≥ IoU toujours. `scripts/summarize_runs.py` affiche aussi le meilleur Dice
+de validation (`val_dice`), base des décisions.
+
+**Intervalles de confiance.** Un IC calculé sur les images ne vaut que pour des variantes d'un
+même modèle (ex. vrai c contre c mélangé). Pour comparer des modèles entraînés séparément, l'IC
+porte sur les seeds (loi de Student sur les écarts par seed) ; avec un seul seed, pas d'IC.
 
 ### Modèle d'entrée
 
@@ -113,7 +127,8 @@ résultat est mathématiquement identique (loss L1 moyenne, normalisations par i
 | D — MedVAE → U-Net | 0.451 | **0.445** | 0.335 | 100 |
 
 Fine-tuning MedVAE (prérequis de C) : loss L1 de validation 0.02617 → 0.02408 (epoch
-49/50), identique à l'original (0.02613 → 0.02408, epoch 49/50).
+49/50), identique à l'original (0.02613 → 0.02408, epoch 49/50). *(0.02617 est la valeur après la
+première epoch, pas celle du MedVAE pré-entraîné, qui n'a pas été mesurée.)*
 
 **Conclusions**
 
@@ -277,7 +292,8 @@ le découpage, seulement l'initialisation et l'ordre des batchs. Testée sur A.
 **Modification** : `SegMetrics` calcule aussi `dice_fg_mean` et `iou_fg_mean`, moyennes sur
 les 25 classes d'artères présentes (prédites ou réelles), fond exclu, comme le challenge
 ARCADE (commit `f3c156c`). `finetune/evaluate.py` réévalue un run terminé avec les
-métriques actuelles ; tous les runs E02 à E06 ont été réévalués (Dice identique à 1e-4
+métriques actuelles ; tous les runs E02 à E06 ont été réévalués (leurs `results.json` ont
+été réécrits avec le code du commit `f3c156c`, sans trace dans `meta.json`) (Dice identique à 1e-4
 près ; D varie de 2e-4 car MedVAE tire son latent au hasard). La classe 12 est absente du
 test set ; la catégorie 26 (« stenosis ») n'apparaît jamais dans les annotations de
 segmentation, les 26 classes du modèle (fond + 25 segments) sont donc correctes.

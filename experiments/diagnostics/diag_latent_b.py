@@ -68,7 +68,8 @@ print("\n=== 3. Sur-apprentissage de 8 images (tête de B, 300 pas, Adam 1e-3) =
 
 def overfit(name, get_input, lr=1e-3, steps=300):
     torch.manual_seed(0)
-    head = build_seg_head(cfg["model"]).to(device)
+    # Tête de B au moment de E03 (SegHead, 128 canaux), pas celle de la config actuelle
+    head = build_seg_head({**cfg["model"], "architecture": "seg_head", "base_channels": 128}).to(device)
     opt = torch.optim.Adam(head.parameters(), lr=lr)
     crit = SegLoss(num_classes=26, dice_weight=0.5, ce_weight=0.5, cl_weight=0.0)
     for _ in range(steps):

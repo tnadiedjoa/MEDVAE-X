@@ -32,7 +32,7 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 
 ### Key takeaway
 
-MedVAE's ×16 compression keeps what coronary segmentation needs: in pixel space (segmenting
+MedVAE's ×16 compression (in number of values) keeps what coronary segmentation needs: in pixel space (segmenting
 reconstructions matches the original images) and in its single-channel latent, which reaches 91–94 %
 of the full-image Dice with an adequate head. MedVAE reduces Poisson noise (less than a simple filter), but this does not
 make segmentation more robust; conditioning it on a quality score or adapting its encoder with JEPA
@@ -69,6 +69,7 @@ reconstruct better" measured fidelity to the *degraded* input, which a blurred i
 
 ```bash
 python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
+                                                                    #   (archivé dans experiments/robustness/e11_sweep/)
 python medvae_eval/robustness/analyze.py                            # summary table + figures with CIs
 python medvae_eval/robustness/baselines.py                          # simple-filter references
 ```
@@ -106,8 +107,8 @@ autoencoder of that image gains no information from it. The original study (64×
 unequal training, single runs) had concluded that conditioning hurts and that score C is exploited.
 
 ```bash
-python medvae_eval/film/train_film.py --model baseline --seed 42
-python medvae_eval/film/train_film.py --model film --approach C --seed 42
+python medvae_eval/film/train_film.py --model baseline --seed 42 --run-name e13_film_baseline_seed42
+python medvae_eval/film/train_film.py --model film --approach C --seed 42 --run-name e13_film_C_seed42
 python medvae_eval/film/analyze.py --group baseline='*_e13_film_baseline_seed4?' \
     --group film_C='*_e13_film_C_seed4?' --ref baseline
 python medvae_eval/film/figures.py      # report figures
@@ -184,7 +185,7 @@ Artery Dice / IoU = mean over the artery segments (background excluded).
 
 ![Segmentation results](final_report/figures/theo/seg_results.png)
 
-**Conclusion:** the ×16 compression (in area) preserves what segmentation needs. In pixel space,
+**Conclusion:** the ×16 compression (in number of values) preserves what segmentation needs. In pixel space,
 compression alone costs almost nothing (A\* ≈ A) and training on reconstructions matches the baseline
 (D ≈ A). The single-channel **latent is directly usable**: with a U-Net head at the latent resolution,
 B and C reach 91–94 % of A's Dice. The original study concluded the opposite (latent Dice 0.04); that
@@ -205,7 +206,8 @@ for −0.007 on clean images (option `data.degradation_aug_p`, not enabled by de
 python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
 
 # train a condition (a | b | c | d); every run gets its folder in experiments/runs/
-python -m finetune.train --config finetune/configs/condition_a.yaml --set experiment.seed=43
+python -m finetune.train --config finetune/configs/condition_a.yaml --set experiment.seed=43 \
+  --run-name e10_seed43_condition_a
 
 # summarise seeds, report figures
 python scripts/summarize_runs.py "A=*_e10_seed4?_condition_a" "D=*_e10_seed4?_condition_d" --ref A
