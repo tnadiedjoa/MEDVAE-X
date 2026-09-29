@@ -16,7 +16,6 @@ PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage2/logs"
 cd "$PROJECT_ROOT"
 
-module load cuda
 source "$PROJECT_ROOT/.venv/bin/activate"
 
 CKPT="$PROJECT_ROOT/jepa_adaptation/outputs/stage1/best.pt"

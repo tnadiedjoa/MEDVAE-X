@@ -91,6 +91,9 @@ def create_run(config: dict, name: str, overrides: list[str] = ()) -> str:
     }
     with open(run_dir / "meta.json", "w") as f:
         json.dump(meta, f, indent=2)
+    if meta["git_dirty"]:
+        # Trace exacte de ce qui différait du commit au lancement
+        (run_dir / "git_diff.patch").write_text(_git("diff", "HEAD") + "\n")
 
     print(f"Dossier du run : {run_dir}")
     return str(run_dir)

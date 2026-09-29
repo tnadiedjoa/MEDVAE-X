@@ -19,7 +19,6 @@ LOG_DIR="$PROJECT_ROOT/jepa_adaptation/jobs/logs"
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_ROOT"
 
-module load cuda
 source "$PROJECT_ROOT/.venv/bin/activate"
 
 echo "=== downstream_1 — $(date) ==="

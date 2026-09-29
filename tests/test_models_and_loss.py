@@ -38,3 +38,16 @@ def test_loss_prefers_correct_prediction():
 
     assert loss_perfect < loss_random
     assert {"loss", "dice_loss", "ce_loss", "cl_loss"} <= parts.keys()
+
+
+def test_condition_r_segments_downsampled_image():
+    """Témoin E16 : même tête que B/C, sur l'image réduite à 128×128."""
+    import torch
+
+    from finetune.config import REPO_ROOT, load_config
+    from finetune.train import build_model
+
+    config = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_r.yaml"))
+    config["model"]["base_channels"] = 8
+    model = build_model(config, torch.device("cpu"))
+    assert model(torch.rand(1, 1, 512, 512)).shape == (1, 26, 512, 512)

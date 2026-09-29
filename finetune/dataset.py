@@ -13,6 +13,24 @@ import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2 
 
+def seed_worker_augmentations(worker_id: int) -> None:
+    """worker_init_fn : chaque worker, à chaque epoch, tire ses propres augmentations.
+
+    albumentations >= 2 a son propre générateur, copié tel quel dans les workers du
+    DataLoader : sans ce réensemencement, les 4 workers tiraient la même suite
+    d'augmentations, rejouée à l'identique à chaque epoch, et le seed n'y changeait rien.
+    info.seed vaut (seed de base tiré par le processus principal à chaque epoch) +
+    worker_id : il dépend donc du seed de l'expérience, du worker et de l'epoch.
+    """
+    info = torch.utils.data.get_worker_info()
+    seed = info.seed % 2**32
+    random.seed(seed)
+    np.random.seed(seed)
+    transforms = getattr(info.dataset, "transforms", None)
+    if transforms is not None and hasattr(transforms, "set_random_seed"):
+        transforms.set_random_seed(seed)
+
+
 class PoissonNoise(A.ImageOnlyTransform):
     """Bruit quantique : x ← Poisson(x·s) / s, s tiré dans scale_range (petit s = fort bruit).
 
