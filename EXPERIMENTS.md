@@ -17,7 +17,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E08 | D | Validation sur le seg_val officiel (1000 images d'entraînement) | A +0.030 | gardé |
 | E09 | D | Dice / IoU sur les artères seules (fond exclu) | ~0.024 sous le Dice avec fond, classement inchangé | ajouté |
 | E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence |
-| E11 | A | Robustesse mesurée par rapport à l'image propre | débruite le Poisson (+1.2 à +6.6 dB), ne restaure ni JPEG ni flou | refait |
+| E11 | A | Robustesse mesurée par rapport à l'image propre | réduit le Poisson (+1.2 à +6.6 dB, un filtre 5×5 fait +6.3 à +10.3), ne restaure ni JPEG ni flou | refait |
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
 | E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait |
@@ -340,20 +340,25 @@ MedVAE reconstruit l'image propre à 33.1 dB (vaisseaux : 33.1 dB), ce qui fixe 
 | Dégradation | Δ PSNR image (dB), du plus faible au plus fort niveau | Δ vaisseaux (dB) | Images restaurées |
 |---|---|---|---|
 | Bruit de Poisson | **+1.2 → +6.6** | +0.9 → +6.8 | 99-100 % |
-| JPEG (qualité 95 → 5) | −11.7 → −0.6 | −11.3 → −0.1 | 0-9 % |
+| JPEG (qualité 95 → 5) | −11.7 → −0.5 | −11.3 → −0.1 | 0-9 % |
 | Flou gaussien (noyau 5 → 31) | −2.0 → +0.08 | −2.8 → −0.2 | 3-82 % |
 
-(IC 95 % de largeur < 0.5 dB partout)
+(IC 95 % de largeur ≤ 0.53 dB partout)
 
 **Conclusions**
 
-- **MedVAE débruite réellement le bruit de Poisson**, d'autant plus que le bruit est fort
-  (+6.6 dB au niveau le plus bruité) : la conclusion d'origine (« véritable débruiteur »)
-  est confirmée, cette fois avec une mesure correcte.
+- **MedVAE réduit le bruit de Poisson**, d'autant plus que le bruit est fort (+6.6 dB au
+  niveau le plus bruité) ; voir ci-dessous le témoin « filtre simple », qui fait nettement mieux.
 - **Il ne restaure ni le JPEG ni le flou.** Pour le JPEG, son erreur de reconstruction
   propre (plafond à 33 dB) dépasse les artefacts de compression : il dégrade toujours
   l'image. Pour le flou, il ne récupère aucun détail ; la reconstruction suit simplement
   l'entrée floue (Δ ≈ 0 sur l'image, légèrement négatif sur les vaisseaux).
+- *Ajout après l'audit (2026-09-29) : témoin « filtre simple »* (`medvae_eval/robustness/baselines.py`,
+  `experiments/robustness/e11_baselines/`). Sur les mêmes 100 images et le même bruit seedé, un flou
+  gaussien 5×5 gagne **+6.3 → +10.3 dB** (vaisseaux +7.1 → +10.9) et un filtre médian 5×5
+  **+7.2 → +10.0 dB**, contre +1.2 → +6.6 dB pour MedVAE : MedVAE réduit le bruit de Poisson, mais
+  4 à 5 dB de moins qu'un filtre trivial ; « véritable débruiteur » était exagéré. Sur le JPEG le plus
+  fort, le médian gagne même un peu (+0.4 dB), MedVAE jamais.
 - Le résultat d'origine sur le flou (« les images floues se reconstruisent mieux », r ≈ −0.998)
   venait de la métrique : la courbe orange des figures (reconstruction vs entrée dégradée)
   monte avec le flou, alors que la courbe bleue (vs image propre) descend.
