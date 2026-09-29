@@ -475,23 +475,19 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
   Across four complementary axes, we probed the behavior of MedVAE,
   a generic medical compressor, on the demanding domain of coronary angiography:
   \begin{itemize}
-    \item \textbf{Robustness}: intelligent low-pass filter and non-linear
-      denoiser; collapses on \emph{structured} high frequencies
-      (JPEG artifacts) — the nature of the degradation matters more than its intensity.
-    \item \textbf{FiLM}: conditioning on a quality score slightly degrades
-      the reconstruction (architectural trade-off), even though the
-      network genuinely exploits the signal.
-    \item \textbf{JEPA}: markedly more compact latent ($90\%$ of variance on
-      $25$ dimensions), discriminative gain, but at a reconstruction cost
-      (frozen decoder).
-    \item \textbf{Segmentation}: $\times 16$ compression preserves
-      the anatomy \alert{in pixel space} (targeted gain on thin vessels);
-      the single-channel latent remains unsuited to direct dense prediction.
+    \item \textbf{Robustness}: genuinely removes Poisson noise, restores neither JPEG
+      nor blur --- and the denoising does \emph{not} make segmentation more robust.
+    \item \textbf{FiLM}: fine-tuning on ARCADE gains 7 dB; conditioning on a quality
+      score adds nothing, the score being a function of the image itself.
+    \item \textbf{JEPA}: with a frozen decoder, degrades reconstruction and vessel
+      separability; no dimensional contraction.
+    \item \textbf{Segmentation}: $\times 16$ compression keeps the anatomy, in pixel
+      space (D $\approx$ A) \emph{and} in the latent (91--94\,\% of A's Dice).
   \end{itemize}
   \vspace{0.3em}
-  \textbf{Takeaway.} Faithful compression reusable in pixel space, but the latent
-  is not yet \emph{semantically organized} nor \emph{acquisition-aware}
-  enough to be segmented or conditioned directly.
+  \textbf{Takeaway.} A faithful compression, reusable in pixel space and largely in its latent;
+  several first-version conclusions reversed once the protocol was fixed
+  (right reference, same training, several seeds, trained layer).
 \end{frame}
 
 % ############################################################################
@@ -507,8 +503,8 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
     \item \textbf{Physically grounded degradations}: quantum noise,
       contrast/brightness, multiplicative fields, anisotropic motion blur
       (cardiac/respiratory).
-    \item \textbf{Conditioning (CVAE)} on DICOM metadata
-      (modality, dose, SNR, quality) $\rightarrow$ disentangled
+    \item \textbf{Conditioning (CVAE)} on DICOM metadata \emph{not} derived from the image
+      (modality, dose, acquisition parameters) $\rightarrow$ disentangled
       content / acquisition-quality representations.
     \item \textbf{Downstream validation}: classification, detection,
       multi-modality segmentation (ARCADE as a demanding test bed).
