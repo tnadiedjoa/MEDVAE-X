@@ -78,6 +78,7 @@ class Trainer:
 
             print(f"\nEpoch {epoch}/{num_epochs}")
 
+            epoch_lr      = self.optimizer.param_groups[0]["lr"]   # lr utilisé pendant cette epoch
             train_results = self._train_one_epoch(train_loader)
             val_results   = self._val_one_epoch(val_loader)
 
@@ -91,7 +92,7 @@ class Trainer:
                 "ce_loss":   train_results["ce_loss"],
                 "dice_mean": train_results["dice_mean"],
                 "iou_mean":  train_results["iou_mean"],
-                "lr":        self.optimizer.param_groups[0]["lr"],
+                "lr":        epoch_lr,
                 "cl_loss": train_results["cl_loss"],   
             })
             self.history["val"].append({

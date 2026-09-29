@@ -1,3 +1,8 @@
+> **Document historique (première version de l'étude).** Les chiffres et conclusions ci-dessous
+> ont été remplacés par l'expérience E11 (mesure par rapport à l'image propre, témoin « filtre
+> simple ») : voir [EXPERIMENTS.md](../EXPERIMENTS.md) et `medvae_eval/robustness/`. Certains liens
+> d'images ne sont plus valides.
+
 # Récapitulatif - Métriques pour évaluation des performances de MedVAE sur ARCADE (comparaison entrée/sortie)
 ---
 
