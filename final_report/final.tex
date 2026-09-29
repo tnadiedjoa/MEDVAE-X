@@ -265,8 +265,9 @@ These characteristics call for several clinical evaluation perspectives.
 First, it will be necessary to quantify the impact of this low-pass
 dynamic on stenosis detection, the central task of the ARCADE dataset,
 as these pathologies constitute fine structures particularly sensitive
-to smoothing; a first step is to measure segmentation quality on
-degraded images with and without MedVAE (Section~\ref{sec:segmentation}).
+to smoothing; measuring segmentation quality on degraded images
+shows that MedVAE's denoising does not make segmentation more robust
+(Section~\ref{sec:segmentation}).
 Furthermore, the exploration of the latent space (Section~\ref{sec:jepa})
 suggests that MedVAE largely encodes luminosity and contrast gradients:
 evaluating its robustness to alterations of the grey-level dynamic range
@@ -786,7 +787,15 @@ Condition A$^{*}$ measures the effect of compression alone: applying the baselin
 \paragraph{Adapting to reconstruction brings no measurable gain.}
 Condition D reaches an artery Dice of $0.432 \pm 0.004$, against $0.430 \pm 0.005$ for A: the difference ($+0.003$ of Dice, with one of the three seeds in favour of A) is within the seed-to-seed variability, and the per-class profiles of A and D are nearly identical. The earlier version of this study reported a gain of D over A concentrated on thin segments; with several seeds and the corrected augmentation this gain disappears. A plausible explanation is the overly strong noise augmentation of the earlier version, which degraded about 30\,\% of A's training images while D received them after MedVAE, which removes such noise (Section~\ref{sec:medvae-robustness}).
 
-%%E12%%
+\paragraph{Segmentation of degraded images.}
+Section~\ref{sec:medvae-robustness} showed that MedVAE removes Poisson noise; does this make segmentation more robust? We degraded the 300 test images with the same Poisson noise, JPEG compression and blur (levels 0, 3, 6 and 9 of the ten-level grid of Section~\ref{sec:medvae-robustness}) and segmented them with A, A$^{*}$ and D (three seeds, Fig.~\ref{fig:seg_robustness}). MedVAE's denoising does not help: under Poisson noise, A$^{*}$ is \emph{worse} than A at weak and medium levels ($-0.02$ to $-0.04$), the network trained on clean images being more disturbed by the reconstructions of noisy images than by the noise itself, and D behaves like A. All three models collapse under the strongest degradations (artery Dice below $0.12$). Robustness depends instead on what the network sees during training: the overly strong noise augmentation of the earlier version made A far more robust (Dice $0.34$ under the strongest Poisson noise, against $0.03$ with the corrected augmentation), and adding realistic degradations to the training augmentation (Poisson noise, JPEG, blur, applied to 30\,\% of the images) restores most of it ($0.27$ under the strongest Poisson noise, $0.29$ under the strongest JPEG compression, $0.37$ under the strongest blur) for a cost on clean images within the seed-to-seed variability ($0.423 \pm 0.011$ against $0.430 \pm 0.005$). Since these degradations are the same families as those evaluated, this last result measures in-distribution robustness.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/theo/seg_robustness.pdf}
+\caption{Artery Dice on degraded test images (mean $\pm$ standard deviation over three seeds; dotted lines: clean images). A, A$^{*}$ and D collapse under strong degradations; training A with realistic degradations restores most of the robustness that the overly strong noise augmentation of the earlier version (dashed) provided by accident.}
+\label{fig:seg_robustness}
+\end{figure*}
 
 \subsection{Discussion}
 
