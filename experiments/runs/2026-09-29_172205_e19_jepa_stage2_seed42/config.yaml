@@ -1,0 +1,61 @@
+data:
+  source: arcade
+  img_size: 512
+  val_ratio: 0.1
+  augment: true
+  seed: 42
+  loader:
+    batch_size: 4
+    num_workers: 4
+    pin_memory: true
+training:
+  device: auto
+  seed: 42
+  amp: true
+  epochs: 15
+  output_dir: jepa_adaptation/outputs/stage2
+  log_every: 50
+  save_every: 5
+  max_grad_norm: 1.0
+  stage1_ckpt: experiments/runs/2026-09-29_164137_e19_jepa_stage1_seed42/best.pt
+  optimizer:
+    name: adamw
+    lr: 2.0e-05
+    weight_decay: 0.0001
+  loss:
+    loss_type: smooth_l1
+    normalize: true
+    sigreg_weight: 0.01
+    num_projections: 64
+    max_tokens: 512
+model:
+  spatial_dims: 2
+  embed_dim: 1
+  apply_channel_ds: true
+  medvae_pretrained: null
+  ckpt_path: null
+  ddconfig:
+    double_z: true
+    z_channels: 1
+    resolution: 512
+    in_channels: 1
+    out_ch: 1
+    ch: 64
+    ch_mult:
+    - 1
+    - 2
+    - 4
+    - 4
+    num_res_blocks: 2
+    attn_resolutions: []
+    dropout: 0.0
+jepa:
+  patch_size: 16
+  target_mask_ratio: 0.4
+  predictor_hidden_dim: null
+  predictor_depth: 3
+  ema_momentum: 0.996
+  sample_posterior: false
+  freeze_decoder: true
+  freeze_encoder: false
+  use_penultimate: true

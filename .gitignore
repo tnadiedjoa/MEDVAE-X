@@ -32,6 +32,7 @@ wandb/
 *.log
 sample.png
 sample_superposed.png
+experiments/runs/*/recon_epoch*.png
 
 # Compilation LaTeX (les PDF finaux sont versionnés)
 *.aux
