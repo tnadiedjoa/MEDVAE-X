@@ -150,7 +150,7 @@ quantiles 5/50/95 & 0.3772 / 0.4566 / 0.5391 \\
 \end{columns}
 \end{frame}
 
-\begin{frame}{Result: MedVAE removes noise, not blur or JPEG artefacts}
+\begin{frame}{Result: MedVAE reduces noise (less than a simple filter), not blur or JPEG}
 \begin{columns}[T]
 \begin{column}{0.46\textwidth}
 \centering
@@ -161,7 +161,8 @@ quantiles 5/50/95 & 0.3772 / 0.4566 / 0.5391 \\
 Degradation & $\Delta$ PSNR (dB) & Restored \\
 \midrule
 Poisson & $+1.2 \to +6.6$ & $99$--$100\%$ \\
-JPEG ($95 \to 5$) & $-11.7 \to -0.6$ & $0$--$9\%$ \\
+\quad \textit{$5\times5$ filter} & \textit{$+6.3 \to +10.3$} & \textit{$100\%$} \\
+JPEG ($95 \to 5$) & $-11.7 \to -0.5$ & $0$--$9\%$ \\
 Blur & $-2.0 \to +0.1$ & -- \\
 \bottomrule
 \end{tabular}
@@ -172,7 +173,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \begin{column}{0.54\textwidth}
 \footnotesize
 \begin{itemize}
-  \item \textbf{Poisson}: genuine denoising, larger for stronger noise
+  \item \textbf{Poisson}: noise reduced, but 4--5 dB less than a simple $5\times5$ Gaussian filter
   \item \textbf{JPEG}: never restored --- MedVAE's own error (33 dB ceiling) exceeds the artefacts
   \item \textbf{Blur}: not restored --- the reconstruction follows the blurred input
   \item \alert{The earlier ``blur reconstructs better''} measured fidelity to the \emph{degraded} input (orange)
@@ -466,7 +467,7 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 
 \small
 \begin{itemize}
-  \item MedVAE's denoising does \alert{not} help: A* $\leq$ A under Poisson noise, D $\approx$ A
+  \item MedVAE's noise reduction does \alert{not} help: A* $\leq$ A under Poisson noise, D $\approx$ A
   \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest blur 0.15 $\to$ 0.37, JPEG 0.05 $\to$ 0.29, for $-0.007$ on clean images
 \end{itemize}
 \end{frame}
@@ -486,8 +487,8 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
   Across four complementary axes, we probed the behavior of MedVAE,
   a generic medical compressor, on the demanding domain of coronary angiography:
   \begin{itemize}
-    \item \textbf{Robustness}: genuinely removes Poisson noise, restores neither JPEG
-      nor blur --- and the denoising does \emph{not} make segmentation more robust.
+    \item \textbf{Robustness}: reduces Poisson noise (less than a simple filter), restores
+      neither JPEG nor blur --- and does \emph{not} make segmentation more robust.
     \item \textbf{FiLM}: fine-tuning on ARCADE gains 7 dB; conditioning on a quality
       score adds nothing, the score being a function of the image itself.
     \item \textbf{JEPA}: with a frozen decoder, degrades reconstruction and vessel
