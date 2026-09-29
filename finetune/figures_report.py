@@ -1,4 +1,5 @@
-"""Figures de la section segmentation du rapport, à partir des runs E10 (3 seeds par condition).
+"""Figures de la section segmentation du rapport, à partir des runs E17 et du témoin R de E16
+(3 seeds par condition ; A* : seed 42).
 
     - seg_results.pdf : Dice artères de test par condition (moyenne ± écart-type, un point par seed)
       et Dice par classe d'artère (moyenne sur les seeds) ;
@@ -21,8 +22,9 @@ from finetune.config import REPO_ROOT
 
 RUNS = REPO_ROOT / "experiments" / "runs"
 OUT = REPO_ROOT / "final_report" / "figures" / "theo"
-CONDITIONS = {"A": "condition_a", "A*": "condition_astar", "B": "condition_b", "C": "condition_c", "D": "condition_d"}
-COLORS = {"A": "#1f77b4", "A*": "#aec7e8", "B": "#ff7f0e", "C": "#d62728", "D": "#2ca02c"}
+CONDITIONS = {"A": "e17_seed4?_condition_a", "A*": "e17_seed42_condition_astar", "B": "e17_seed4?_condition_b",
+              "C": "e17_seed4?_condition_c", "D": "e17_seed4?_condition_d", "R": "e16_seed4?_condition_r"}
+COLORS = {"A": "#1f77b4", "A*": "#aec7e8", "B": "#ff7f0e", "C": "#d62728", "D": "#2ca02c", "R": "#7f7f7f"}
 ABSENT = {12}   # classe absente du test set (E09)
 
 
@@ -36,12 +38,12 @@ def mask_to_rgb(mask: np.ndarray) -> np.ndarray:
     return rgb
 
 
-def load(prefix: str = "e10") -> dict:
+def load() -> dict:
     """{condition: [(résultats, historique ou None), ...]} sur les seeds disponibles."""
     out = {}
-    for name, cond in CONDITIONS.items():
+    for name, pattern in CONDITIONS.items():
         runs = []
-        for run in sorted(glob.glob(str(RUNS / f"*_{prefix}_seed4?_{cond}"))):
+        for run in sorted(glob.glob(str(RUNS / f"*_{pattern}"))):
             results = next(iter(json.load(open(Path(run) / "results.json")).values()))
             hist = next(iter(Path(run).glob("*_history.json")), None)
             runs.append((results, json.load(open(hist)) if hist else None))
@@ -71,7 +73,7 @@ def results_figure(data: dict):
     ax2.set_xticks(range(len(classes)), classes, fontsize=8)
     ax2.set_xlabel("artery segment (ARCADE class; class 12 absent from the test set)", fontsize=8.5)
     ax2.set_ylabel("Dice (mean over seeds)")
-    ax2.legend(ncol=5, fontsize=8, loc="upper right")
+    ax2.legend(ncol=6, fontsize=8, loc="upper right")
     ax2.set_title("Per-class test Dice", fontsize=10)
     fig.tight_layout()
     fig.savefig(OUT / "seg_results.pdf")
@@ -81,7 +83,7 @@ def results_figure(data: dict):
 
 def curves_figure(data: dict):
     fig, ax = plt.subplots(figsize=(5.5, 3.4))
-    for n in ("A", "B", "C", "D"):
+    for n in ("A", "B", "C", "D", "R"):
         hists = [h for _, h in data[n] if h]
         length = min(len(h["val"]) for h in hists)
         dice = np.mean([[e["dice_mean"] for e in h["val"][:length]] for h in hists], axis=0)
@@ -111,8 +113,8 @@ def predictions_figure(indices=(144, 120, 219)):
     samples = [dataset[i] for i in indices]
     images = torch.stack([x for x, _ in samples]).to(device)
     preds = {}
-    for name, cond in CONDITIONS.items():
-        run = sorted(glob.glob(str(RUNS / f"*_e10_seed42_{cond}")))[-1]
+    for name, pattern in CONDITIONS.items():
+        run = sorted(glob.glob(str(RUNS / f"*_{pattern.replace('seed4?', 'seed42')}")))[-1]
         model = build_eval_model(load_config(str(Path(run) / "config.yaml")), run, device).eval()
         torch.manual_seed(0)
         with autocast(device_type=device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"):

@@ -17,12 +17,14 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E07 | D | Bruit d'augmentation ramené à l'intensité voulue | A +0.010 (faible) | gardé |
 | E08 | D | Validation sur le seg_val officiel (1000 images d'entraînement) | A +0.030 | gardé |
 | E09 | D | Dice / IoU sur les artères seules (fond exclu) | ~0.024 sous le Dice avec fond, classement inchangé | ajouté |
-| E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence |
+| E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence, remplacée par E17 |
 | E11 | A | Robustesse mesurée par rapport à l'image propre | réduit le Poisson (+1.2 à +6.6 dB, un filtre 5×5 fait +6.3 à +10.3), ne restaure ni JPEG ni flou | refait |
-| E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
+| E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré, refait en E17 |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; score C inutilisable (quasi constant à l'entraînement) | refait |
 | E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait, précisé par E19 |
-| E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option, à trancher |
+| E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option (non activée par défaut), refait en E17 |
+| E16 | D | Témoins de la compression : même tête sur l'image réduite à 128×128 (R) ; U-Net de A sur l'image réduite puis ré-agrandie | R 0.405 ≈ B 0.412 (+0.006, non établi) : le latent ne fait pas mieux qu'une réduction ; en pixels, MedVAE coûte −0.004 contre −0.039 | témoins ajoutés |
+| E17 | D | E10, E12 et E15 relancés (augmentations différentes par worker et par epoch, commit figé) | A 0.428, B 0.412, C 0.410, D 0.427 ; C ≈ B (−0.001) ; D ≈ A (0.000) ; augmentation par dégradations : +0.010 sur images propres | remplace E10, E12, E15 |
 | E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
 | E19 | C | JEPA sur 3 pré-entraînements (bruit et seeds corrigés, lr du probe choisi sur la validation) | JEPA baisse le probe de son étape 1 (−0.025, 3 seeds sur 3) ; étape 2 ≈ MedVAE (+0.019, non établi) ; rang : pas d'effet net | remplace E14 |
 
@@ -245,8 +247,9 @@ fond exclu, cf. E09 ; tableau produit par `scripts/summarize_runs.py`)
   entre deux seeds pour A) : aucun écart plus petit ne doit être interprété sur un run.
 - **D bat A pour les 3 seeds** (+0.009, +0.020, +0.024 ; +0.018 en moyenne) : l'avantage de
   D annoncé à l'origine tient, alors qu'il n'était pas démontrable sur un seul run (E02).
-- **B < A** (−0.015 en moyenne) et **C < B** pour les 3 seeds : le latent MedVAE seul reste
-  un peu en dessous de l'image entière, et fine-tuner MedVAE sur ARCADE dégrade légèrement.
+- **B < A** (−0.015 en moyenne) et **C < B** pour 2 seeds sur 3 (seed 43 : +0.0004, égalité) : le
+  latent MedVAE seul reste un peu en dessous de l'image entière, et fine-tuner MedVAE sur ARCADE
+  dégrade légèrement. *(Formulation corrigée après l'audit ; cf. E17 : pas d'effet du fine-tuning.)*
 
 ## E07 — Intensité du bruit gaussien d'augmentation (2026-09-26)
 
@@ -329,9 +332,10 @@ et `2026-09-28_*_e10_seed42_condition_astar`
   d'augmentation trop fort d'avant E07, 30 % des images d'entraînement de A étaient presque
   détruites, alors que D les voyait après MedVAE, qui débruite (E11) ; D était donc moins
   pénalisé par ce bruit. A a d'ailleurs gagné deux fois plus que D (+0.028 contre +0.013).
-- **C ≥ B pour les 3 seeds** (+0.010 en moyenne), l'inverse de E06 : fine-tuner MedVAE sur
-  ARCADE aide peut-être un peu la segmentation depuis le latent, mais l'écart est de l'ordre
-  de la variabilité.
+- **C > B pour 2 seeds sur 3, égalité au seed 42** (+0.010 en moyenne), l'inverse de E06 :
+  fine-tuner MedVAE sur ARCADE aide peut-être un peu la segmentation depuis le latent, mais
+  l'écart est de l'ordre de la variabilité. *(Formulation corrigée après l'audit ; E17 ne
+  confirme pas cet effet : C − B = −0.001.)*
 - **A* ≈ A** (−0.006 sur un seed) : la compression seule coûte peu.
 - La segmentation depuis le latent (B, C) reste ~0.03 en dessous de A (92-94 % de son Dice).
 
@@ -401,8 +405,10 @@ par A, A* (MedVAE puis U-Net de A) et D, pour les 3 seeds de E10. Dice artères.
 - **Le débruitage de MedVAE n'aide pas la segmentation** : sous bruit de Poisson, A* (images
   débruitées par MedVAE) fait *moins bien* que A aux niveaux faibles et moyens (−0.02 à −0.04) ;
   le U-Net de A est plus gêné par les reconstructions d'images bruitées que par le bruit lui-même.
-- **D ≈ A** à tous les niveaux faibles et moyens ; aux niveaux extrêmes, tous s'effondrent
-  (Dice < 0.12), D un peu moins.
+- **D ≈ A** à tous les niveaux faibles et moyens ; aux niveaux extrêmes du Poisson et du JPEG,
+  tous s'effondrent (Dice ≤ 0.11), D un peu moins ; le flou le plus fort divise le Dice par deux
+  à trois (0.15 à 0.17). *(Formulation corrigée après l'audit : « tous < 0.12 » était faux pour
+  le flou.)*
 - JPEG : sans effet jusqu'au niveau 6 (qualité ≥ 35), effondrement au niveau 9 (qualité 5).
 
 **Complément : effet du bruit d'augmentation (E07) sur la robustesse.** Même protocole sur
@@ -591,6 +597,118 @@ dégradations fortes), pour un coût sur images propres de l'ordre de la variabi
 officiels restent ceux de E10 (images propres), et l'activer demanderait de réentraîner B, C
 et D pour garder des conditions comparables. À décider selon l'usage visé (robustesse ou score
 sur images propres).
+
+## E16 — Témoins de la compression pour la segmentation (2026-09-29)
+
+**Pourquoi** (audit, MAJ-12) : la conclusion « la compression préserve l'information nécessaire à
+la segmentation » n'avait pas de témoin. B et C (latent 128×128×1, 16 fois moins de valeurs que
+l'image) n'étaient comparés qu'à A (image entière, U-Net trois fois plus gros) ; A* n'était
+comparé à aucune compression triviale.
+**Témoins** :
+- **R** (commit `4b6cf64`, `finetune/configs/condition_r.yaml`) : la tête de B, même architecture et
+  même entraînement, appliquée à l'image moyennée sur des blocs 4×4 (128×128×1, autant de valeurs
+  que le latent). 3 seeds, depuis le worktree figé ;
+- **A↓↑** (commit `04a8e11`, `finetune/eval_resampled.py`) : le U-Net de A, sans réentraînement,
+  appliqué à l'image réduite à 128×128 puis ré-agrandie à 512×512 (bilinéaire ou bicubique). C'est
+  la compression triviale qui correspond à A*.
+**Runs** : `2026-09-29_*_e16_seed4?_condition_r` ; `experiments/diagnostics/e16_resampled.csv`
+(modèles A de E17).
+
+| Dice artères (test, 3 seeds) | Moyenne | Écart apparié (IC 95 % sur les seeds) | Par seed |
+|---|---|---|---|
+| B — latent MedVAE + tête | 0.412 ± 0.005 | | |
+| C — latent fine-tuné + tête | 0.410 ± 0.009 | | |
+| **R — image réduite à 128×128 + même tête** | 0.405 ± 0.002 | B − R = +0.006 [−0.002, +0.014] | +0.009 / +0.003 / +0.007 |
+| | | (validation : B − R = +0.005 [−0.020, +0.030]) | +0.016 / −0.002 / +0.001 |
+| A* — U-Net A sur la reconstruction MedVAE | 0.424 ± 0.008 | A* − A = −0.004 [−0.009, +0.002] | −0.003 / −0.002 / −0.006 |
+| **A↓↑ — U-Net A sur l'image réduite puis ré-agrandie** (bilinéaire) | 0.389 ± 0.018 | A↓↑ − A = −0.039 [−0.070, −0.008] | −0.049 / −0.042 / −0.025 |
+
+(bicubique : 0.390 ± 0.022 ; A* − A↓↑ = +0.035 [−0.001, +0.071] en Dice, +0.030 [+0.003, +0.058]
+en IoU)
+
+**Conclusions**
+
+- **Utilisé comme entrée d'une tête entraînée, le latent MedVAE ne fait guère mieux qu'une
+  réduction triviale** : avec la même tête, l'image moyennée à 128×128 atteint presque le Dice du
+  latent (B − R = +0.006, en faveur de B pour les 3 seeds sur le test mais IC contenant 0, et pas
+  sur la validation). Que B et C atteignent 96 % du Dice de A montre surtout qu'une résolution de
+  128×128 suffit à cette tâche avec une tête adaptée ; le latent préserve l'information utile à la
+  segmentation autant qu'une réduction ×4, pas nettement plus.
+- **Rendu en pixels, MedVAE préserve bien mieux qu'une réduction triviale** : sans réentraînement,
+  le U-Net de A perd 0.004 sur les reconstructions MedVAE, mais 0.039 sur l'image réduite puis
+  ré-agrandie (3 seeds sur 3), où les vaisseaux fins sont effacés. La reconstruction MedVAE
+  restitue à partir de 128×128 valeurs des détails qu'une interpolation ne restitue pas.
+- Les deux témoins répondent à deux questions différentes : R est entraîné pour son entrée
+  (compression puis apprentissage), A↓↑ ne l'est pas (compression seule, comme A*).
+
+## E17 — E10, E12 et E15 relancés avec les augmentations corrigées (2026-09-29)
+
+**Pourquoi** : l'audit a trouvé qu'avec albumentations 2, chaque worker du DataLoader recevait
+une copie du même générateur aléatoire, sans nouvelle graine : les workers tiraient les mêmes
+augmentations, et la même suite revenait à chaque epoch. Ce défaut touchait toutes les
+expériences de segmentation (E02 à E15). Par ailleurs, les résultats officiels B et D et
+plusieurs chiffres publiés venaient de runs `git_dirty`, et les jobs en file exécutaient le code
+présent à leur démarrage.
+**Modification** : graine des augmentations par worker (`seed_worker_augmentations`, commit
+`4b6cf64`, testée dans `tests/test_dataset.py`) ; tous les runs lancés depuis le worktree figé à ce
+commit (tous propres).
+**Protocole** : config E10 inchangée, 3 seeds par condition ; A* = U-Net de A appliqué aux
+reconstructions (3 seeds via la robustesse, seed 42 via `eval_astar`) ; robustesse (protocole
+E12) et augmentation par dégradations (E15, p = 0.3) refaites sur ces runs. Décisions sur la
+validation.
+**Runs** : `2026-09-29_*_e17_seed4?_condition_{a,b,c,d}`, `*_e17_seed42_condition_astar`,
+`*_e17_degradation_aug_seed4?_condition_a` ; robustesse `experiments/robustness/e17_downstream/`
+(`report_figure.md`, comparaison avec E12 et E15 dans `vs_e12_e15.md`).
+
+| Condition (3 seeds) | Dice de validation | Dice artères (test) | IoU artères (test) | E10, Dice artères |
+|---|---|---|---|---|
+| A — U-Net | 0.481 ± 0.010 | 0.428 ± 0.008 | 0.309 ± 0.006 | 0.430 ± 0.005 |
+| A* — U-Net A sur reconstructions | — | 0.424 ± 0.008 | 0.305 ± 0.006 | 0.425 (seed 42) |
+| B — latent MedVAE | 0.473 ± 0.009 | 0.412 ± 0.005 | 0.292 ± 0.004 | 0.393 ± 0.008 |
+| C — latent fine-tuné | 0.473 ± 0.006 | 0.410 ± 0.009 | 0.291 ± 0.008 | 0.403 ± 0.002 |
+| D — MedVAE → U-Net | 0.488 ± 0.010 | 0.427 ± 0.009 | 0.309 ± 0.005 | 0.432 ± 0.004 |
+| A + dégradations (p = 0.3) | 0.489 ± 0.011 | 0.437 ± 0.010 | 0.316 ± 0.008 | 0.423 ± 0.011 (E15) |
+
+| Écart apparié (Dice artères, test) | Moyenne | IC 95 % (seeds) | Par seed | Validation |
+|---|---|---|---|---|
+| D − A | +0.000 | [−0.041, +0.040] | +0.019 / −0.012 / −0.007 | +0.007 |
+| C − B | −0.001 | [−0.036, +0.034] | −0.013 / +0.015 / −0.005 | −0.000 |
+| B − A | −0.016 | [−0.049, +0.017] | −0.002 / −0.029 / −0.018 | −0.008 |
+| C − A | −0.017 | [−0.028, −0.006] | −0.015 / −0.014 / −0.022 | −0.009 |
+| A + dégradations − A | +0.010 | [−0.023, +0.042] | +0.023 / +0.008 / −0.003 | +0.008 (+0.011 / +0.008 / +0.004) |
+
+| Dice artères sur images dégradées | A | A* | D | A + dégradations |
+|---|---|---|---|---|
+| Image propre | 0.428 | 0.424 | 0.427 | 0.437 |
+| Poisson, niveaux 0 / 3 / 6 / 9 | 0.405 / 0.390 / 0.351 / 0.023 | 0.388 / 0.372 / 0.317 / 0.039 | 0.395 / 0.379 / 0.343 / 0.080 | 0.417 / 0.409 / 0.390 / 0.233 |
+| JPEG, niveaux 6 / 9 | 0.415 / 0.032 | 0.417 / 0.073 | 0.420 / 0.137 | 0.432 / 0.251 |
+| Flou, niveaux 3 / 6 / 9 | 0.390 / 0.314 / 0.206 | 0.394 / 0.321 / 0.210 | 0.393 / 0.288 / 0.181 | 0.423 / 0.398 / 0.348 |
+
+**Conclusions**
+
+- A, C et D reproduisent E10 à ±0.005. B gagne 0.018 (0.393 → 0.412) ; seules la graine des
+  augmentations et l'exécution depuis un commit figé ont changé, sans qu'on isole la cause.
+- **D ≈ A confirmé** (+0.000) : entraîner sur des reconstructions n'apporte rien de mesurable.
+- **Fine-tuner MedVAE sur ARCADE n'a pas d'effet sur la segmentation depuis le latent** (C − B =
+  −0.001, signes −/+/− ; même chose sur la validation). La formulation « aide légèrement » de E10
+  et du rapport est retirée.
+- B et C atteignent 96 % du Dice de A (0.412 et 0.410 contre 0.428), mais le témoin R de E16 fait
+  presque aussi bien.
+- **A* ≈ A sur 3 seeds** (−0.004, légèrement en dessous pour les 3).
+- **Robustesse : les conclusions de E12 tiennent.** Sous bruit de Poisson, A* fait moins bien que
+  A aux niveaux 0 à 6 (−0.017, −0.018, −0.034) ; D ≈ A jusqu'au niveau 6 ; au niveau 9, Poisson et
+  JPEG font s'effondrer les trois modèles (Dice ≤ 0.14, D un peu moins), le flou divise le Dice
+  par deux (0.18 à 0.21).
+- **L'augmentation par dégradations ne coûte plus rien sur images propres** : +0.010 sur le test
+  (2 seeds sur 3), +0.008 sur la validation (3 seeds sur 3), contre −0.007 en E15. Gains aux
+  dégradations : +0.21 (Poisson), +0.22 (JPEG) et +0.14 (flou) au niveau 9, +0.02 à +0.08 au
+  niveau 6. D'après le protocole (décision sur la validation), elle pourrait être activée par
+  défaut ; cela demanderait de réentraîner B, C et D pour garder des conditions comparables. Elle
+  reste une option, non activée par défaut : résultats officiels = E17 sans cette augmentation.
+- `downstream.py` associait les runs A et D dans l'ordre des dossiers (A seed 42 avec D seed 44,
+  etc.). Les images dégradées ne dépendent pas de cet appariement : les moyennes sont justes ;
+  les écarts D − A ci-dessus sont appariés par seed à partir des runs. Corrigé (commit `04a8e11`).
+- Résultats promus : seed 42 de A, A*, B, C et D de E17.
 
 ## E18 — FiLM avec les scores A et B sur 3 seeds (2026-09-29)
 
