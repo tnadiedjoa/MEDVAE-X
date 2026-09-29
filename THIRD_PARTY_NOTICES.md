@@ -12,7 +12,9 @@ apply to the corresponding files.
 
 The ARCADE dataset (Popov et al., 2024) is distributed under CC0 on
 [Zenodo](https://zenodo.org/records/10390295); it is downloaded by
-`scripts/download_arcade.sh` and not stored in this repository.
+`scripts/download_arcade.sh` and is not part of the current version of this repository. A copy
+of it remains in the early git history (added in `459ee01`, removed in `34928e0`), as do two
+article PDFs formerly in `ressources/` (removed in `c8d8c2e`).
 
 ## MedVAE license
 
