@@ -814,3 +814,7 @@ résultats `experiments/jepa/e19/`.
   0.485 → 0.536). Entre les deux, le bruit d'augmentation, la graine des workers, la validation
   de l'étape 2 et les seeds ont changé en même temps : on n'attribue pas ces écarts à l'une de
   ces causes. E19 remplace E14 pour les chiffres de l'axe C.
+- **Limite** : les deux étapes, entraînées 15 epochs comme dans l'étude d'origine, n'ont pas
+  convergé (meilleure loss de validation à l'epoch 14 ou 15 pour chaque pré-entraînement, étape 1
+  comme étape 2 ; logs `jepa_adaptation/jobs/logs/e19_s4?_*.out`). Un entraînement plus long
+  pourrait changer les niveaux (audit MIN-16).

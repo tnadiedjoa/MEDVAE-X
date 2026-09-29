@@ -15,8 +15,9 @@ jobs:
           cache: pip
       - name: Dépendances (torch CPU, sans GPU ni dataset)
         run: |
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          pip install torchmetrics segmentation-models-pytorch albumentations pycocotools \
-                      pillow pyyaml numpy pandas pytest
+          pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cpu
+          # mêmes versions que le cluster (requirements-lock.txt), en version CPU
+          pip install -c requirements-lock.txt torchmetrics segmentation-models-pytorch albumentations \
+                      pycocotools pillow pyyaml numpy pandas pytest
       - name: Tests
         run: pytest -q tests/

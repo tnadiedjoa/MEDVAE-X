@@ -84,8 +84,9 @@ ARNIQA~\cite{agnolucci2024arniqa}, as well as with a custom score
 aggregating sharpness indices. Two limitations disqualified it. On one
 hand, these metrics are calibrated on natural photographs and transfer
 poorly to X-ray images: on the raw images of the dataset, the
-correlation between the no-reference score and the reconstruction PSNR
-is nearly zero. On the other hand, under controlled degradation, these
+correlation with the reconstruction PSNR is weak and of the wrong sign for
+ARNIQA (Pearson $r = -0.37$) and nearly zero for our custom score
+($r \approx -0.01$). On the other hand, under controlled degradation, these
 scores are dominated by blur and do not provide a monotone quality
 axis~\cite{agnolucci2024arniqa}. Our protocol being full-reference, we
 instead \emph{measure} input quality by comparison to the clean image.
@@ -707,7 +708,7 @@ Projecting the same features on their first three principal components (PC1$\to$
 \end{figure}
 
 \paragraph{Summary.}
-Replacing BioMedCLIP by a self-supervised JEPA objective on ARCADE, with a frozen decoder, degrades both the reconstruction and the linear separability of the vessels relative to the stage-1 autoencoder it starts from, consistently over three pre-trainings; the adapted encoder is no better than the released MedVAE. In our experiments, the most separable features are those of the stage-1 autoencoder trained on ARCADE, before any JEPA training.
+Replacing BioMedCLIP by a self-supervised JEPA objective on ARCADE, with a frozen decoder, degrades both the reconstruction and the linear separability of the vessels relative to the stage-1 autoencoder it starts from, consistently over three pre-trainings; the adapted encoder is no better than the released MedVAE. In our experiments, the most separable features are those of the stage-1 autoencoder trained on ARCADE, before any JEPA training. Both stages were trained for 15 epochs, as in the original study, and their validation losses were still decreasing at the end (best epoch 14 or 15 for every pre-training): longer training could change the levels reported here.
 
 \newpage
 \section{MedVAE as a Latent Representation for Coronary Segmentation}
