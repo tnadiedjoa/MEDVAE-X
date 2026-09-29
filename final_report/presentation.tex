@@ -315,22 +315,44 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \]}
 \end{frame}
 
-\begin{frame}{Results — reconstruction}
-  \centering
-  \includegraphics[width=\linewidth]{yanic/recon.png}
+\begin{frame}{Revised evaluation}
+  \small
+  \begin{itemize}
+    \item \textbf{Stage 1 is not MedVAE}: same family, but smaller (21M), $\times8$ per side, trained \emph{from scratch} on ARCADE
+    \item \alert{Earlier issues}: test images in the pre-training; the ``25 dimensions for 90\,\% of the variance'' measured \texttt{channel\_proj}, a layer \emph{never trained}
+    \item Now: retrained without the test set; evaluated on the layer JEPA trains (features before \texttt{conv\_out}), 300 test images
+  \end{itemize}
+  \vspace{0.3em}
+  \centering\footnotesize
+  \begin{tabular}{@{}lccc@{}}
+  \toprule
+   & MedVAE & Stage 1 & Stage 2 JEPA \\
+  \midrule
+  PSNR (dB) & 34.8 & 30.2 & 17.8 \\
+  Vessel linear probe (Dice) & 0.517 & \textbf{0.541} & 0.485 \\
+  Effective rank / dims for 90\,\% var. & 251 / 61 & 111 / 22 & 139 / 34 \\
+  \bottomrule
+  \end{tabular}
+\end{frame}
 
-  \vfill
+\begin{frame}{Results — reconstruction and features}
+  \centering
+  \includegraphics[width=0.8\linewidth]{yanic/recon.png}
+
+  \vspace{0.2em}
   {\footnotesize
   \begin{itemize}
-    \item \alert{Frozen} decoder: any shift of the encoder degrades the PSNR (16.85 dB for stage 2).
-    \item JEPA stage 2 \alert{blurs}: predicting a masked patch amounts to \emph{averaging} the plausible regions $\Rightarrow$ loss of high frequencies (thin vessels).
-    \item Consistent with the latent objective: we optimize semantics, not pixel fidelity.
+    \item \alert{Frozen} decoder: the adapted encoder is no longer decodable (17.8 dB)
+    \item JEPA \textbf{degrades} vessel separability ($-0.056$ vs stage 1), \textbf{no contraction} (rank $111 \to 139$, as SIGReg intends)
+    \item Learning on angiographies helps (stage 1 $>$ MedVAE), JEPA does not
   \end{itemize}}
 \end{frame}
 
 \begin{frame}{Results — RGB PCA of the intermediate features}
   \centering
-  \includegraphics[height=0.82\textheight]{yanic/pca.png}
+  \includegraphics[height=0.78\textheight]{yanic/pca.png}
+
+  \footnotesize Stage 2 features: large homogeneous regions, vessels barely visible.
 \end{frame}
 
 % ############################################################################
