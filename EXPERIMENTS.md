@@ -20,9 +20,10 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E10 | D | Nouvel état de référence (E07 + E08) sur A, B, C, D, A* | A 0.452, A* 0.448, B 0.417, C 0.427, D 0.455 ; D ≈ A désormais | référence |
 | E11 | A | Robustesse mesurée par rapport à l'image propre | réduit le Poisson (+1.2 à +6.6 dB, un filtre 5×5 fait +6.3 à +10.3), ne restaure ni JPEG ni flou | refait |
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
-| E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
+| E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; score C inutilisable (quasi constant à l'entraînement) | refait |
 | E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait |
 | E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option, à trancher |
+| E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
 A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
@@ -465,7 +466,7 @@ corrigé (A de E07), tous avec l'ancien découpage 80/20 (`experiments/robustnes
 | Différence appariée (PSNR, dB) | Moyenne | IC 95 % (images) | Par seed (42 / 43 / 44) |
 |---|---|---|---|
 | Baseline − pré-entraîné | **+7.45** | [+7.06, +7.85] | +7.44 / +7.46 / +7.44 |
-| FiLM (vrai c) − baseline | +0.026 | [+0.015, +0.038] | +0.055 / +0.004 / +0.019 |
+| FiLM (vrai c) − baseline | +0.026 | [+0.015, +0.038] (sur les images, voir note) | +0.055 / +0.004 / +0.019 |
 | FiLM : vrai c − c mélangé | +0.002 | [−0.007, +0.010] | +0.002 / +0.002 / +0.001 |
 | FiLM : vrai c − c constant | −0.013 | [−0.021, −0.006] | −0.015 / −0.015 / −0.009 |
 
@@ -485,6 +486,13 @@ et le HaarPSI, cf. `experiments/film/e13/paired.csv`)
   jusqu'à 0.05), mais cette dépendance n'aide pas la reconstruction : le petit gain sur la
   baseline vient des paramètres ajoutés (une modulation affine par canal), pas du score.
   La conclusion d'origine « l'approche C exploite c » n'est pas confirmée.
+- *Notes après l'audit (2026-09-29)* : (1) l'IC « FiLM − baseline » ci-dessus porte sur les
+  images, alors qu'il compare des modèles entraînés séparément ; sur les 3 seeds, l'IC 95 %
+  (Student) est **[−0.04, +0.09]** : l'écart n'est pas établi. (2) Le score C ne pouvait pas
+  être utilisé : sur les 900 images d'entraînement, il vaut 0.92 en moyenne, 79 % au-dessus de
+  0.9 (intervalle 5-95 % [0.70, 1.00]), contre 0.73 en moyenne sur le test (26 % sous 0.5). Le
+  modèle n'a presque jamais vu de score faible, et sur la plage vue, γ varie d'au plus 0.02.
+  D'où E18 : les scores A et B sur 3 seeds.
 
 **Vérifications complémentaires (seed 42)** : scores des approches A (pondéré) et B (PCA),
 et learning rate 100 fois plus fort pour les couches FiLM (`--film-lr 1e-3`, commit
@@ -580,3 +588,47 @@ dégradations fortes), pour un coût sur images propres de l'ordre de la variabi
 officiels restent ceux de E10 (images propres), et l'activer demanderait de réentraîner B, C
 et D pour garder des conditions comparables. À décider selon l'usage visé (robustesse ou score
 sur images propres).
+
+## E18 — FiLM avec les scores A et B sur 3 seeds (2026-09-29)
+
+**Pourquoi** : l'audit relève que E13 étudie à 3 seeds le seul score inexploitable (C, quasi
+constant à l'entraînement) et que les contrôles A et B n'avaient qu'un seed. Les scores A et B
+ont des distributions semblables à l'entraînement (moyennes 0.45 et 0.49) et au test (0.44 et
+0.46).
+**Protocole** : identique à E13 (`train_film.py`, 256×256, 3000 pas, test = seg_val), baseline,
+FiLM-A et FiLM-B pour les seeds 42, 43 et 44, tous au commit `4b6cf64` depuis le worktree figé
+(runs `2026-09-29_*_e18_film_{baseline,A,B}_seed4?`, tous propres). Analyse
+`experiments/film/e18/` (IC sur les images pour les contrôles d'un même modèle, sur les seeds
+pour FiLM − baseline).
+
+| PSNR test (dB) | Baseline | FiLM-A | FiLM-B |
+|---|---|---|---|
+| Vrai c | 42.258 ± 0.004 | 42.296 ± 0.020 | 42.307 ± 0.021 |
+| c mélangé | — | 42.289 | 42.274 |
+| c constant | — | 42.291 | 42.288 |
+
+| Écart (PSNR, dB) | Moyenne | IC 95 % | Par seed |
+|---|---|---|---|
+| FiLM-A : vrai c − c mélangé | +0.007 | [+0.002, +0.014] (images) | +0.009 / +0.006 / +0.007 |
+| FiLM-A : vrai c − c constant | +0.005 | [+0.002, +0.009] (images) | +0.006 / +0.005 / +0.005 |
+| FiLM-B : vrai c − c mélangé | **+0.033** | [+0.018, +0.049] (images) | +0.037 / +0.031 / +0.032 |
+| FiLM-B : vrai c − c constant | +0.020 | [+0.008, +0.031] (images) | +0.023 / +0.018 / +0.019 |
+| FiLM-A − baseline | +0.038 | [−0.011, +0.087] (seeds) | +0.061 / +0.029 / +0.025 |
+| FiLM-B − baseline | +0.050 | [−0.003, +0.102] (seeds) | +0.074 / +0.039 / +0.036 |
+
+(sur les vaisseaux : FiLM − baseline +0.031 [+0.016, +0.047] avec A, +0.038 [+0.018, +0.057]
+avec B)
+
+**Conclusions**
+
+- **Avec les scores A et B, le réseau utilise l'information de qualité**, de façon
+  reproductible (vrai c > contrôles pour les 3 seeds), mais l'effet est minuscule : 0.03 dB au
+  plus (score B).
+- FiLM gagne +0.04 à +0.05 dB sur la baseline, dont au plus 0.02-0.03 dB viennent du score ; le
+  reste vient des paramètres ajoutés. L'écart FiLM − baseline n'est pas établi sur l'image
+  entière (IC sur les seeds contenant 0), il l'est sur les vaisseaux.
+- Conclusion de l'axe B : conditionner MedVAE sur un score de qualité calculé à partir de
+  l'image n'apporte pas de gain utile. Le score C n'est pas utilisé (il ne varie presque pas à
+  l'entraînement) ; A et B le sont, à peine.
+- La baseline de E18 reproduit celle de E13 (42.258 contre 42.261 dB). Comme en E13, le
+  meilleur pas est le dernier (3000) pour 8 runs sur 9 : les conclusions valent pour ce budget.

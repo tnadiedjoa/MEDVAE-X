@@ -1,0 +1,19 @@
+experiment:
+  name: e18_film_baseline_seed44
+  seed: 44
+film:
+  model: baseline
+  approach: C
+  seed: 44
+  img_size: 256
+  steps: 3000
+  lr: 1.0e-05
+  film_lr: null
+  batch_size: 4
+  kl_weight: 1.0e-06
+  val_every: 250
+  run_name: e18_film_baseline_seed44
+data:
+  n_train: 900
+  n_val: 100
+  n_test: 200
