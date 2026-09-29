@@ -27,13 +27,17 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 |------|----------|------|------|
 | **A. Robustness** | Can MedVAE restore degraded inputs? | Elias Corlou | [`medvae_eval/robustness/`](medvae_eval/robustness/) |
 | **B. FiLM conditioning** | Does a quality score help MedVAE reconstruct? | Théophile Nadiedjoa | [`medvae_eval/film/`](medvae_eval/film/) |
-| **C. JEPA adaptation** | Can self-supervision replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
+| **C. JEPA adaptation** | Can a self-supervised JEPA stage replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
 | **D. Segmentation** | Is the compressed representation enough to segment coronary arteries? | Théo Palagi | [`finetune/`](finetune/) |
 
 ### Key takeaway
 
-MedVAE produces a **faithful, pixel-space–reusable** code, but its latent is **not yet semantically
-organized nor acquisition-aware** enough to be segmented or conditioned directly.
+MedVAE's ×16 compression keeps what coronary segmentation needs: in pixel space (segmenting
+reconstructions matches the original images) and in its single-channel latent, which reaches 91–94 %
+of the full-image Dice with an adequate head. MedVAE genuinely removes Poisson noise, but this does not
+make segmentation more robust; conditioning it on a quality score or adapting its encoder with JEPA
+brings no gain. Several conclusions of the original study were overturned once measurement and training
+issues were fixed: every change and its before/after results are logged in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 ---
 
@@ -114,32 +118,36 @@ The quality scores are built in notebooks 01–03 of [`medvae_eval/cvae/`](medva
 
 ![JEPA pipeline](assets/pipeline_jepa.png)
 
-MedVAE's stage 2 relies on **BioMedCLIP** to preserve clinically relevant information in the latent
-space. We replace that external vision-language supervision with a self-supervised **JEPA** objective
-(inspired by I-JEPA): a context encoder processes visible patches, a frozen EMA target encoder provides
-target latents, and a predictor is trained with a latent-prediction loss. Pretraining uses **MedMNIST**
-(8 2-D datasets, ~450k images), and the adapted encoder is evaluated by linear probing.
+MedVAE's stage 2 relies on **BioMedCLIP** to enrich the latent space. We replace that external
+vision-language supervision with a self-supervised **JEPA** objective (inspired by I-JEPA): a context
+encoder processes the masked image, an EMA target encoder the full image, and a predictor regresses
+the target features of masked patches (Smooth-L1 + SIGReg), with the decoder frozen. Following MedVAE's
+recipe on ARCADE, **stage 1** trains an autoencoder of the MedVAE family from scratch (21M parameters,
+×8 per side, 64×64×1 latent; test images excluded), and **stage 2** adapts its encoder with JEPA.
 
-**Conclusion:** the JEPA-adapted latent is markedly more compact (90% of variance on 25 dimensions) and
-discriminative, but at a reconstruction cost (frozen decoder) — a more semantic, less pixel-faithful code.
+Evaluation on the 300 test images, on the layer JEPA trains (features before `conv_out`) — experiment
+E14 in [EXPERIMENTS.md](EXPERIMENTS.md):
+
+| | MedVAE (released, ×4) | Stage 1 (×8, from scratch) | Stage 2 JEPA |
+|---|---|---|---|
+| Reconstruction PSNR (dB) | 34.8 | 30.2 | 17.8 |
+| Vessel linear probe (Dice, 3 seeds) | 0.517 ± 0.005 | **0.541 ± 0.005** | 0.485 ± 0.006 |
+| Effective rank of the features | 251 / 512 | 111 / 256 | 139 / 256 |
+
+**Conclusion:** learning on coronary angiographies helps (stage 1 separates vessels better than the
+released MedVAE), but the JEPA stage **degrades** both the representation (−0.056 on the probe) and,
+with a frozen decoder, the reconstruction. It does not compact the latent either: on the trained layer
+the effective rank *increases* (as SIGReg intends). The original analysis had measured a layer that is
+never trained (`channel_proj`) and included the test images in pre-training.
 
 ```bash
-# Stage 1 — VAE reconstruction pretraining
-python jepa_adaptation/stage1_training.py \
-  --config jepa_adaptation/configs/stage_1.yaml \
-  --model-config jepa_adaptation/configs/model.yaml
-
-# Stage 2 — JEPA latent-prediction adaptation
-python jepa_adaptation/stage2_training.py \
-  --config jepa_adaptation/configs/stage_2.yaml \
-  --model-config jepa_adaptation/configs/model.yaml
-
-# Downstream linear probing
-jepa_adaptation/downstream/downstream_1.ipynb
-jepa_adaptation/downstream/downstream_2.ipynb
+sbatch jepa_adaptation/jobs/stage_1.sbatch                 # stage 1 (reconstruction)
+sbatch jepa_adaptation/jobs/stage_2.sbatch                 # stage 2 (JEPA), from stage 1's best.pt
+python jepa_adaptation/eval/probe.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt \
+    --task vessels --epochs 100 --lr 1e-2                  # linear probe (also: medvae, stage1)
+python jepa_adaptation/eval/reconstruction.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
+python jepa_adaptation/eval/feature_rank.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
 ```
-
-SLURM job scripts for the cluster live in [`jepa_adaptation/jobs/`](jepa_adaptation/jobs/).
 
 ---
 
