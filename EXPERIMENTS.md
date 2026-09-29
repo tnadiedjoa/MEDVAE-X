@@ -549,7 +549,7 @@ dimensionnalité de cette couche (`eval/feature_rank.py`). Résultats : `experim
 | Composantes pour 90 % de la variance | 61 | 22 | 34 |
 
 - **Le probe doit converger** : à 20 epochs (lr 1e-3), les scores étaient 0.39 / 0.43 / 0.39 et
-  le meilleur epoch était le dernier ; à 60 epochs 0.45 / 0.50 / 0.45. *(Correction, cf. E19 :
+  le meilleur epoch était le dernier *(pour MedVAE et l'étape 1 ; pour l'étape 2 : 16, 18, 16)* ; à 60 epochs 0.45 / 0.50 / 0.45. *(Correction, cf. E19 :
   j'avais écrit « le classement est le même dans les trois réglages » ; c'est faux, l'étape 2
   égale MedVAE à 20 et 60 epochs.)* Le probe sur les 26 segments (Dice ~0.03) et sur le latent à
   1 canal (~0.03) ne distinguent rien : un classifieur linéaire par pixel ne peut pas nommer un
