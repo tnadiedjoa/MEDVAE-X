@@ -460,6 +460,17 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 \includegraphics[width=0.84\textwidth]{theo/seg_results.pdf}
 \end{frame}
 
+\begin{frame}{Segmentation of degraded images}
+\centering
+\includegraphics[width=0.95\textwidth]{theo/seg_robustness.pdf}
+
+\small
+\begin{itemize}
+  \item MedVAE's denoising does \alert{not} help: A* $\leq$ A under Poisson noise, D $\approx$ A
+  \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest blur 0.15 $\to$ 0.37, JPEG 0.05 $\to$ 0.29, for $-0.007$ on clean images
+\end{itemize}
+\end{frame}
+
 \begin{frame}{Qualitative predictions}
 \centering
 \includegraphics[width=0.9\textwidth]{theo/seg_predictions.png}

@@ -21,6 +21,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; c inutilisé (C) ou à peine (A, B : ≤ 0.04 dB) | refait |
 | E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait |
+| E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option, à trancher |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
 A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
@@ -528,3 +529,33 @@ dimensionnalité de cette couche (`eval/feature_rank.py`). Résultats : `experim
   effectif (111 → 139) et le nombre de composantes (22 → 34), ce qui est l'effet attendu de la
   régularisation SIGReg. La conclusion d'origine (« latent plus compact et plus discriminant »)
   n'est pas confirmée.
+
+## E15 — Augmentation par dégradations réalistes (2026-09-29)
+
+**Hypothèse** : E12 montre que A, entraîné avec le bruit d'augmentation corrigé (E07),
+s'effondre sur les images fortement dégradées. Montrer au modèle des dégradations d'acquisition
+pendant l'entraînement devrait rétablir cette robustesse.
+**Modification** : option `data.degradation_aug_p` (commit `91e77bf`) : avec probabilité 0.3,
+une dégradation parmi bruit de Poisson (échelle 0.05-1), JPEG (qualité 5-95) et flou gaussien
+(noyau 3-31). Testée sur A, rien d'autre ne change (config E10, 3 seeds,
+`--set data.degradation_aug_p=0.3`). **Attention** : ce sont les mêmes familles et plages que
+l'évaluation de robustesse (E12), qui est donc « dans la distribution » de l'augmentation.
+**Runs** : avant = A de E10 — après `2026-09-29_*_e15_degradation_aug_seed4{2,3,4}_condition_a` ;
+robustesse `experiments/robustness/e15_downstream/` (`comparison.md`, `comparison.png`)
+
+| Dice artères (3 seeds) | A (E10) | A + dégradations (E15) |
+|---|---|---|
+| Image propre | 0.430 ± 0.005 | 0.423 ± 0.011 |
+| Poisson, niveaux 6 / 9 | 0.345 / 0.025 | **0.400 / 0.266** |
+| JPEG, niveau 9 | 0.051 | **0.289** |
+| Flou, niveaux 6 / 9 | 0.297 / 0.151 | **0.403 / 0.373** |
+
+Écart apparié sur images propres, par seed : +0.002, −0.012, −0.011 (−0.007 en moyenne ;
+IoU artères −0.002).
+
+**Conclusion** : la robustesse est largement rétablie (gains de 0.1 à 0.25 de Dice aux
+dégradations fortes), pour un coût sur images propres de l'ordre de la variabilité entre seeds
+(2 seeds sur 3 en baisse). Option conservée mais **non activée par défaut** : les résultats
+officiels restent ceux de E10 (images propres), et l'activer demanderait de réentraîner B, C
+et D pour garder des conditions comparables. À décider selon l'usage visé (robustesse ou score
+sur images propres).

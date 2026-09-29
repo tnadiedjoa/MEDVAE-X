@@ -1,0 +1,14 @@
+{
+  "run": "2026-09-29_002757_e15_degradation_aug_seed42_condition_a",
+  "date": "2026-09-29T00:27:57",
+  "git_commit": "91e77bfc54df67cbe4eb2f8f634fcdb2079ac83f",
+  "git_dirty": false,
+  "overrides": [
+    "experiment.seed=42",
+    "data.degradation_aug_p=0.3"
+  ],
+  "host": "nodemm01",
+  "slurm_job_id": "1013464",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}
