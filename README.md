@@ -156,7 +156,8 @@ S1=$(ls -d experiments/runs/*_e19_jepa_stage1_seed42 | tail -1)/best.pt
 python jepa_adaptation/stage2_training.py --seed 42 --stage1-ckpt $S1 --run-name e19_jepa_stage2_seed42
 S2=$(ls -d experiments/runs/*_e19_jepa_stage2_seed42 | tail -1)/best.pt
 # linear probe (also: --model medvae / stage1); lr 1e-3 or 1e-2, chosen on val_dice_fg
-python jepa_adaptation/eval/probe.py --model stage2 --ckpt $S2 --task vessels --epochs 100 --lr 1e-2
+python jepa_adaptation/eval/probe.py --model stage2 --ckpt $S2 --task vessels --epochs 100 --lr 1e-2 \
+    --out experiments/jepa/my_probe_stage2_lr1e-2.json
 python jepa_adaptation/eval/reconstruction.py --model stage2 --ckpt $S2
 python jepa_adaptation/eval/feature_rank.py --model stage2 --ckpt $S2
 ```
