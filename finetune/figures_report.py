@@ -58,7 +58,7 @@ def results_figure(data: dict):
         ax1.scatter(np.full(len(vals), i), vals, color="black", s=8, zorder=3)
         ax1.text(i, np.mean(vals) + 0.012, f"{np.mean(vals):.3f}", ha="center", fontsize=8)
     ax1.set_xticks(range(len(names)), names)
-    ax1.set_ylim(0.3, 0.46)
+    ax1.set_ylim(0, 0.5)
     ax1.set_ylabel("artery Dice (test set)")
     ax1.set_title("Test Dice (3 seeds; A*: seed 42)", fontsize=10)
 

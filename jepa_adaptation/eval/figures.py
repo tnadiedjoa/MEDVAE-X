@@ -62,7 +62,8 @@ def main():
     d = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_a.yaml"))["data"]
     ds = ArcadeDataset(d["val_images"], d["val_ann"])
     show = torch.stack([ds[i][0] for i in SHOW]).to(device) * 2 - 1
-    fit = torch.stack([ds[i][0] for i in range(0, 300, 6)]).to(device) * 2 - 1   # 50 images
+    fit_idx = [i for i in range(0, 300, 6) if i not in SHOW]                      # images non montrées
+    fit = torch.stack([ds[i][0] for i in fit_idx]).to(device) * 2 - 1
 
     recons, rgbs = {}, {}
     for label, (model, ckpt) in MODELS.items():
