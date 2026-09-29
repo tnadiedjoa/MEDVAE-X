@@ -37,7 +37,7 @@ Deep learning on medical images is constrained by the high resolution required t
 
 We study this question on coronary angiography, using the public ARCADE dataset~\cite{popov2024arcade}, which provides $1\,500$ annotated X-ray angiographies ($512\times512$, grayscale; $1\,000$ training, $200$ validation and $300$ test images) together with COCO segmentation annotations of the coronary tree. We deliberately chose an unfavourable setting for a generic compressor: the structures of interest are thin, tubular, and low-contrast, the acquisitions suffer from quantum noise, compression, and motion artefacts, and the relevant signal occupies only a tiny fraction of the image. This domain therefore stresses every property we would expect from a medical foundation model: robustness to degraded inputs, a semantically structured latent space, and the preservation of fine anatomical information.
 
-Starting from MedVAE and ARCADE, we identify and investigate four complementary axes. \textbf{(i) Robustness to input degradations} (Section~\ref{sec:medvae-robustness}): we measure whether MedVAE brings a degraded input (Poisson noise, JPEG compression, blur) closer to the clean image, showing that it genuinely removes Poisson noise but restores neither JPEG artefacts nor blur. \textbf{(ii) Image-quality inductive bias} (Section~\ref{sec:theophile}): we ask whether explicitly conditioning the autoencoder on an estimated quality score, injected through FiLM modulation, lets it adapt to the degradation level actually present at its input. \textbf{(iii) Semantic structuring of the latent space} (Section~\ref{sec:jepa}): we replace MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective trained directly on coronary angiographies, removing any dependency on an external model. \textbf{(iv) Latent representation for segmentation} (Section~\ref{sec:segmentation}): we test whether the compressed representation preserves enough anatomical information to support fine multi-class coronary segmentation, and at which point of the pipeline the compression should be integrated.
+Starting from MedVAE and ARCADE, we identify and investigate four complementary axes. \textbf{(i) Robustness to input degradations} (Section~\ref{sec:medvae-robustness}): we measure whether MedVAE brings a degraded input (Poisson noise, JPEG compression, blur) closer to the clean image, showing that it reduces Poisson noise, though much less than a simple $5\times5$ filter, and restores neither JPEG artefacts nor blur. \textbf{(ii) Image-quality inductive bias} (Section~\ref{sec:theophile}): we ask whether explicitly conditioning the autoencoder on an estimated quality score, injected through FiLM modulation, lets it adapt to the degradation level actually present at its input. \textbf{(iii) Semantic structuring of the latent space} (Section~\ref{sec:jepa}): we replace MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective trained directly on coronary angiographies, removing any dependency on an external model. \textbf{(iv) Latent representation for segmentation} (Section~\ref{sec:segmentation}): we test whether the compressed representation preserves enough anatomical information to support fine multi-class coronary segmentation, and at which point of the pipeline the compression should be integrated.
 
 We each took on one of these axes --- Elias Corlou the robustness analysis, Théophile Nadiedjoa the image-quality conditioning, Yanic Rothlingshofer the JEPA adaptation, and Théo Palagi the segmentation study --- and we present our four contributions in the corresponding sections before bringing them together in a common discussion of perspectives and a shared conclusion.
 
@@ -61,8 +61,8 @@ the reconstruction produced by MedVAE from the degraded input. The
 research question is: \textbf{does passing a degraded image through
 MedVAE bring it closer to, or further from, the clean image?} We show
 that the answer depends on the \emph{nature} of the degradation: MedVAE
-genuinely removes Poisson noise, but restores neither JPEG artefacts nor
-blur.
+reduces Poisson noise, though much less than a simple $5\times5$ filter,
+and restores neither JPEG artefacts nor blur.
 
 \emph{Note on this revised version.} An earlier version of this study
 measured the fidelity of the reconstruction to the \emph{degraded}
@@ -178,9 +178,12 @@ to $31$ pixels.
 \subsection{Results and Interpretation}
 \label{sec:resultats}
 
-MedVAE reconstructs a clean image at $33.1$~dB, both on the full image
-and on vessels: this intrinsic reconstruction error sets a ceiling that
-no restoration can exceed. Fig.~\ref{fig:sweep-all} shows the three
+MedVAE reconstructs these clean images at $33.1$~dB, both on the full
+image and on vessels ($34.8$~dB on the 300 test images used in
+Section~\ref{sec:jepa}): this intrinsic reconstruction error sets a
+ceiling that no restoration can exceed. As a reference, the same noisy
+images were also passed through two simple filters, a $5\times5$
+Gaussian filter and a $5\times5$ median filter. Fig.~\ref{fig:sweep-all} shows the three
 PSNR curves and the restoration gain $\Delta$ on vessel pixels, and
 Table~\ref{tab:restoration} summarises $\Delta$ over the sweep.
 
@@ -201,20 +204,22 @@ Table~\ref{tab:restoration} summarises $\Delta$ over the sweep.
 \centering
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{Restoration gain $\Delta$ (dB, Eq.~\ref{eq:delta}) from the weakest to the strongest degradation level, and share of images restored ($\Delta > 0$, full image). $95\%$ confidence intervals are narrower than $0.5$~dB.}
+\caption{Restoration gain $\Delta$ (dB, Eq.~\ref{eq:delta}) from the weakest to the strongest degradation level, and share of images restored ($\Delta > 0$, full image), for MedVAE and, on Poisson noise, for two simple filters. $95\%$ confidence intervals are at most $0.53$~dB wide for MedVAE.}
 \label{tab:restoration}
 \begin{tabular}{@{}lrrr@{}}
 \toprule
 Degradation & $\Delta$ full image & $\Delta$ vessels & Restored \\
 \midrule
 Poisson noise & $+1.2 \rightarrow +6.6$ & $+0.9 \rightarrow +6.8$ & $99$--$100\%$ \\
-JPEG ($95 \rightarrow 5$) & $-11.7 \rightarrow -0.6$ & $-11.3 \rightarrow -0.1$ & $0$--$9\%$ \\
+\quad Gaussian filter $5\times5$ & $+6.3 \rightarrow +10.3$ & $+7.1 \rightarrow +10.9$ & $100\%$ \\
+\quad Median filter $5\times5$ & $+7.2 \rightarrow +10.0$ & $+5.7 \rightarrow +10.3$ & $100\%$ \\
+JPEG ($95 \rightarrow 5$) & $-11.7 \rightarrow -0.5$ & $-11.3 \rightarrow -0.1$ & $0$--$9\%$ \\
 Blur (kernel $5 \rightarrow 31$) & $-2.0 \rightarrow +0.1$ & $-2.8 \rightarrow -0.2$ & $3$--$82\%$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Poisson Noise: Genuine Denoising}
+\subsubsection{Poisson Noise: Reduced, Less Than by a Simple Filter}
 \label{sec:poisson}
 
 Poisson noise adds decorrelated high frequencies, precisely what the
@@ -222,10 +227,13 @@ latent bottleneck cannot represent, so MedVAE suppresses
 it~\cite{vincent2008denoising}. The reconstruction is closer to the
 clean image than the noisy input for $99$ to $100\%$ of the images at
 every level, and the gain grows with the noise, from $+1.2$~dB at the
-weakest level to $+6.6$~dB ($+6.8$~dB on vessels) at the strongest. The
-denoising is therefore real and directional. It remains bounded by the
-reconstruction ceiling: even for mild noise, the output ($28$~dB) stays
-well below the reconstruction of the clean image ($33$~dB).
+weakest level to $+6.6$~dB ($+6.8$~dB on vessels) at the strongest. This
+noise reduction is, however, modest: a $5\times5$ Gaussian filter gains
+$+6.3$ to $+10.3$~dB on the same images and a $5\times5$ median filter
+$+7.2$ to $+10.0$~dB, 4 to 5~dB more than MedVAE at every level. MedVAE's
+gain is bounded by its own reconstruction error: even for mild noise,
+the output ($28$~dB) stays well below the reconstruction of the clean
+image ($33$~dB).
 
 \subsubsection{JPEG Compression: No Restoration}
 \label{sec:jpeg}
@@ -233,7 +241,7 @@ well below the reconstruction of the clean image ($33$~dB).
 JPEG artefacts are small in PSNR terms (the input is at $44.7$~dB of
 the clean image at quality $95$), far below MedVAE's own reconstruction
 error. Passing the image through MedVAE therefore always moves it away
-from the clean image, by $11.7$~dB at quality $95$ and $0.6$~dB at
+from the clean image, by $11.7$~dB at quality $95$ and $0.5$~dB at
 quality $5$. The earlier observation of a ``two-regime'' response
 concerned the fidelity to the degraded input and does not translate
 into any restoration.
@@ -246,18 +254,19 @@ reconstruction simply follows the blurred input: $\Delta$ is negative
 for mild blur (the reconstruction error adds to the blur) and close to
 zero for strong blur on the full image, while it remains slightly
 negative on vessels. The earlier finding that ``blurred inputs
-reconstruct better'' (fidelity rising from $28.9$ to $39.2$~dB) is
-visible in the orange curve of Fig.~\ref{fig:sweep-all}: it measures
+reconstruct better'' is visible in the orange curve of
+Fig.~\ref{fig:sweep-all} (fidelity to the blurred input rising from
+$33.1$ to $47.7$~dB on vessels): it measures
 how easy a blurred image is to reproduce, not how well MedVAE recovers
 the clean one, which is the opposite trend (blue curve).
 
 \subsection{Discussion and Perspectives}
 \label{sec:discussion}
 
-MedVAE acts as a low-pass, denoising autoencoder: it rejects stochastic
-high frequencies (Poisson noise), but it cannot recover information
-removed by blur, and its own reconstruction error exceeds the mild
-artefacts of JPEG compression. Beyond the degradation itself, the
+MedVAE acts as a low-pass autoencoder: it attenuates stochastic high
+frequencies (Poisson noise), though less than a simple $5\times5$
+filter, it cannot recover information removed by blur, and its own
+reconstruction error exceeds the mild artefacts of JPEG compression. Beyond the degradation itself, the
 $33$~dB reconstruction ceiling is the main limit of any restoration
 through MedVAE on this out-of-distribution modality.
 
@@ -268,13 +277,11 @@ as these pathologies constitute fine structures particularly sensitive
 to smoothing; measuring segmentation quality on degraded images
 shows that MedVAE's denoising does not make segmentation more robust
 (Section~\ref{sec:segmentation}).
-Furthermore, the exploration of the latent space (Section~\ref{sec:jepa})
-suggests that MedVAE largely encodes luminosity and contrast gradients:
-evaluating its robustness to alterations of the grey-level dynamic range
-(gamma variations, underexposure) is a natural next step. Finally, the
-protocol would benefit from integrating motion blur, induced by cardiac
-and respiratory dynamics~\cite{topol1995luminology}, whose spectral
-signature is far more complex than the isotropic blur modelled here.
+Furthermore, evaluating robustness to alterations of the grey-level
+dynamic range (gamma variations, underexposure) is a natural next step.
+Finally, the protocol would benefit from integrating motion blur,
+induced by cardiac and respiratory dynamics, whose spectral signature is
+far more complex than the isotropic blur modelled here.
 
 \newpage
 \section{Image-quality inductive bias for MedVAE}
@@ -821,7 +828,7 @@ Ultimately, the value of such a foundation model can only be established by eval
 
 \section{Conclusion}
 
-Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE genuinely removes Poisson noise, the more so as the noise is strong, but restores neither JPEG artefacts nor blur; yet this denoising does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, and the single-channel latent, with a head that has convolutions at its resolution, reaches more than $90\,\%$ of the full-image Dice.
+Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE reduces Poisson noise, though 4 to 5~dB less than a simple $5\times5$ filter, and restores neither JPEG artefacts nor blur; this noise reduction does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, and the single-channel latent, with a head that has convolutions at its resolution, reaches more than $90\,\%$ of the full-image Dice.
 
 Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful, reusable in pixel space and, to a large extent, directly in its latent space; the attempts to make it acquisition-aware or semantically richer did not help in the forms we tested. Several conclusions of the first version of this study were reversed once measurement and training issues were corrected, which underlines how much such conclusions depend on the protocol: a metric comparing to the right reference, identical training for the compared models, several seeds, and an evaluation on the layer that is actually trained. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging, coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata.
 

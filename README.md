@@ -34,7 +34,7 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 
 MedVAE's ×16 compression keeps what coronary segmentation needs: in pixel space (segmenting
 reconstructions matches the original images) and in its single-channel latent, which reaches 91–94 %
-of the full-image Dice with an adequate head. MedVAE genuinely removes Poisson noise, but this does not
+of the full-image Dice with an adequate head. MedVAE reduces Poisson noise (less than a simple filter), but this does not
 make segmentation more robust; conditioning it on a quality score or adapting its encoder with JEPA
 brings no gain. Several conclusions of the original study were overturned once measurement and training
 issues were fixed: every change and its before/after results are logged in [EXPERIMENTS.md](EXPERIMENTS.md).
@@ -54,19 +54,23 @@ For each image and degradation level we compare the reconstruction **to the clea
 | Degradation | Δ PSNR (weakest → strongest) | Images restored |
 |---|---|---|
 | Poisson noise | **+1.2 → +6.6 dB** | 99–100 % |
-| JPEG (quality 95 → 5) | −11.7 → −0.6 dB | 0–9 % |
+| *Poisson noise, simple 5×5 Gaussian filter (reference)* | *+6.3 → +10.3 dB* | *100 %* |
+| *Poisson noise, simple 5×5 median filter (reference)* | *+7.2 → +10.0 dB* | *100 %* |
+| JPEG (quality 95 → 5) | −11.7 → −0.5 dB | 0–9 % |
 | Gaussian blur (kernel 5 → 31) | −2.0 → +0.1 dB (vessels: −2.8 → −0.2) | — |
 
 ![Robustness](experiments/robustness/e11_sweep/robustness_full_image.png)
 
-**Conclusion:** MedVAE is a genuine **denoiser** for Poisson noise (the stronger the noise, the larger
-the gain), but it does **not** restore JPEG artefacts (its own 33 dB reconstruction error exceeds them)
-or blur (the reconstruction simply follows the blurred input). The original study's "blurred inputs
+**Conclusion:** MedVAE **reduces** Poisson noise (the stronger the noise, the larger the gain), but
+4 to 5 dB **less than a simple 5×5 filter**: its gain is bounded by its own reconstruction error
+(33 dB). It does **not** restore JPEG artefacts (its reconstruction error exceeds them) or blur (the
+reconstruction simply follows the blurred input). The original study's "blurred inputs
 reconstruct better" measured fidelity to the *degraded* input, which a blurred image trivially helps.
 
 ```bash
 python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
 python medvae_eval/robustness/analyze.py                            # summary table + figures with CIs
+python medvae_eval/robustness/baselines.py                          # simple-filter references
 ```
 
 The original scripts (fidelity to the degraded input, per-image min-max scaling) are kept in
