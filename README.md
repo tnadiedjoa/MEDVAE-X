@@ -131,28 +131,33 @@ the target features of masked patches (Smooth-L1 + SIGReg), with the decoder fro
 recipe on ARCADE, **stage 1** trains an autoencoder of the MedVAE family from scratch (21M parameters,
 ×8 per side, 64×64×1 latent; test images excluded), and **stage 2** adapts its encoder with JEPA.
 
-Evaluation on the 300 test images, on the layer JEPA trains (features before `conv_out`) — experiment
-E14 in [EXPERIMENTS.md](EXPERIMENTS.md):
+Evaluation on the 300 test images, on the layer JEPA trains (features before `conv_out`), over three
+pre-trainings of each stage — experiment E19 in [EXPERIMENTS.md](EXPERIMENTS.md):
 
 | | MedVAE (released, ×4) | Stage 1 (×8, from scratch) | Stage 2 JEPA |
 |---|---|---|---|
-| Reconstruction PSNR (dB) | 34.8 | 30.2 | 17.8 |
-| Vessel linear probe (Dice, 3 seeds) | 0.517 ± 0.005 | **0.541 ± 0.005** | 0.485 ± 0.006 |
-| Effective rank of the features | 251 / 512 | 111 / 256 | 139 / 256 |
+| Reconstruction PSNR (dB) | 34.8 | 31.1 | 18.6 |
+| Vessel linear probe (Dice) | 0.517 ± 0.005 | **0.561 ± 0.006** | 0.536 ± 0.011 |
+| Effective rank of the features | 251 / 512 | 147 / 256 | 156 / 256 |
 
-**Conclusion:** learning on coronary angiographies helps (stage 1 separates vessels better than the
-released MedVAE), but the JEPA stage **degrades** both the representation (−0.056 on the probe) and,
-with a frozen decoder, the reconstruction. It does not compact the latent either: on the trained layer
-the effective rank *increases* (as SIGReg intends). The original analysis had measured a layer that is
-never trained (`channel_proj`) and included the test images in pre-training.
+**Conclusion:** the JEPA stage **lowers** the linear separability of the vessels relative to the stage-1
+encoder it starts from (−0.025 on the probe, for each of the three pre-trainings) and, with a frozen
+decoder, collapses the reconstruction; the adapted encoder ends level with the released MedVAE. It does
+not compact the latent either (no consistent change of the effective rank). The most separable
+features are those of stage 1, before JEPA; stage 1 and MedVAE differ in architecture, compression and
+data, so that gap is not attributed to any single factor. The original analysis had measured a layer
+that is never trained (`channel_proj`) and included the test images in pre-training.
 
 ```bash
-sbatch jepa_adaptation/jobs/stage_1.sbatch                 # stage 1 (reconstruction)
-sbatch jepa_adaptation/jobs/stage_2.sbatch                 # stage 2 (JEPA), from stage 1's best.pt
-python jepa_adaptation/eval/probe.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt \
-    --task vessels --epochs 100 --lr 1e-2                  # linear probe (also: medvae, stage1)
-python jepa_adaptation/eval/reconstruction.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
-python jepa_adaptation/eval/feature_rank.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
+# one pre-training (E19 uses seeds 42, 43, 44); runs go to experiments/runs/<date>_<name>/
+python jepa_adaptation/stage1_training.py --seed 42 --run-name e19_jepa_stage1_seed42
+S1=$(ls -d experiments/runs/*_e19_jepa_stage1_seed42 | tail -1)/best.pt
+python jepa_adaptation/stage2_training.py --seed 42 --stage1-ckpt $S1 --run-name e19_jepa_stage2_seed42
+S2=$(ls -d experiments/runs/*_e19_jepa_stage2_seed42 | tail -1)/best.pt
+# linear probe (also: --model medvae / stage1); lr 1e-3 or 1e-2, chosen on val_dice_fg
+python jepa_adaptation/eval/probe.py --model stage2 --ckpt $S2 --task vessels --epochs 100 --lr 1e-2
+python jepa_adaptation/eval/reconstruction.py --model stage2 --ckpt $S2
+python jepa_adaptation/eval/feature_rank.py --model stage2 --ckpt $S2
 ```
 
 ---
