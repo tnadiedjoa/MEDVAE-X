@@ -138,7 +138,7 @@ initial `η_max` (le `learning_rate` de la config) jusqu'à un plancher `η_min`
 
 ---
 
-## 2. Les quatre conditions
+## 2. Les conditions
 
 Le rappel spatial MedVAE est essentiel ici : **`medvae_4_1_2d` compresse 4× par
 dimension spatiale** (et non 16×). Image `512×512` → latent **`128×128×1`** ; pour
@@ -220,6 +220,16 @@ Pas un entraînement : on prend le **U-Net de la condition A** (entraîné sur i
 **décalage de domaine** (domain shift) : un réseau entraîné en pleine résolution
 encaisse-t-il la dégradation au test ? À comparer avec D, où le réseau a été
 *entraîné* sur les images reconstruites.
+
+### Témoins R et A↓↑ — compression triviale au même taux (E16)
+
+- **R** ([`configs/condition_r.yaml`](configs/condition_r.yaml), `slurm/train_r.sbatch`) : la tête
+  de B, même architecture et même entraînement, appliquée à l'image moyennée sur des blocs 4×4
+  (128×128×1, autant de valeurs que le latent). **B vs R** dit si le latent MedVAE apporte plus
+  qu'une réduction triviale.
+- **A↓↑** ([`eval_resampled.py`](eval_resampled.py)) : le U-Net de A, sans réentraînement, sur
+  l'image réduite à 128×128 puis ré-agrandie à 512×512 (bilinéaire ou bicubique). **A* vs A↓↑**
+  dit si la reconstruction MedVAE préserve plus qu'un rééchantillonnage.
 
 ### Garde-fous communs au gel du MedVAE
 

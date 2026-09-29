@@ -32,9 +32,10 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 
 ### Key takeaway
 
-MedVAE's ×16 compression (in number of values) keeps what coronary segmentation needs: in pixel space (segmenting
-reconstructions matches the original images) and in its single-channel latent, which reaches 91–94 %
-of the full-image Dice with an adequate head. MedVAE reduces Poisson noise (less than a simple filter), but this does not
+MedVAE's ×16 compression (in number of values) keeps what coronary segmentation needs in pixel space:
+segmenting reconstructions matches the original images, unlike a naive downsampling of the same rate. Its
+single-channel latent reaches 96 % of the full-image Dice with an adequate head, but so does an image
+downsampled to the same size. MedVAE reduces Poisson noise (less than a simple filter), but this does not
 make segmentation more robust; conditioning it on a quality score or adapting its encoder with JEPA
 brings no gain. Several conclusions of the original study were overturned once measurement and training
 issues were fixed: every change and its before/after results are logged in [EXPERIMENTS.md](EXPERIMENTS.md).
@@ -174,34 +175,43 @@ We test whether MedVAE's latent can drive **26-class coronary segmentation** on 
 | **B** | Frozen pre-trained MedVAE encoder + U-Net head at the latent resolution | Is the 128×128×1 latent enough? |
 | **C** | Same as B, MedVAE first fine-tuned on ARCADE | Does domain fine-tuning help? |
 | **D** | Frozen MedVAE (encode→decode) + U-Net trained on reconstructions | Does adapting to artefacts help? |
+| **R** | Head of B on the image average-pooled to 128×128 (control, E16) | Does the latent beat a trivial compression? |
+| **A↓↑** | U-Net of A on the image downsampled to 128×128 and upsampled back (control, E16) | Does MedVAE beat naive resampling? |
 
 ![Conditions](final_report/figures/theo/conditions.png)
 
 Trained on the 1000 `seg_train` images, selected on the official `seg_val` (200), evaluated on the
-official test set (300), 3 seeds per condition (experiment E10 in [EXPERIMENTS.md](EXPERIMENTS.md)).
+official test set (300), 3 seeds per condition (experiments E16 and E17 in [EXPERIMENTS.md](EXPERIMENTS.md)).
 Artery Dice / IoU = mean over the artery segments (background excluded).
 
 | Condition | Artery Dice | Artery IoU | Dice incl. background |
 |---|---|---|---|
-| A | 0.430 ± 0.005 | 0.308 ± 0.002 | 0.452 |
-| A\* (seed 42) | 0.425 | 0.303 | 0.448 |
-| B | 0.393 ± 0.008 | 0.277 ± 0.005 | 0.417 |
-| C | 0.403 ± 0.002 | 0.285 ± 0.002 | 0.427 |
-| D | 0.432 ± 0.004 | 0.311 ± 0.003 | 0.455 |
+| A | 0.428 ± 0.008 | 0.309 ± 0.006 | 0.450 |
+| A\* | 0.424 ± 0.008 | 0.305 ± 0.006 | 0.447 |
+| B | 0.412 ± 0.005 | 0.292 ± 0.004 | 0.435 |
+| C | 0.410 ± 0.009 | 0.291 ± 0.008 | 0.434 |
+| D | 0.427 ± 0.009 | 0.309 ± 0.005 | 0.450 |
+| R (control) | 0.405 ± 0.002 | 0.288 ± 0.003 | 0.429 |
+| A↓↑ (control) | 0.389 ± 0.018 | 0.275 ± 0.014 | 0.413 |
 
 ![Segmentation results](final_report/figures/theo/seg_results.png)
 
-**Conclusion:** the ×16 compression (in number of values) preserves what segmentation needs. In pixel space,
-compression alone costs almost nothing (A\* ≈ A) and training on reconstructions matches the baseline
-(D ≈ A). The single-channel **latent is directly usable**: with a U-Net head at the latent resolution,
-B and C reach 91–94 % of A's Dice. The original study concluded the opposite (latent Dice 0.04); that
-collapse came from a too-low learning rate and a head without spatial context (E03, E04).
+**Conclusion:** in pixel space, the ×16 compression (in number of values) preserves what segmentation
+needs: compression alone costs almost nothing (A\* ≈ A, −0.004), whereas a naive downsampling of the same
+rate costs −0.039 (A↓↑), and training on reconstructions matches the baseline (D ≈ A, 0.000). The
+single-channel **latent is directly usable**: with a U-Net head at the latent resolution, B and C reach
+96 % of A's Dice. But the same head trained on the image average-pooled to 128×128 (R) does almost as well
+(B − R = +0.006, not established): for this task the latent is not better than a trivial compression of
+the same size. Fine-tuning MedVAE on ARCADE has no effect (C − B = −0.001). The original study concluded
+that the latent was unusable (Dice 0.04); that collapse came from a too-low learning rate and a head
+without spatial context (E03, E04).
 
-**Degraded images (E12, E15).** MedVAE's denoising does not make segmentation more robust: on noisy test
-images, A\* (MedVAE then the U-Net of A) is no better than A, and D behaves like A. Robustness comes from
-training instead: adding realistic degradations (Poisson noise, JPEG, blur) to A's augmentation raises
-the artery Dice under the strongest blur from 0.15 to 0.37 and under the strongest JPEG from 0.05 to 0.29,
-for −0.007 on clean images (option `data.degradation_aug_p`, not enabled by default). These are the same
+**Degraded images (E12, E15, E17).** MedVAE's denoising does not make segmentation more robust: on noisy
+test images, A\* (MedVAE then the U-Net of A) is no better than A, and D behaves like A. Robustness comes
+from training instead: adding realistic degradations (Poisson noise, JPEG, blur) to A's augmentation
+raises the artery Dice under the strongest Poisson noise from 0.02 to 0.23, JPEG from 0.03 to 0.25 and
+blur from 0.21 to 0.35, at no cost on clean images (+0.010; option `data.degradation_aug_p`, not enabled
+by default). These are the same
 degradation families and ranges as in the evaluation: this is robustness to degradations seen in training.
 
 ![Robustness of segmentation](final_report/figures/theo/seg_robustness.png)
@@ -212,12 +222,13 @@ degradation families and ranges as in the evaluation: this is robustness to degr
 # (condition C only) fine-tune MedVAE on ARCADE first; prints the command to launch C
 python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml
 
-# train a condition (a | b | c | d); every run gets its folder in experiments/runs/
+# train a condition (a | b | c | d | r); every run gets its folder in experiments/runs/
 python -m finetune.train --config finetune/configs/condition_a.yaml --set experiment.seed=43 \
-  --run-name e10_seed43_condition_a
+  --run-name e17_seed43_condition_a
 
-# summarise seeds, report figures
-python scripts/summarize_runs.py "A=*_e10_seed4?_condition_a" "D=*_e10_seed4?_condition_d" --ref A
+# summarise seeds (val_dice = decision metric), pixel control of A*, report figures
+python scripts/summarize_runs.py "A=*_e17_seed4?_condition_a" "D=*_e17_seed4?_condition_d" --ref A
+python finetune/eval_resampled.py --run-a experiments/runs/*_e17_seed4?_condition_a
 python -m finetune.figures_report
 ```
 
