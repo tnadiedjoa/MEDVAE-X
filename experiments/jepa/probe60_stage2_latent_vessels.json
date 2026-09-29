@@ -1,0 +1,52 @@
+{
+  "model": "stage2",
+  "ckpt": "jepa_adaptation/outputs/stage2/best.pt",
+  "representation": "latent",
+  "task": "vessels",
+  "epochs": 60,
+  "lr": 0.001,
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 5,
+      "val_dice_fg": 0.10254433751106262,
+      "dice_mean": 0.44884294271469116,
+      "dice_fg_mean": 0.08942847698926926,
+      "iou_fg_mean": 0.046807192265987396
+    },
+    {
+      "seed": 43,
+      "best_epoch": 1,
+      "val_dice_fg": 0.0004156141367275268,
+      "dice_mean": 0.4914890229701996,
+      "dice_fg_mean": 0.0,
+      "iou_fg_mean": 0.0
+    },
+    {
+      "seed": 44,
+      "best_epoch": 1,
+      "val_dice_fg": 0.0,
+      "dice_mean": 0.49150848388671875,
+      "dice_fg_mean": 0.0,
+      "iou_fg_mean": 0.0
+    }
+  ],
+  "mean_std": {
+    "dice_mean": [
+      0.4772801498572032,
+      0.024627345720386103
+    ],
+    "dice_fg_mean": [
+      0.02980949232975642,
+      0.051631555262972854
+    ],
+    "iou_fg_mean": [
+      0.015602397421995798,
+      0.027024145054778393
+    ],
+    "val_dice_fg": [
+      0.034319983882596716,
+      0.059084388841674065
+    ]
+  }
+}
