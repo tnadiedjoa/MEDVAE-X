@@ -1,0 +1,13 @@
+{
+  "run": "2026-09-29_174404_e17_seed42_condition_a",
+  "date": "2026-09-29T17:44:04",
+  "git_commit": "4b6cf64f444439e124f598eb06242dfb164b8814",
+  "git_dirty": false,
+  "overrides": [
+    "experiment.seed=42"
+  ],
+  "host": "nodemm01",
+  "slurm_job_id": "1013632",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}
