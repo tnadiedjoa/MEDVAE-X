@@ -1,0 +1,52 @@
+{
+  "model": "stage2",
+  "ckpt": "experiments/runs/2026-09-29_181243_e19_jepa_stage2_seed44/best.pt",
+  "representation": "penultimate",
+  "task": "vessels",
+  "epochs": 100,
+  "lr": 0.01,
+  "runs": [
+    {
+      "seed": 42,
+      "best_epoch": 50,
+      "val_dice_fg": 0.5642576813697815,
+      "dice_mean": 0.7557791471481323,
+      "dice_fg_mean": 0.528624415397644,
+      "iou_fg_mean": 0.3592722713947296
+    },
+    {
+      "seed": 43,
+      "best_epoch": 67,
+      "val_dice_fg": 0.5636096596717834,
+      "dice_mean": 0.7534332275390625,
+      "dice_fg_mean": 0.5238342881202698,
+      "iou_fg_mean": 0.35486143827438354
+    },
+    {
+      "seed": 44,
+      "best_epoch": 47,
+      "val_dice_fg": 0.5602550506591797,
+      "dice_mean": 0.7521826028823853,
+      "dice_fg_mean": 0.5202975869178772,
+      "iou_fg_mean": 0.3516231179237366
+    }
+  ],
+  "mean_std": {
+    "dice_mean": [
+      0.7537983258565267,
+      0.0018258574013133998
+    ],
+    "dice_fg_mean": [
+      0.5242520968119303,
+      0.004179107704999285
+    ],
+    "iou_fg_mean": [
+      0.35525227586428326,
+      0.003839525064634971
+    ],
+    "val_dice_fg": [
+      0.5627074639002482,
+      0.0021484252509676076
+    ]
+  }
+}

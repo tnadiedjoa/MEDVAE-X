@@ -1,0 +1,11 @@
+{
+  "run": "2026-09-29_174442_e19_jepa_stage2_seed43",
+  "date": "2026-09-29T17:44:42",
+  "git_commit": "4b6cf64f444439e124f598eb06242dfb164b8814",
+  "git_dirty": false,
+  "overrides": [],
+  "host": "nodemm01",
+  "slurm_job_id": "1013939",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.14.0+cu130"
+}

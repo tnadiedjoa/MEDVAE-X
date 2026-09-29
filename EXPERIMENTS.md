@@ -21,9 +21,10 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E11 | A | Robustesse mesurée par rapport à l'image propre | réduit le Poisson (+1.2 à +6.6 dB, un filtre 5×5 fait +6.3 à +10.3), ne restaure ni JPEG ni flou | refait |
 | E12 | A | Segmentation d'images dégradées (A, A*, D) | le débruitage MedVAE n'aide pas (A* ≤ A) ; E07 a coûté la robustesse de A | mesuré |
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; score C inutilisable (quasi constant à l'entraînement) | refait |
-| E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait |
+| E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait, précisé par E19 |
 | E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option, à trancher |
 | E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
+| E19 | C | JEPA sur 3 pré-entraînements (bruit et seeds corrigés, lr du probe choisi sur la validation) | JEPA baisse le probe de son étape 1 (−0.025, 3 seeds sur 3) ; étape 2 ≈ MedVAE (+0.019, non établi) ; rang : pas d'effet net | remplace E14 |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
 A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
@@ -548,15 +549,17 @@ dimensionnalité de cette couche (`eval/feature_rank.py`). Résultats : `experim
 | Composantes pour 90 % de la variance | 61 | 22 | 34 |
 
 - **Le probe doit converger** : à 20 epochs (lr 1e-3), les scores étaient 0.39 / 0.43 / 0.39 et
-  le meilleur epoch était le dernier ; à 60 epochs 0.45 / 0.50 / 0.45 ; le classement est le
-  même dans les trois réglages. Le probe sur les 26 segments (Dice ~0.03) et sur le latent à
+  le meilleur epoch était le dernier ; à 60 epochs 0.45 / 0.50 / 0.45. *(Correction, cf. E19 :
+  j'avais écrit « le classement est le même dans les trois réglages » ; c'est faux, l'étape 2
+  égale MedVAE à 20 et 60 epochs.)* Le probe sur les 26 segments (Dice ~0.03) et sur le latent à
   1 canal (~0.03) ne distinguent rien : un classifieur linéaire par pixel ne peut pas nommer un
   segment, ni séparer les vaisseaux avec un seul canal.
 - **JEPA dégrade la représentation qu'il part améliorer** : −0.056 de Dice par rapport à
-  l'étape 1, et en dessous du MedVAE d'origine ; la reconstruction s'effondre (décodeur figé).
+  l'étape 1, et en dessous du MedVAE d'origine *(sur un seul pré-entraînement ; E19, sur 3,
+  confirme la baisse par rapport à l'étape 1 mais pas l'écart à MedVAE)* ; la reconstruction s'effondre (décodeur figé).
 - **Pas de contraction dimensionnelle** : sur la couche entraînée, JEPA *augmente* le rang
   effectif (111 → 139) et le nombre de composantes (22 → 34), ce qui est l'effet attendu de la
-  régularisation SIGReg. La conclusion d'origine (« latent plus compact et plus discriminant »)
+  régularisation SIGReg *(hausse non reproductible sur 3 pré-entraînements, cf. E19)*. La conclusion d'origine (« latent plus compact et plus discriminant »)
   n'est pas confirmée.
 
 ## E15 — Augmentation par dégradations réalistes (2026-09-29)
@@ -632,3 +635,64 @@ avec B)
   l'entraînement) ; A et B le sont, à peine.
 - La baseline de E18 reproduit celle de E13 (42.258 contre 42.261 dB). Comme en E13, le
   meilleur pas est le dernier (3000) pour 8 runs sur 9 : les conclusions valent pour ce budget.
+
+## E19 — JEPA sur 3 pré-entraînements (2026-09-29)
+
+**Pourquoi** : les conclusions de E14 reposaient sur un seul pré-entraînement par étape, et
+l'audit relève deux erreurs de ma part dans leur rédaction : le classement du probe n'était
+**pas** le même dans les trois réglages (à 20 et 60 epochs, l'étape 2 égalait ou dépassait
+MedVAE : 0.393 contre 0.391 à 20 epochs, 0.454 contre 0.452 à 60), et le réglage du probe avait été choisi en
+regardant le test. S'y ajoutaient deux défauts du pipeline : le bruit gaussien d'augmentation
+de `jepa_adaptation` utilisait la valeur par défaut d'albumentations 2 (écart-type 0.2-0.44 sur
+[0, 1], bien plus fort que voulu), et, comme pour la segmentation, les augmentations se
+répétaient d'un worker et d'un epoch à l'autre ; enfin la validation de l'étape 2 (qui choisit
+`best.pt`) tirait des masques aléatoires différents à chaque appel.
+**Modification** (commit `4b6cf64`) : bruit ramené à l'écart-type voulu (0.012-0.028), graine
+des augmentations par worker, masques de validation tirés avec un générateur fixe, options
+`--seed` et `--run-name` (runs traçables dans `experiments/runs/`).
+**Protocole** : étape 1 puis étape 2 (15 epochs chacune, comme E14) pour les seeds 42, 43 et 44,
+depuis le worktree figé ; puis, pour chaque modèle, linear probe vaisseaux / fond (100 epochs,
+lr 1e-3 et 1e-2, 3 seeds de probe), reconstruction et rang effectif sur les 300 images de test.
+**Le lr du probe est choisi sur la validation** (seg_val) : 1e-2 pour les trois modèles.
+MedVAE, pré-entraîné et fixe, n'a qu'un modèle (3 seeds de probe).
+**Runs** : `experiments/runs/2026-09-29_*_e19_jepa_stage{1,2}_seed4?` (tous propres) ;
+résultats `experiments/jepa/e19/`.
+
+| Test (moyenne ± écart-type sur 3 pré-entraînements) | MedVAE (×4, pré-entraîné) | Étape 1 (×8, de zéro) | Étape 2 JEPA |
+|---|---|---|---|
+| Linear probe vaisseaux, Dice (lr 1e-2) | 0.517 ± 0.005 (seeds de probe) | **0.561 ± 0.006** | 0.536 ± 0.011 |
+| IoU vaisseaux | 0.349 | **0.390** | 0.366 |
+| Dice de validation du probe | 0.570 | **0.604** | 0.569 |
+| Reconstruction : PSNR / vaisseaux (dB) | 34.8 / 35.5 | 31.1 / 31.7 | **18.6** / 22.9 |
+| Rang effectif des features (canaux) | 251 (512) | 147 (152 / 153 / 136) | 156 (157 / 150 / 161) |
+| Composantes pour 90 % de la variance | 61 | 46 (51 / 53 / 35) | 50 (50 / 44 / 55) |
+
+| Écart apparié par pré-entraînement (Dice du probe, test) | Moyenne | IC 95 % (seeds) | Par seed |
+|---|---|---|---|
+| Étape 2 − étape 1 | **−0.025** | [−0.045, −0.005] | −0.019 / −0.022 / −0.034 |
+| Étape 1 − MedVAE | +0.044 | [+0.029, +0.058] | +0.039 / +0.050 / +0.041 |
+| Étape 2 − MedVAE | +0.019 | [−0.008, +0.045] | +0.021 / +0.028 / +0.007 |
+
+(avec lr 1e-3 : étape 2 − étape 1 = −0.030, 3 seeds sur 3 ; même sens sur la validation :
+−0.035 [−0.056, −0.014])
+
+**Conclusions**
+
+- **JEPA baisse la qualité de la représentation qu'il part améliorer** : −0.025 de Dice du probe
+  par rapport à l'étape 1 dont il part, pour les 3 pré-entraînements, sur le test comme sur la
+  validation. Le sens de E14 est confirmé, l'ampleur est deux fois plus faible (−0.056 en E14).
+- **L'étape 2 n'est pas en dessous de MedVAE** (+0.019, IC contenant 0) : la phrase de E14
+  « en dessous du MedVAE d'origine » est retirée.
+- L'étape 1 dépasse MedVAE (+0.044), mais les deux modèles diffèrent par l'architecture
+  (256 contre 512 canaux), le taux de compression (×8 contre ×4 par côté) et les données
+  (ARCADE contre radiographies et mammographies) : cet écart ne dit rien de JEPA et on ne
+  l'attribue à aucun de ces facteurs.
+- **Rang effectif : pas d'effet net de JEPA** (+9, IC [−27, +45], 2 seeds sur 3 en hausse). La
+  hausse 111 → 139 de E14 ne se retrouve pas de façon reproductible ; ce qui tient, c'est
+  l'absence de contraction dimensionnelle.
+- La reconstruction s'effondre à l'étape 2 (31.1 → 18.6 dB) pour les 3 seeds : le décodeur,
+  figé, ne suit pas l'encodeur modifié par JEPA.
+- Les niveaux ont changé depuis E14 (étape 1 : 0.541 → 0.561, rang 111 → 147 ; étape 2 :
+  0.485 → 0.536). Entre les deux, le bruit d'augmentation, la graine des workers, la validation
+  de l'étape 2 et les seeds ont changé en même temps : on n'attribue pas ces écarts à l'une de
+  ces causes. E19 remplace E14 pour les chiffres de l'axe C.
