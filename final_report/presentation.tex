@@ -101,7 +101,7 @@
 % Figures available in figures/elias/ :
 %   degradation_visual.png, pipeline_corrected.pdf, mpsnr.pdf, robustness_corrected.png,
 %   179_clean.png, 179_clean_ov.png, 179_deg_ov.png, 179_poisson.png,
-%   metrics_by_level_all_masked.pdf,
+
 %   metrics_by_level_masked_blur_NEW.png,
 %   metrics_by_level_masked_jpeg_NEW.png,
 %   metrics_by_level_masked_poisson_NEW.png
@@ -468,7 +468,7 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 \small
 \begin{itemize}
   \item MedVAE's noise reduction does \alert{not} help: A* $\leq$ A under Poisson noise, D $\approx$ A
-  \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest blur 0.15 $\to$ 0.37, JPEG 0.05 $\to$ 0.29, for $-0.007$ on clean images
+  \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest blur 0.15 $\to$ 0.37, JPEG 0.05 $\to$ 0.29, for $-0.007$ on clean images (same degradations as in training)
 \end{itemize}
 \end{frame}
 

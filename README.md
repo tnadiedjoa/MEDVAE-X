@@ -195,7 +195,8 @@ collapse came from a too-low learning rate and a head without spatial context (E
 images, A\* (MedVAE then the U-Net of A) is no better than A, and D behaves like A. Robustness comes from
 training instead: adding realistic degradations (Poisson noise, JPEG, blur) to A's augmentation raises
 the artery Dice under the strongest blur from 0.15 to 0.37 and under the strongest JPEG from 0.05 to 0.29,
-for −0.007 on clean images (option `data.degradation_aug_p`, not enabled by default).
+for −0.007 on clean images (option `data.degradation_aug_p`, not enabled by default). These are the same
+degradation families and ranges as in the evaluation: this is robustness to degradations seen in training.
 
 ![Robustness of segmentation](final_report/figures/theo/seg_robustness.png)
 
