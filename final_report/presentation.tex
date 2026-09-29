@@ -256,25 +256,24 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \begin{columns}[T]
   \begin{column}{0.5\textwidth}
   \centering\footnotesize
-  \begin{tabular}{@{}lc@{}}
+  \begin{tabular}{@{}lcc@{}}
   \toprule
-  Paired difference (PSNR) & dB \\
+  PSNR (dB), 3 seeds & true $-$ shuffled $c$ & FiLM $-$ base \\
   \midrule
-  true $c$ $-$ shuffled $c$ & $+0.002$ \\
-  true $c$ $-$ constant $c$ & $-0.013$ \\
-  \midrule
-  \multicolumn{2}{@{}l}{\emph{Checks (seed 42)}} \\
-  Score C, FiLM lr $\times100$: true $-$ constant & $-0.001$ \\
-  Score A: true $-$ shuffled & $+0.009$ \\
-  Score B: true $-$ shuffled & $+0.037$ \\
+  Score C & $+0.002$ & $+0.03$ \\
+  Score A & $+0.007^{*}$ & $+0.04$ \\
+  Score B & $+0.033^{*}$ & $+0.05$ \\
   \bottomrule
   \end{tabular}
+
+  \vspace{0.3em}
+  \tiny $^{*}$ CI excluding 0, same sign for every seed; FiLM $-$ baseline: CI over seeds includes 0
   \end{column}
   \begin{column}{0.5\textwidth}
   \footnotesize
   \begin{itemize}
-    \item \textbf{Score C: no}. Another image's score, or a constant, does as well
-    \item \textbf{Scores A, B: barely} ($\leq 0.04$ dB)
+    \item \textbf{Score C: no} --- it barely varies in training (79\,\% above 0.9)
+    \item \textbf{Scores A, B: yes, but barely} ($\leq 0.03$ dB)
     \item FiLM gains come from the added parameters, not from the quality information
     \item $c$ is computed \emph{from the image}: for an autoencoder of that image, it carries nothing new
     \item \alert{The earlier ``only C is exploited''} compared two separately trained single runs

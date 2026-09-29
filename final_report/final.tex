@@ -307,9 +307,8 @@ and changes the training dynamics, so an apparent gain could simply
 reflect increased capacity rather than a genuine exploitation of the
 quality signal, hence the need for a dedicated ablation
 (section~\ref{sec:ablation}). For the first question, three independent
-methods for computing $c$ (approaches A, B, C) are compared; the
-conditioning is studied in depth with approach C (three training seeds)
-and checked with A and B, which makes it possible to distinguish an
+methods for computing $c$ (approaches A, B, C) are compared, each with
+three training seeds, which makes it possible to distinguish an
 effect specific to a given method of computing $c$ from a more general
 effect of the FiLM conditioning itself.
 
@@ -514,8 +513,9 @@ results. Fine-tuning MedVAE on ARCADE is by far the largest effect:
 $+7.4$~dB of PSNR ($95\,\%$ CI over images: $[7.1, 7.9]$) and $+5.3$~dB on
 vessels relative to the pre-trained model, with the same gain for the
 three seeds. On top of this, FiLM conditioning changes almost nothing:
-$+0.03$~dB relative to the baseline ($[0.015, 0.038]$), positive for the
-three seeds but an order of magnitude below any perceptible difference.
+$+0.03$~dB relative to the baseline (per seed $+0.055$, $+0.004$ and
+$+0.019$; $95\,\%$ CI over the seeds $[-0.04, +0.09]$), far below any
+perceptible difference.
 The earlier conclusion that the conditioned model reconstructs markedly
 worse than the baseline does not hold once both models are trained in
 the same way.
@@ -523,42 +523,46 @@ the same way.
 \subsection{Is the quality signal used?}
 \label{sec:ablation}
 
-The controls answer this question directly. With score C, replacing the
-true score of each image by that of another image changes the PSNR by $+0.002$~dB
-($95\,\%$ CI $[-0.007, 0.010]$), and a constant score does even slightly
-\emph{better} than the true one ($-0.013$~dB, $[-0.021, -0.006]$); the
-same holds for the vessel PSNR, SSIM and HaarPSI. The FiLM parameters
-did move during training, and they do depend on $c$ (the modulation
-$\gamma$ differs by up to $0.05$ between $c=0$ and $c=1$), but this
-dependence does not help reconstruction: the small gain over the
-baseline comes from the added per-channel affine parameters, not from
-the quality information.
+The controls answer this question directly (Table~\ref{tab:film-checks}).
+With score C, replacing the true score of each image by that of another
+image changes the PSNR by $+0.002$~dB ($95\,\%$ CI over images
+$[-0.007, 0.010]$), and a constant score does even slightly \emph{better}
+than the true one ($-0.013$~dB). This was expected by construction:
+score C barely varies on the training images (mean $0.92$, $79\,\%$ above
+$0.9$, $5$--$95\,\%$ range $[0.70, 1.00]$), whereas it is lower and more
+spread on the test images (mean $0.73$, $26\,\%$ below $0.5$). The model
+almost never saw a low score, and over the range it did see, the FiLM
+modulation $\gamma$ varies by at most $0.02$.
 
-Three additional runs (seed 42) check that this conclusion does not
-depend on the choice of score or on the learning rate of the FiLM layers
-(Table~\ref{tab:film-checks}). With a learning rate 100 times higher for
-the FiLM layers, the conditioned model gains $0.24$~dB over the baseline,
-but a constant score does exactly as well as the true one: the FiLM
-layers act as additional parameters, not as a channel for the quality
-information. With scores A and B, the true score does beat both controls,
-with confidence intervals excluding zero: the network exploits these
-scores slightly. The effect remains tiny, at most $0.04$~dB on the image
-and $0.01$~dB on vessels.
+Scores A and B, whose distributions are similar on training and test
+images, were therefore studied with three seeds as well. With both, the
+true score beats the two controls for every seed: the network does use
+the quality information. The effect is, however, tiny: $+0.007$~dB
+against a shuffled score with A and $+0.033$~dB with B, the largest of
+all. Over the baseline, FiLM gains $+0.04$~dB with A and $+0.05$~dB with
+B, of which the quality information explains at most $0.02$ to
+$0.03$~dB; the rest comes from the added per-channel affine parameters.
+A last run with a learning rate 100 times higher for the FiLM layers
+(score C, one seed) confirms this reading: it gains $0.24$~dB over the
+baseline, but a constant score does exactly as well as the true one.
 
 \begin{table}[htbp]
   \centering
   \resizebox{\columnwidth}{!}{\begin{tabular}{@{}lccc@{}}
     \toprule
-    Seed 42, PSNR (dB) & FiLM $-$ baseline & true $-$ shuffled & true $-$ constant \\
+    PSNR (dB) & FiLM $-$ baseline & true $-$ shuffled $c$ & true $-$ constant $c$ \\
     \midrule
-    Score C                      & $+0.055$ & $+0.002$ & $-0.015$ \\
-    Score C, FiLM lr $\times100$ & $+0.239$ & $+0.011$ & $-0.001$ \\
-    Score A                      & $+0.067$ & $+0.009^{*}$ & $+0.006^{*}$ \\
-    Score B                      & $+0.078$ & $+0.037^{*}$ & $+0.023^{*}$ \\
+    Score C (3 seeds) & $+0.026$ $[-0.04, +0.09]$ & $+0.002$ & $-0.013^{*}$ \\
+    Score A (3 seeds) & $+0.038$ $[-0.01, +0.09]$ & $+0.007^{*}$ & $+0.005^{*}$ \\
+    Score B (3 seeds) & $+0.050$ $[-0.00, +0.10]$ & $+0.033^{*}$ & $+0.020^{*}$ \\
+    Score C, FiLM lr $\times100$ (1 seed) & $+0.239$ & $+0.011$ & $-0.001$ \\
     \bottomrule
   \end{tabular}}
-  \caption{Paired PSNR differences on the 200 test images for one seed.
-  $^{*}$: $95\,\%$ bootstrap confidence interval excluding zero.}
+  \caption{Effect of FiLM and use of the quality score on the 200 test
+  images. FiLM $-$ baseline compares separately trained models: mean over
+  seeds and $95\,\%$ CI over the seeds. The controls compare variants of
+  the same model: $^{*}$ marks a $95\,\%$ bootstrap CI over images
+  excluding zero (same sign for every seed).}
   \label{tab:film-checks}
 \end{table}
 
@@ -568,8 +572,9 @@ and $0.01$~dB on vessels.
 
 Measured with identical training, an independent test set and controls
 computed on the same model, conditioning MedVAE on an image-quality score
-brings no useful gain in reconstruction: the learned score C is not used
-at all, and scores A and B are used only marginally. This revises both
+brings no useful gain in reconstruction: the learned score C, nearly
+constant on the training images, is not used, and scores A and B are
+used, but their effect stays below $0.04$~dB. This revises both
 conclusions of the earlier version of this study (a conditioned model
 markedly worse than the baseline, and score C as the only one genuinely
 exploited): both were obtained under the conditions listed in
@@ -582,13 +587,13 @@ ResNet-18 features for C): for an autoencoder whose target is its own
 input, $c$ contains no information that the encoder does not already
 see. At most it summarises a global property of the image (overall
 sharpness or contrast) that a purely convolutional network only
-perceives locally, which may explain the marginal use of scores A and B.
+perceives locally, which may explain the small but consistent use of scores A and B.
 A quality signal could only bring new information in a setting where it
 is not a function of the input, for instance a restoration task
 (degraded input, clean target) conditioned on acquisition parameters
 known independently of the image, such as the dose. Two further limitations remain: a single
-training budget was explored (and scores A and B were tested with one
-seed), and the absence of human quality
+training budget was explored (the validation error was still decreasing
+at the last of the 3000 steps for most runs), and the absence of human quality
 annotation on ARCADE means that the three scores could only be validated
 indirectly (mutual consistency, correlation with reference metrics).
 

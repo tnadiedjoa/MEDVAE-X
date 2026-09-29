@@ -1,0 +1,19 @@
+experiment:
+  name: e18_film_A_seed43
+  seed: 43
+film:
+  model: film
+  approach: A
+  seed: 43
+  img_size: 256
+  steps: 3000
+  lr: 1.0e-05
+  film_lr: null
+  batch_size: 4
+  kl_weight: 1.0e-06
+  val_every: 250
+  run_name: e18_film_A_seed43
+data:
+  n_train: 900
+  n_val: 100
+  n_test: 200

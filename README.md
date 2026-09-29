@@ -101,8 +101,9 @@ model is also evaluated with **another image's score** and with a **constant sco
 ![FiLM results](final_report/figures/theophile/film_results.png)
 
 **Conclusion:** fine-tuning MedVAE on ARCADE gains **+7.4 dB**; FiLM adds almost nothing on top
-(+0.03 dB) and **does not use the quality score**: another image's score or a constant does as well
-(scores A and B are used marginally, ≤ 0.04 dB). The score is computed from the image itself, so an
+(+0.03 to +0.05 dB, not established over 3 seeds). Score C, nearly constant on the training images
+(79 % above 0.9), is **not used**: another image's score or a constant does as well. With scores A and
+B (3 seeds each, E18), the network does use the score, but the effect stays **≤ 0.03 dB**. The score is computed from the image itself, so an
 autoencoder of that image gains no information from it. The original study (64×64, KL-dominated loss,
 unequal training, single runs) had concluded that conditioning hurts and that score C is exploited.
 
