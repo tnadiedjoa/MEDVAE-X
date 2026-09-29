@@ -1,0 +1,8 @@
+{
+  "model": "stage2",
+  "ckpt": "experiments/runs/2026-09-29_174442_e19_jepa_stage2_seed43/best.pt",
+  "n_pixels": 200000,
+  "effective_rank": 150.49615478515625,
+  "dims_90pct_variance": 44,
+  "n_channels": 256
+}
