@@ -45,6 +45,10 @@ def load_model(run_dir: str, device):
     return build_eval_model(config, run_dir, device).eval(), config
 
 
+def run_seed(run_dir: str):
+    return load_config(str(Path(run_dir) / "config.yaml"))["experiment"].get("seed")
+
+
 def degrade_batch(images: torch.Tensor, kind: str, value, seed: int, offset: int) -> torch.Tensor:
     """images [B,1,H,W] dans [0,1] → même format, dégradées (bruit seedé par image)."""
     out = []
@@ -59,7 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run-a", nargs="+", required=True)
     parser.add_argument("--run-d", nargs="*", default=None,
-                        help="un run D par run A, dans le même ordre (optionnel : A et A* seulement)")
+                        help="un run D par run A, appariés par seed (optionnel : A et A* seulement)")
     parser.add_argument("--levels", type=int, nargs="+", default=[0, 3, 6, 9],
                         help="indices de niveaux parmi une grille de 10 (0 = le plus faible)")
     parser.add_argument("--seed", type=int, default=42)
@@ -68,14 +72,16 @@ def main():
     args = parser.parse_args()
     if args.run_d and len(args.run_a) != len(args.run_d):
         parser.error("autant de runs D que de runs A")
-    runs_d = args.run_d or [None] * len(args.run_a)
+    # A et D appariés par seed d'entraînement (l'ordre des dossiers suit l'heure de lancement)
+    runs_a = sorted(args.run_a, key=run_seed)
+    runs_d = sorted(args.run_d, key=run_seed) if args.run_d else [None] * len(runs_a)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     params = degradation_params(10)
     settings = [("none", 0, None)] + [(k, lvl, params[k][lvl]) for k in params for lvl in args.levels]
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     rows = []
-    for run_a, run_d in zip(args.run_a, runs_d):
+    for run_a, run_d in zip(runs_a, runs_d):
         rows += evaluate_pair(run_a, run_d, settings, args, device)
         pd.DataFrame(rows).to_csv(args.out, index=False)   # sauvegarde après chaque paire
 
