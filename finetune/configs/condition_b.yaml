@@ -6,6 +6,8 @@ experiment:
 data:
   train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
   train_ann:    "dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
+  # val_images / val_ann = test set officiel (300 images) : nom historique ; la validation
+  # (sélection du modèle) est seg_val, cf. validation ci-dessous
   val_images:   "dataset_final_phase/test_case_segmentation/images"
   val_ann:      "dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
   train_ratio:  0.8        # utilisé seulement si validation: split
