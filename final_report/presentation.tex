@@ -385,16 +385,17 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{columns}
 \end{frame}
 
-\begin{frame}{Method: five conditions}
+\begin{frame}{Method: five conditions and two controls}
 \begin{columns}[c]
 \begin{column}{0.36\textwidth}
 \footnotesize
 \begin{itemize}\setlength\itemsep{0.1em}
-  \item \textbf{A} — full-resolution U-Net (reference)
-  \item \textbf{A*} — U-Net from A on reconstructed images, \alert{without retraining} (control)
+  \item \textbf{A} — full-resolution U-Net
+  \item \textbf{A*} — U-Net of A on reconstructions, \alert{no retraining}
   \item \textbf{B} — U-Net head at the latent resolution, frozen MedVAE encoder
   \item \textbf{C} — like B, MedVAE fine-tuned on ARCADE
   \item \textbf{D} — U-Net retrained on reconstructed images
+  \item \textbf{R}, \textbf{A$^{\downarrow\uparrow}$} — controls: $4\times4$ average pooling instead of MedVAE
 \end{itemize}
 \vspace{0.3em}
 \scriptsize 3 seeds per condition; artery Dice (background excluded) on the 300 test images.
@@ -406,18 +407,19 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{columns}
 \end{frame}
 
-\begin{frame}{Result 1: segmentation from the latent works}
+\begin{frame}{Result 1: the latent works, like a downsampled image}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \small
 \begin{itemize}
-  \item B: \textbf{0.393}, C: \textbf{0.403} artery Dice, i.e.\ \textbf{91--94\,\%} of A (0.430), from a $16\times$ smaller input
+  \item B: \textbf{0.412}, C: \textbf{0.410} artery Dice, i.e.\ \textbf{96\,\%} of A (0.428), from a $16\times$ smaller input
+  \item \alert{But} the same head on the image downsampled to $128\times128$ (R): \textbf{0.405} (B $-$ R $= +0.006$, not established)
   \item \alert{Earlier ``the latent fails'' (Dice 0.04)} was a training issue:
     \begin{itemize}\footnotesize
       \item head learning rate $5\times10^{-5}$, too low $\rightarrow 10^{-3}$
       \item no convolution at the latent resolution $\rightarrow$ small U-Net head
     \end{itemize}
-  \item Fine-tuning MedVAE (C) helps slightly: C $\geq$ B on all seeds (+0.010)
+  \item Fine-tuning MedVAE (C): no effect (C $-$ B $= -0.001$)
 \end{itemize}
 \end{column}
 \begin{column}{0.52\textwidth}
@@ -433,31 +435,34 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \begin{columns}[T]
 \begin{column}{0.42\textwidth}
 \centering
-\footnotesize
+\scriptsize
 \begin{tabular}{lcc}
 \toprule
 Cond. & Artery Dice & Artery IoU \\
 \midrule
-A   & 0.430 $\pm$ 0.005 & 0.308 \\
-A*  & 0.425 & 0.303 \\
-B   & 0.393 $\pm$ 0.008 & 0.277 \\
-C   & 0.403 $\pm$ 0.002 & 0.285 \\
-D   & 0.432 $\pm$ 0.004 & 0.311 \\
+A   & 0.428 $\pm$ 0.008 & 0.309 \\
+A*  & 0.424 $\pm$ 0.008 & 0.305 \\
+B   & 0.412 $\pm$ 0.005 & 0.292 \\
+C   & 0.410 $\pm$ 0.009 & 0.291 \\
+D   & 0.427 $\pm$ 0.009 & 0.309 \\
+\midrule
+R   & 0.405 $\pm$ 0.002 & 0.288 \\
+A$^{\downarrow\uparrow}$ & 0.389 $\pm$ 0.018 & 0.275 \\
 \bottomrule
 \end{tabular}
 \end{column}
 \begin{column}{0.58\textwidth}
-\small
+\footnotesize
 \begin{itemize}
-  \item \textbf{Compression alone costs little}: A* $\approx$ A ($-0.006$)
-  \item \textbf{D $\approx$ A} ($+0.003$, within seed variability)
+  \item \textbf{Compression alone costs little}: A* $\approx$ A ($-0.004$), whereas naive downsampling costs $-0.039$ (A$^{\downarrow\uparrow}$)
+  \item \textbf{D $\approx$ A} ($0.000$, within seed variability)
   \item \alert{Earlier ``D gains on thin segments'' (+0.017)}: gone with 3 seeds and the corrected augmentation
 \end{itemize}
 \end{column}
 \end{columns}
 \vspace{0.2em}
 \centering
-\includegraphics[width=0.84\textwidth]{theo/seg_results.pdf}
+\includegraphics[width=0.72\textwidth]{theo/seg_results.pdf}
 \end{frame}
 
 \begin{frame}{Segmentation of degraded images}
@@ -467,7 +472,7 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 \small
 \begin{itemize}
   \item MedVAE's noise reduction does \alert{not} help: A* $\leq$ A under Poisson noise, D $\approx$ A
-  \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest blur 0.15 $\to$ 0.37, JPEG 0.05 $\to$ 0.29, for $-0.007$ on clean images (same degradations as in training)
+  \item Robustness comes from training: realistic degradations in A's augmentation $\rightarrow$ strongest Poisson 0.02 $\to$ 0.23, JPEG 0.03 $\to$ 0.25, blur 0.21 $\to$ 0.35, at no cost on clean images (same degradation families as in training)
 \end{itemize}
 \end{frame}
 
@@ -475,7 +480,7 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
 \centering
 \includegraphics[width=0.9\textwidth]{theo/seg_predictions.png}
 
-\footnotesize Seed-42 models on three test images: A, A* and D nearly identical; B and C follow the coronary tree from the $128\times128$ latent.
+\footnotesize Seed-42 models on three test images: A, A* and D nearly identical; B, C (latent) and R (downsampled image) follow the coronary tree at $128\times128$.
 \end{frame}
 
 % ############################################################################
@@ -492,11 +497,12 @@ D   & 0.432 $\pm$ 0.004 & 0.311 \\
       score adds nothing, the score being a function of the image itself.
     \item \textbf{JEPA}: with a frozen decoder, degrades reconstruction and vessel
       separability; no dimensional contraction.
-    \item \textbf{Segmentation}: $\times 16$ compression keeps the anatomy, in pixel
-      space (D $\approx$ A) \emph{and} in the latent (91--94\,\% of A's Dice).
+    \item \textbf{Segmentation}: $\times 16$ compression keeps the anatomy in pixel
+      space (A* $\approx$ D $\approx$ A, unlike naive downsampling); the latent reaches 96\,\% of A's
+      Dice, but so does a downsampled image.
   \end{itemize}
   \vspace{0.3em}
-  \textbf{Takeaway.} A faithful compression, reusable in pixel space and largely in its latent;
+  \textbf{Takeaway.} A faithful compression, reusable in pixel space; its latent is usable, not better than downsampling;
   several first-version conclusions reversed once the protocol was fixed
   (right reference, same training, several seeds, trained layer).
 \end{frame}
