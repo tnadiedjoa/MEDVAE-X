@@ -1,4 +1,7 @@
-"""Résume des groupes de runs (plusieurs seeds) : moyenne ± écart-type des scores test.
+"""Résume des groupes de runs (plusieurs seeds) : moyenne ± écart-type des scores.
+
+La colonne val_dice est le meilleur Dice de validation (seg_val, avec le fond) : c'est
+sur elle que se prennent les décisions ; les autres colonnes sont les scores de test.
 
 Chaque groupe est « nom=motif », le motif étant un glob sur les noms de dossiers de
 experiments/runs/ (plusieurs motifs séparés par des virgules). Avec --ref, affiche aussi
@@ -18,7 +21,16 @@ from pathlib import Path
 import yaml
 
 RUNS_DIR = Path(__file__).resolve().parent.parent / "experiments" / "runs"
-METRICS = ("dice_mean", "dice_fg_mean", "iou_fg_mean")
+METRICS = ("val_dice", "dice_mean", "dice_fg_mean", "iou_fg_mean")
+
+
+def best_val_dice(run_dir: Path):
+    """Meilleur Dice de validation de l'historique du run (None s'il n'y en a pas)."""
+    history = next(iter(run_dir.glob("*_history.json")), None)
+    if history is None:
+        return None
+    val = json.loads(history.read_text()).get("val", [])
+    return max((e["dice_mean"] for e in val), default=None)
 
 
 def load_group(patterns: str) -> dict:
@@ -35,6 +47,9 @@ def load_group(patterns: str) -> dict:
         if seed in runs:
             raise SystemExit(f"Deux runs avec le seed {seed} pour « {patterns} » : {run_dir.name}")
         runs[seed] = {**scores, "run": run_dir.name}
+        val = best_val_dice(run_dir)
+        if val is not None:
+            runs[seed]["val_dice"] = val
     return runs
 
 
@@ -59,20 +74,22 @@ def main():
     print(f"| Groupe | Seeds | {' | '.join(METRICS)} |")
     print("|---|---|" + "---|" * len(METRICS))
     for name, runs in groups.items():
-        cells = [fmt([r[m] for r in runs.values() if m in r]) for m in METRICS]
+        cells = [fmt([r[m] for r in runs.values() if m in r]) if any(m in r for r in runs.values()) else "—"
+                 for m in METRICS]
         print(f"| {name} | {', '.join(map(str, sorted(runs)))} | {' | '.join(cells)} |")
 
     if args.ref:
         ref = groups[args.ref]
-        print(f"\nÉcart de Dice au groupe {args.ref}, seed par seed :")
-        for name, runs in groups.items():
-            if name == args.ref:
-                continue
-            common = sorted(set(runs) & set(ref))
-            diffs = [runs[s]["dice_mean"] - ref[s]["dice_mean"] for s in common]
-            if diffs:
-                print(f"  {name:12s} " + ", ".join(f"{d:+.4f}" for d in diffs)
-                      + f"   (moyenne {statistics.mean(diffs):+.4f})")
+        for metric in ("val_dice", "dice_mean"):
+            print(f"\nÉcart de {metric} au groupe {args.ref}, seed par seed :")
+            for name, runs in groups.items():
+                if name == args.ref:
+                    continue
+                common = [s for s in sorted(set(runs) & set(ref)) if metric in runs[s] and metric in ref[s]]
+                diffs = [runs[s][metric] - ref[s][metric] for s in common]
+                if diffs:
+                    print(f"  {name:12s} " + ", ".join(f"{d:+.4f}" for d in diffs)
+                          + f"   (moyenne {statistics.mean(diffs):+.4f})")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ import torch
 from torch.amp import autocast
 from torch.utils.data import DataLoader
 
-from finetune.config import load_config
+from finetune.config import REPO_ROOT, load_config
 from finetune.runs import add_run_args, apply_overrides, create_run
 from finetune.dataset import ArcadeDataset
 from finetune.encoder import MedVAEAutoencoder
@@ -78,7 +78,8 @@ def main():
     args = parser.parse_args()
 
     config = apply_overrides(load_config(args.config_a), args.overrides)
-    config["experiment"]["checkpoint_a"] = os.path.abspath(args.checkpoint_a)
+    # Chemin relatif à la racine du dépôt (pas de chemin propre à la machine)
+    config["experiment"]["checkpoint_a"] = os.path.relpath(os.path.abspath(args.checkpoint_a), REPO_ROOT)
     run_dir = create_run(config, args.run_name or "condition_astar", args.overrides)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -23,7 +23,6 @@ mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage2/logs"
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/full_pretraining/logs"
 cd "$PROJECT_ROOT"
 
-module load cuda
 source "$PROJECT_ROOT/.venv/bin/activate"
 
 nvidia-smi --query-gpu=name,driver_version --format=csv,noheader

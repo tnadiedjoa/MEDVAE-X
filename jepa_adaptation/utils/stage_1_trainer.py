@@ -5,8 +5,10 @@ from torch.utils.data import DataLoader
 
 try:
     from ..models.stage_1_loss import Stage1Loss
+    from ..datasets.arcade_dataset import seed_worker_augmentations
 except ImportError:
     from models.stage_1_loss import Stage1Loss
+    from datasets.arcade_dataset import seed_worker_augmentations
 
 try:
     from .launch import print_loader_sizes, print_model_summary
@@ -56,6 +58,7 @@ class TrainerStage1:
         self.train_loader = DataLoader(
             train_dataset, batch_size=bs, shuffle=True,
             num_workers=nw, pin_memory=pm, drop_last=True,
+            worker_init_fn=seed_worker_augmentations,
         )
         self.val_loader = (
             DataLoader(val_dataset, batch_size=bs, shuffle=False,
