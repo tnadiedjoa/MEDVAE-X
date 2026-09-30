@@ -68,11 +68,20 @@ For each image and degradation level we compare the reconstruction **to the clea
 reconstruction simply follows the blurred input). The original study's "blurred inputs
 reconstruct better" measured fidelity to the *degraded* input, which a blurred image trivially helps.
 
+**Vessel visibility (E20).** The contrast-to-noise ratio (CNR) of thin (≤ 6 px) and thick (≥ 12 px)
+vessels tells the same story: under Poisson noise MedVAE makes vessels more visible than the noisy
+input (clearly for thick vessels, barely for thin ones), but a 5×5 filter does better at every level,
+for thin vessels too. Without noise to remove (clean, JPEG, blur), MedVAE leaves the CNR almost
+unchanged, whereas the filters, which only blur, lower that of thin vessels.
+
+![Vessel CNR](final_report/figures/elias/cnr.png)
+
 ```bash
 python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
                                                                     #   (archivé dans experiments/robustness/e11_sweep/)
 python medvae_eval/robustness/analyze.py                            # summary table + figures with CIs
 python medvae_eval/robustness/baselines.py                          # simple-filter references
+(cd medvae_eval/robustness && python cnr.py --out ../../experiments/robustness/e20_cnr)   # vessel CNR (E20)
 ```
 
 The original scripts (fidelity to the degraded input, per-image min-max scaling) are kept in

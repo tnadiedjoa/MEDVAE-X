@@ -261,6 +261,58 @@ $33.1$ to $47.7$~dB on vessels): it measures
 how easy a blurred image is to reproduce, not how well MedVAE recovers
 the clean one, which is the opposite trend (blue curve).
 
+\subsubsection{Vessel Visibility: Contrast-to-Noise Ratio}
+\label{sec:cnr}
+
+A $5\times5$ filter blurs thin vessels, so its PSNR advantage might not
+mean that vessels remain more visible. We therefore measure the
+contrast-to-noise ratio of the vessels, a standard quality measure in
+angiography: $\mathrm{CNR} = (\mu_{\text{bg}} - \mu_{\text{vessel}})/\sigma_{\text{bg}}$,
+where $\mu_{\text{vessel}}$ is the mean intensity on the vessel centrelines
+(skeleton of the annotation mask) and $\mu_{\text{bg}}$, $\sigma_{\text{bg}}$
+the mean and standard deviation of a local background ring, 3 to 13
+pixels around the mask. We separate thin vessels (annotated width at
+most 6 pixels, the lowest quartile) from thick ones (at least 12 pixels,
+the highest quartile), on the same images, degradations and noise as
+above (Table~\ref{tab:cnr}).
+
+\begin{table}[h]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{Vessel CNR (mean over the 100 images) for thin and thick vessels: degraded input, MedVAE, and $5\times5$ Gaussian and median filters. Clean image: $0.88$ (thin) and $1.91$ (thick); MedVAE on the clean image: $0.85$ and $1.90$.}
+\label{tab:cnr}
+\resizebox{\columnwidth}{!}{\begin{tabular}{@{}lcccc|cccc@{}}
+\toprule
+ & \multicolumn{4}{c|}{Thin vessels} & \multicolumn{4}{c}{Thick vessels} \\
+ & Input & MedVAE & Gauss. & Med. & Input & MedVAE & Gauss. & Med. \\
+\midrule
+Poisson, level 0 & 0.72 & 0.73 & \textbf{0.81} & 0.76 & 1.54 & 1.70 & 1.97 & \textbf{2.00} \\
+Poisson, level 6 & 0.58 & 0.64 & \textbf{0.77} & 0.72 & 1.25 & 1.53 & 1.90 & \textbf{1.92} \\
+Poisson, level 9 & 0.30 & 0.45 & \textbf{0.62} & 0.55 & 0.62 & 1.16 & \textbf{1.49} & 1.48 \\
+JPEG, level 6 & \textbf{0.88} & 0.86 & 0.83 & 0.79 & 1.94 & 1.90 & 2.01 & \textbf{2.02} \\
+Blur, level 6 & 0.50 & 0.50 & 0.49 & 0.48 & 1.92 & 1.92 & 1.90 & 1.89 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The CNR confirms the PSNR ranking, thin vessels included. Under Poisson
+noise, MedVAE makes vessels more visible than the noisy input, clearly
+for thick vessels ($+0.16$ to $+0.54$) but barely for thin ones ($+0.01$
+to $+0.15$), and the Gaussian filter does better at every level, by
+$0.08$ to $0.16$ on thin vessels and $0.27$ to $0.36$ on thick ones
+($95\%$ bootstrap confidence intervals excluding zero). Both keep the
+contrast of thick vessels, but the filter removes more noise; on thin
+vessels, MedVAE loses up to a third of the contrast at the strongest
+noise, where the filter keeps about $90\%$. Without noise to remove
+(clean image, JPEG, blur), MedVAE leaves the CNR almost unchanged, while
+the filters, which only blur, lower that of thin vessels. Two caveats:
+on clean images, the background standard deviation mostly reflects
+anatomical texture rather than quantum noise, and the CNR rewards
+smoothing (the Gaussian filter exceeds the clean image on thick
+vessels); a task-based measure addresses both
+(Section~\ref{sec:discussion}).
+
 \subsection{Discussion and Perspectives}
 \label{sec:discussion}
 
@@ -280,9 +332,23 @@ shows that MedVAE's denoising does not make segmentation more robust
 (Section~\ref{sec:segmentation}).
 Furthermore, evaluating robustness to alterations of the grey-level
 dynamic range (gamma variations, underexposure) is a natural next step.
-Finally, the protocol would benefit from integrating motion blur,
+The protocol would also benefit from integrating motion blur,
 induced by cardiac and respiratory dynamics, whose spectral signature is
 far more complex than the isotropic blur modelled here.
+Finally, PSNR, vessel PSNR and CNR remain proxies for what matters
+clinically: whether a vessel can still be seen. Task-based image quality
+assessment answers this question directly~\cite{barrett2004foundations}.
+A model observer, such as the channelized Hotelling observer, decides
+whether a vessel is present in an image patch, and its detectability
+index $d'$, the separation between its responses with and without the
+vessel, accounts for both the noise, including its texture, and the
+resolution, which the CNR ignores; it would also penalise vessel-like
+structures hallucinated by the autoencoder. Inserting synthetic vessels
+of controlled width and contrast into real ARCADE backgrounds, degrading
+them at several dose levels and comparing $d'$ with and without MedVAE
+would tell whether MedVAE preserves the detectability of thin vessels
+better than a simple filter, and would express its effect as an
+equivalent dose.
 
 \newpage
 \section{Image-quality inductive bias for MedVAE}
@@ -840,7 +906,7 @@ Ultimately, the value of such a foundation model can only be established by eval
 
 \section{Conclusion}
 
-Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE reduces Poisson noise, though 4 to 5~dB less than a simple $5\times5$ filter, and restores neither JPEG artefacts nor blur; this noise reduction does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, rendered in pixel space, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, unlike a naive downsampling of the same rate; the single-channel latent, with a head that has convolutions at its resolution, reaches $96\,\%$ of the full-image Dice, but no more than a downsampled image of the same size.
+Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE reduces Poisson noise, though 4 to 5~dB less than a simple $5\times5$ filter, which also keeps vessels, thin ones included, more visible, and restores neither JPEG artefacts nor blur; this noise reduction does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, rendered in pixel space, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, unlike a naive downsampling of the same rate; the single-channel latent, with a head that has convolutions at its resolution, reaches $96\,\%$ of the full-image Dice, but no more than a downsampled image of the same size.
 
 Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful and reusable in pixel space, and its latent is usable for segmentation, though not better than a downsampled image; the attempts to make it acquisition-aware or semantically richer did not help in the forms we tested. Several conclusions of the first version of this study were reversed once measurement and training issues were corrected, which underlines how much such conclusions depend on the protocol: a metric comparing to the right reference, identical training for the compared models, several seeds, and an evaluation on the layer that is actually trained. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging, coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata.
 
