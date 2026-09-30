@@ -1,0 +1,4 @@
+commit HEAD du dépôt : 0d7e3b2
+cnr.py non commité au moment du run (sha256 ec5a655f2a6cc770) ; sweep.py identique à HEAD.
+Lancé le 2026-09-30 à 00:58 sur nodemm01 (RTX 3090), depuis une copie dans /tmp : le quota du home
+était plein (jobs knee_cache du projet RSNA), les sorties ont été écrites dans /tmp puis copiées ici.

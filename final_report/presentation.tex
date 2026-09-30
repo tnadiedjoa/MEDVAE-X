@@ -189,6 +189,18 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \footnotesize Grey: degraded input vs clean. Blue: reconstruction vs clean. Orange: reconstruction vs degraded input (earlier metric). Bottom: $\Delta$.
 \end{frame}
 
+\begin{frame}{Vessel visibility: contrast-to-noise ratio (CNR)}
+\centering
+\includegraphics[width=0.68\textwidth]{elias/cnr.pdf}
+
+\scriptsize
+\begin{itemize}\setlength\itemsep{0.05em}
+  \item CNR $= (\mu_\text{bg} - \mu_\text{vessel}) / \sigma_\text{bg}$, thin ($\leq 6$ px) and thick ($\geq 12$ px) vessels
+  \item \textbf{Poisson}: MedVAE raises the CNR (thick $+0.16 \to +0.54$, thin $+0.01 \to +0.15$), but the $5\times5$ filter does better, \alert{thin vessels included}
+  \item Without noise (JPEG, blur): MedVAE leaves the CNR unchanged; next step: detectability $d'$ of a model observer
+\end{itemize}
+\end{frame}
+
 % ############################################################################
 % PART 2 — THÉOPHILE
 % Image-quality inductive bias for MedVAE (conditioning via FiLM)
