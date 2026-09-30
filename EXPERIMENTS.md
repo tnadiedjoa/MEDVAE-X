@@ -27,6 +27,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E17 | D | E10, E12 et E15 relancés (augmentations différentes par worker et par epoch, commit figé) | A 0.428, B 0.412, C 0.410, D 0.427 ; C ≈ B (−0.001) ; D ≈ A (0.000) ; augmentation par dégradations : +0.010 sur images propres | remplace E10, E12, E15 |
 | E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
 | E19 | C | JEPA sur 3 pré-entraînements (bruit et seeds corrigés, lr du probe choisi sur la validation) | JEPA baisse le probe de son étape 1 (−0.025, 3 seeds sur 3) ; étape 2 ≈ MedVAE (+0.019, non établi) ; rang : pas d'effet net | remplace E14 |
+| E20 | A | Visibilité des vaisseaux fins et épais : CNR (contraste / bruit du fond local) | sous Poisson, MedVAE améliore le CNR (épais +0.16 à +0.54, fins +0.01 à +0.15) mais moins que les filtres 5×5, y compris sur les vaisseaux fins ; sans bruit, MedVAE ne change presque rien | mesuré |
 
 Axes : A robustesse, B conditionnement FiLM, C JEPA, D segmentation (dont les conditions
 A, A*, B, C et D, décrites dans le README). Les effets de segmentation sont des Dice sur le test set.
@@ -818,3 +819,60 @@ résultats `experiments/jepa/e19/`.
   convergé (meilleure loss de validation à l'epoch 14 ou 15 pour chaque pré-entraînement, étape 1
   comme étape 2 ; logs `jepa_adaptation/jobs/logs/e19_s4?_*.out`). Un entraînement plus long
   pourrait changer les niveaux (audit MIN-16).
+
+## E20 — Visibilité des vaisseaux : rapport contraste sur bruit (2026-09-30)
+
+**Question** : E11 montre qu'un simple filtre 5×5 débruite mieux que MedVAE en PSNR. Mais un
+filtre floute les vaisseaux fins : sur la **visibilité** des vaisseaux, mesure classique en
+angiographie, le classement tient-il ?
+**Mesure** (`medvae_eval/robustness/cnr.py`) : CNR = (moyenne du fond local − moyenne sur la
+ligne centrale des vaisseaux) / écart-type du fond local. Géométrie tirée des annotations de
+l'image propre : ligne centrale = squelette du masque, largeur locale = 2 × distance au bord ;
+vaisseaux **fins** = largeur annotée ≤ 6 px (quartile inférieur), **épais** = ≥ 12 px (quartile
+supérieur) ; fond local = anneau de 3 à 13 px autour du masque, hors collimateur, rattaché au
+point de ligne centrale le plus proche. Mêmes 100 images de seg_val, mêmes dégradations (10
+niveaux) et même bruit seedé que E11 ; versions comparées : entrée dégradée, MedVAE, filtres
+gaussien et médian 5×5. IC 95 % bootstrap sur les images (mêmes images pour toutes les versions).
+**Résultats** : `experiments/robustness/e20_cnr/` (`summary.md`, `cnr.png`, `mechanism.csv`)
+
+| CNR (100 images) | Fins : dégradée | MedVAE | gaussien 5×5 | médian 5×5 | Épais : dégradée | MedVAE | gaussien 5×5 | médian 5×5 |
+|---|---|---|---|---|---|---|---|---|
+| Image propre (réf.) | 0.88 | 0.85 | — | — | 1.91 | 1.90 | — | — |
+| Poisson, niveau 0 | 0.72 | 0.73 | **0.81** | 0.76 | 1.54 | 1.70 | 1.97 | **2.00** |
+| Poisson, niveau 6 | 0.58 | 0.64 | **0.77** | 0.72 | 1.25 | 1.53 | 1.90 | **1.92** |
+| Poisson, niveau 9 | 0.30 | 0.45 | **0.62** | 0.55 | 0.62 | 1.16 | **1.49** | 1.48 |
+| JPEG, niveau 6 | **0.88** | 0.86 | 0.83 | 0.79 | 1.94 | 1.90 | 2.01 | **2.02** |
+| Flou, niveau 6 | 0.50 | 0.50 | 0.49 | 0.48 | 1.92 | 1.92 | 1.90 | 1.89 |
+
+| Écart apparié (Poisson, niveaux 0 / 3 / 6 / 9) | Fins | Épais |
+|---|---|---|
+| MedVAE − dégradée | +0.01 / +0.01 / +0.06 / +0.15 (IC contenant 0 aux niveaux 0 et 3) | +0.16 / +0.20 / +0.29 / +0.54 |
+| MedVAE − gaussien 5×5 | −0.08 / −0.11 / −0.13 / −0.16 (IC excluant 0) | −0.27 / −0.31 / −0.36 / −0.33 |
+
+Mécanisme (Poisson, niveaux 0 → 9, `mechanism.csv`) : sur les vaisseaux épais, MedVAE et le
+filtre gaussien gardent tout le contraste (≥ 0.96 du contraste propre), mais le filtre enlève
+plus de bruit (écart-type du fond 0.079 → 0.092 contre 0.088 → 0.120 pour MedVAE). Sur les
+vaisseaux fins, le filtre garde 85 à 90 % du contraste ; MedVAE 94 % au niveau 0 mais 68 % au
+niveau 9, et enlève moins de bruit.
+
+**Conclusions**
+
+- **Le CNR confirme le classement du PSNR, y compris sur les vaisseaux fins** : sous bruit de
+  Poisson, MedVAE rend les vaisseaux plus visibles que l'entrée bruitée (nettement pour les
+  épais, à peine pour les fins aux bruits faibles), mais un simple filtre 5×5 fait mieux à tous
+  les niveaux, pour les fins comme pour les épais. L'intuition « le filtre efface les vaisseaux
+  fins, MedVAE non » n'est pas vérifiée à cette échelle (vaisseaux fins de 6 px ou moins).
+- **Sans bruit à enlever, MedVAE ne change presque rien** : sur l'image propre, JPEG et flou, le
+  CNR suit l'entrée (−0.03 sur les vaisseaux fins de l'image propre), alors que les filtres, qui
+  ne font que flouter, baissent celui des vaisseaux fins (médian : −0.06 à −0.07 par rapport à
+  MedVAE). Cohérent avec A* ≈ A (E16, E17) : comme préprocesseur d'images propres, MedVAE est
+  inoffensif.
+- **Limites du CNR** : l'écart-type du fond sur l'image propre (≈ 0.08, soit ~20 niveaux de gris)
+  vient surtout de la texture anatomique, pas du bruit quantique ; les vaisseaux fins ont donc un
+  CNR inférieur à 1 même sur l'image propre. Le CNR récompense le lissage (le filtre gaussien
+  dépasse l'image propre sur les vaisseaux épais, 2.01 contre 1.91) et ignore la texture du
+  bruit. La mesure rigoureuse serait l'indice de détectabilité d′ d'un observateur modèle
+  (Hotelling à canaux), mis en perspective dans le rapport.
+- Le script a été lancé depuis l'arbre de travail non commité (hash dans `provenance.txt`),
+  pendant la nuit du 29 au 30 septembre, puis commité tel quel avec les résultats (sha256 identique).
+
