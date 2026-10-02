@@ -173,7 +173,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \begin{column}{0.54\textwidth}
 \footnotesize
 \begin{itemize}
-  \item \textbf{Poisson}: noise reduced, but 4--5 dB less than a simple $5\times5$ Gaussian filter
+  \item \textbf{Poisson}: noise reduced, but 3.7--5.6 dB less than a simple $5\times5$ Gaussian filter
   \item \textbf{JPEG}: never restored --- MedVAE's own error (33 dB ceiling) exceeds the artefacts
   \item \textbf{Blur}: not restored --- the reconstruction follows the blurred input
   \item \alert{The earlier ``blur reconstructs better''} measured fidelity to the \emph{degraded} input (orange)
@@ -424,7 +424,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \begin{column}{0.48\textwidth}
 \small
 \begin{itemize}
-  \item B: \textbf{0.412}, C: \textbf{0.410} artery Dice, i.e.\ \textbf{96\,\%} of A (0.428), from a $16\times$ smaller input
+  \item B: \textbf{0.411}, C: \textbf{0.410} artery Dice, i.e.\ \textbf{96\,\%} of A (0.428), from a $16\times$ smaller input
   \item \alert{But} the same head on the image downsampled to $128\times128$ (R): \textbf{0.405} (B $-$ R $= +0.006$, not established)
   \item \alert{Earlier ``the latent fails'' (Dice 0.04)} was a training issue:
     \begin{itemize}\footnotesize
@@ -454,7 +454,7 @@ Cond. & Artery Dice & Artery IoU \\
 \midrule
 A   & 0.428 $\pm$ 0.008 & 0.309 \\
 A*  & 0.424 $\pm$ 0.008 & 0.305 \\
-B   & 0.412 $\pm$ 0.005 & 0.292 \\
+B   & 0.411 $\pm$ 0.005 & 0.292 \\
 C   & 0.410 $\pm$ 0.009 & 0.291 \\
 D   & 0.427 $\pm$ 0.009 & 0.309 \\
 \midrule

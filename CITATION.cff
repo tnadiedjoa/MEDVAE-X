@@ -12,9 +12,11 @@ authors:
   - family-names: Nadiedjoa
     given-names: Théophile
 affiliation: "Télécom Paris"
+abstract: "Télécom Paris IM06 course project (June 2026), supervised by Elsa Angelini; all four axes rebuilt and re-run in September 2026 by Théophile Nadiedjoa (3 seeds, control baselines)."
 repository-code: "https://github.com/tnadiedjoa/MEDVAE-X"
 license: MIT
-date-released: "2026-06-21"
+version: "2.0"
+date-released: "2026-09-30"
 references:
   - type: article
     title: "MedVAE: Efficient Automated Interpretation of Medical Images with Large-Scale Generalizable Autoencoders"

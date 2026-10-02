@@ -35,10 +35,10 @@ change d'une condition à l'autre. Le cœur logique vit dans
   `GaussNoise` léger (écart-type 3–7 / 255, p=0.3, `data.gauss_noise_std_range`, E07 ;
   sans paramètre, albumentations ≥ 2 ajoute un bruit de ~65–84 / 255), `CLAHE(0.3)`.
   La val/test n'a qu'un `Resize`.
-- **Dégradations réalistes** (option, E15, désactivée par défaut) : `data.degradation_aug_p: 0.3`
+- **Dégradations réalistes** (option, E15 puis E17, désactivée par défaut) : `data.degradation_aug_p: 0.3`
   applique à 30 % des images une dégradation parmi bruit de Poisson, JPEG (qualité 5–95) et
-  flou gaussien (noyau 3–31). Sur A : robustesse aux images dégradées largement rétablie,
-  −0.007 de Dice sur images propres (cf. [EXPERIMENTS.md](../EXPERIMENTS.md)).
+  flou gaussien (noyau 3–31). Sur A (E17, 3 seeds) : robustesse aux images dégradées largement
+  rétablie, +0.010 de Dice sur images propres (cf. [EXPERIMENTS.md](../EXPERIMENTS.md)).
 
 ### 1.2 Fonction de coût ([`losses/seg_loss.py`](losses/seg_loss.py))
 

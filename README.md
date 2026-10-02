@@ -2,20 +2,26 @@
 
 [![tests](https://github.com/tnadiedjoa/MEDVAE-X/actions/workflows/tests.yml/badge.svg)](https://github.com/tnadiedjoa/MEDVAE-X/actions/workflows/tests.yml)
 
-> A four-axis study of **MedVAE**, a generic medical autoencoder, applied to the demanding domain of
-> **coronary angiography** (ARCADE dataset). We probe its robustness, its conditioning, its latent
-> structure and its usefulness for downstream segmentation.
+> A four-axis study of **MedVAE** (Stanford MIMI), a generic medical autoencoder, applied to the
+> demanding domain of **coronary angiography** (ARCADE dataset). We probe its robustness, its
+> conditioning, its latent structure and its usefulness for downstream segmentation.
+>
+> **Main result:** in pixel space, MedVAE's ×16 compression keeps what coronary segmentation needs;
+> its latent is usable but no better than a downsampled image, and neither quality conditioning nor
+> JEPA adaptation brings a gain. A post-submission revision (3 seeds, control baselines, CI-tested
+> code) overturned several conclusions of the original study.
 
 📄 **[Read the paper](final_report/final.pdf)** &nbsp;·&nbsp; 🖥️ **[See the slides](final_report/presentation.pdf)**
 
 **Authors:** Yanic Rothlingshofer · Théo Palagi · Elias Corlou · Théophile Nadiedjoa
-*Télécom Paris — IM06 project*
+*Télécom Paris IM06 course project (June 2026), supervised by Elsa Angelini; revised in September 2026
+(see [Contributions](#contributions)).*
 
 ---
 
 ## Overview
 
-MedVAE is a medical image autoencoder pre-trained on chest X-rays and mammographies that compresses
+MedVAE is a medical image autoencoder pre-trained on chest X-rays and mammograms that compresses
 images into a compact latent space. Coronary angiographies are structurally very different from those
 modalities: thin tubular vessels, bifurcations and stenosis regions that demand fine-grained spatial
 encoding to survive compression.
@@ -30,21 +36,28 @@ compressor be trusted, adapted and reused on an out-of-distribution modality?*
 | **C. JEPA adaptation** | Can a self-supervised JEPA stage replace BioMedCLIP in stage 2? | Yanic Rothlingshofer | [`jepa_adaptation/`](jepa_adaptation/) |
 | **D. Segmentation** | Is the compressed representation enough to segment coronary arteries? | Théo Palagi | [`finetune/`](finetune/) |
 
+### Contributions
+
+The original study (June 2026) was split by axis as in the table above, each axis led by one author.
+After submission, Théophile Nadiedjoa rebuilt and re-ran all four axes (experiments E01–E20: 3 seeds,
+control baselines, unit tests in CI); every result reported below comes from this revision.
+
 ### Key takeaway
 
 MedVAE's ×16 compression (in number of values) keeps what coronary segmentation needs in pixel space:
 segmenting reconstructions matches the original images, unlike a naive downsampling of the same rate. Its
-single-channel latent reaches 96 % of the full-image Dice with an adequate head, but so does an image
-downsampled to the same size. MedVAE reduces Poisson noise (less than a simple filter), but this does not
-make segmentation more robust; conditioning it on a quality score or adapting its encoder with JEPA
-brings no gain. Several conclusions of the original study were overturned once measurement and training
-issues were fixed: every change and its before/after results are logged in [EXPERIMENTS.md](EXPERIMENTS.md).
+single-channel latent reaches 96 % of the full-image Dice with an adequate head, and an image downsampled
+to the same size does almost as well (95 %). MedVAE reduces Poisson noise (less than a simple filter), but
+this does not make segmentation more robust; conditioning it on a quality score or adapting its encoder
+with JEPA brings no gain. Several conclusions of the original study were overturned once measurement and
+training issues were fixed: every change and its before/after results are logged in
+[EXPERIMENTS.md](EXPERIMENTS.md) (in French).
 
 ---
 
 ## A — Robustness of MedVAE to Input Degradations
 
-![Robustness pipeline](assets/pipeline_robustness.jpg)
+![Robustness pipeline](final_report/figures/elias/pipeline_corrected.png)
 
 We ask whether MedVAE can *restore* degraded angiograms (low-dose noise, compression, blur).
 For each image and degradation level we compare the reconstruction **to the clean image**:
@@ -58,12 +71,12 @@ For each image and degradation level we compare the reconstruction **to the clea
 | *Poisson noise, simple 5×5 Gaussian filter (reference)* | *+6.3 → +10.3 dB* | *100 %* |
 | *Poisson noise, simple 5×5 median filter (reference)* | *+7.2 → +10.0 dB* | *100 %* |
 | JPEG (quality 95 → 5) | −11.7 → −0.5 dB | 0–9 % |
-| Gaussian blur (kernel 5 → 31) | −2.0 → +0.1 dB (vessels: −2.8 → −0.2) | — |
+| Gaussian blur (kernel 5 → 31) | −2.0 → +0.1 dB (vessels: −2.8 → −0.2) | 3–82 % (Δ ≈ 0 at strong blur) |
 
 ![Robustness](experiments/robustness/e11_sweep/robustness_full_image.png)
 
 **Conclusion:** MedVAE **reduces** Poisson noise (the stronger the noise, the larger the gain), but
-4 to 5 dB **less than a simple 5×5 filter**: its gain is bounded by its own reconstruction error
+3.4 to 6.3 dB **less than a simple 5×5 filter**: its gain is bounded by its own reconstruction error
 (33 dB). It does **not** restore JPEG artefacts (its reconstruction error exceeds them) or blur (the
 reconstruction simply follows the blurred input). The original study's "blurred inputs
 reconstruct better" measured fidelity to the *degraded* input, which a blurred image trivially helps.
@@ -78,7 +91,7 @@ unchanged, whereas the filters, which only blur, lower that of thin vessels.
 
 ```bash
 python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
-                                                                    #   (archivé dans experiments/robustness/e11_sweep/)
+                                                                    #   (archived in experiments/robustness/e11_sweep/)
 python medvae_eval/robustness/analyze.py                            # summary table + figures with CIs
 python medvae_eval/robustness/baselines.py                          # simple-filter references
 (cd medvae_eval/robustness && python cnr.py --out ../../experiments/robustness/e20_cnr)   # vessel CNR (E20)
@@ -113,7 +126,8 @@ model is also evaluated with **another image's score** and with a **constant sco
 **Conclusion:** fine-tuning MedVAE on ARCADE gains **+7.4 dB**; FiLM adds almost nothing on top
 (+0.03 to +0.05 dB, not established over 3 seeds). Score C, nearly constant on the training images
 (79 % above 0.9), is **not used**: another image's score or a constant does as well. With scores A and
-B (3 seeds each, E18), the network does use the score, but the effect stays **≤ 0.03 dB**. The score is computed from the image itself, so an
+B (3 seeds each, E18), the network does use the score, but the effect stays **below 0.04 dB** (at most
++0.033 dB, score B). The score is computed from the image itself, so an
 autoencoder of that image gains no information from it. The original study (64×64, KL-dominated loss,
 unequal training, single runs) had concluded that conditioning hurts and that score C is exploited.
 
@@ -198,7 +212,7 @@ Artery Dice / IoU = mean over the artery segments (background excluded).
 |---|---|---|---|
 | A | 0.428 ± 0.008 | 0.309 ± 0.006 | 0.450 |
 | A\* | 0.424 ± 0.008 | 0.305 ± 0.006 | 0.447 |
-| B | 0.412 ± 0.005 | 0.292 ± 0.004 | 0.435 |
+| B | 0.411 ± 0.005 | 0.292 ± 0.004 | 0.435 |
 | C | 0.410 ± 0.009 | 0.291 ± 0.008 | 0.434 |
 | D | 0.427 ± 0.009 | 0.309 ± 0.005 | 0.450 |
 | R (control) | 0.405 ± 0.002 | 0.288 ± 0.003 | 0.429 |
@@ -242,7 +256,7 @@ python finetune/eval_resampled.py --run-a experiments/runs/*_e17_seed4?_conditio
 python -m finetune.figures_report
 ```
 
-See [`finetune/README.md`](finetune/README.md) for the full pipeline (A\*, Slurm scripts, hyperparameters).
+See [`finetune/README.md`](finetune/README.md) (in French) for the full pipeline (A\*, Slurm scripts, hyperparameters).
 
 ---
 
@@ -262,13 +276,13 @@ MEDVAE-X/
 ├── finetune/             # Axis D — coronary segmentation from MedVAE latents
 │   ├── train.py          #   entry point (run as `python -m finetune.train`)
 │   ├── evaluate.py       #   re-evaluate a finished run on the test set
-│   ├── configs/          #   condition_a … condition_d
-│   ├── results/          #   current official results (histories, test scores)
+│   ├── configs/          #   condition_a … condition_d, condition_r, medvae_finetune
+│   ├── results/          #   seed-42 runs of the current results (histories, test scores)
 │   ├── encoder/ models/ losses/ metrics/ trainer/ slurm/
 ├── experiments/
 │   ├── runs/             # one folder per run (config, metadata, scores)
 │   └── robustness/ film/ diagnostics/  # analyses of the logged experiments
-├── EXPERIMENTS.md        # experiment log: every change tested, before/after
+├── EXPERIMENTS.md        # experiment log (in French): every change tested, before/after
 ├── tests/                # pytest (metrics, configs, runs, models, dataset) — run in CI
 ├── final_report/         # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
 ├── assets/               # figures used in this README
@@ -321,8 +335,6 @@ activate `.venv/` from there.
 sbatch finetune/slurm/train_a.sbatch
 sbatch jepa_adaptation/jobs/stage_1.sbatch
 ```
-
-Only the `3090` partition (RTX 3090, 24 GB, max 4 CPUs per GPU) is available to our accounts.
 
 ### Experiments
 
