@@ -25,7 +25,7 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option (non activée par défaut), refait en E17 |
 | E16 | D | Témoins de la compression : même tête sur l'image réduite à 128×128 (R) ; U-Net de A sur l'image réduite puis ré-agrandie | R 0.405 ≈ B 0.411 (+0.006, non établi) : le latent ne fait pas mieux qu'une réduction ; en pixels, MedVAE coûte −0.004 contre −0.039 | témoins ajoutés |
 | E17 | D | E10, E12 et E15 relancés (augmentations différentes par worker et par epoch, commit figé) | A 0.428, B 0.411, C 0.410, D 0.427 ; C ≈ B (−0.001) ; D ≈ A (0.000) ; augmentation par dégradations : +0.010 sur images propres | remplace E10, E12, E15 |
-| E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
+| E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais < 0.04 dB (max +0.033) ; FiLM − baseline non établi | conclusion B confirmée |
 | E19 | C | JEPA sur 3 pré-entraînements (bruit et seeds corrigés, lr du probe choisi sur la validation) | JEPA baisse le probe de son étape 1 (−0.025, 3 seeds sur 3) ; étape 2 ≈ MedVAE (+0.019, non établi) ; rang : pas d'effet net | remplace E14 |
 | E20 | A | Visibilité des vaisseaux fins et épais : CNR (contraste / bruit du fond local) | sous Poisson, MedVAE améliore le CNR (épais +0.16 à +0.54, fins +0.01 à +0.15) mais moins que les filtres 5×5, y compris sur les vaisseaux fins ; sans bruit, MedVAE ne change presque rien | mesuré |
 
@@ -687,7 +687,7 @@ validation.
 
 **Conclusions**
 
-- A, C et D reproduisent E10 à ±0.005. B gagne 0.019 (0.393 → 0.411, écart calculé sur les valeurs non arrondies) ; seules la graine des
+- A et D reproduisent E10 à ±0.005, C +0.007. B gagne 0.019 (0.393 → 0.411, écart calculé sur les valeurs non arrondies) ; seules la graine des
   augmentations et l'exécution depuis un commit figé ont changé, sans qu'on isole la cause.
 - **D ≈ A confirmé** (+0.000) : entraîner sur des reconstructions n'apporte rien de mesurable.
 - **Fine-tuner MedVAE sur ARCADE n'a pas d'effet sur la segmentation depuis le latent** (C − B =
@@ -744,8 +744,8 @@ avec B)
 **Conclusions**
 
 - **Avec les scores A et B, le réseau utilise l'information de qualité**, de façon
-  reproductible (vrai c > contrôles pour les 3 seeds), mais l'effet est minuscule : 0.03 dB au
-  plus (score B).
+  reproductible (vrai c > contrôles pour les 3 seeds), mais l'effet est minuscule : < 0.04 dB
+  (max +0.033, score B).
 - FiLM gagne +0.04 à +0.05 dB sur la baseline, dont au plus 0.02-0.03 dB viennent du score ; le
   reste vient des paramètres ajoutés. L'écart FiLM − baseline n'est pas établi sur l'image
   entière (IC sur les seeds contenant 0), il l'est sur les vaisseaux.
@@ -789,7 +789,7 @@ résultats `experiments/jepa/e19/`.
 | Écart apparié par pré-entraînement (Dice du probe, test) | Moyenne | IC 95 % (seeds) | Par seed |
 |---|---|---|---|
 | Étape 2 − étape 1 | **−0.025** | [−0.045, −0.005] | −0.019 / −0.022 / −0.034 |
-| Étape 1 − MedVAE | +0.044 | [+0.029, +0.058] | +0.039 / +0.050 / +0.041 |
+| Étape 1 − MedVAE | +0.043 | [+0.029, +0.058] | +0.039 / +0.050 / +0.041 |
 | Étape 2 − MedVAE | +0.019 | [−0.008, +0.045] | +0.021 / +0.028 / +0.007 |
 
 (avec lr 1e-3 : étape 2 − étape 1 = −0.030, 3 seeds sur 3 ; même sens sur la validation :
@@ -802,7 +802,7 @@ résultats `experiments/jepa/e19/`.
   validation. Le sens de E14 est confirmé, l'ampleur est deux fois plus faible (−0.056 en E14).
 - **L'étape 2 n'est pas en dessous de MedVAE** (+0.019, IC contenant 0) : la phrase de E14
   « en dessous du MedVAE d'origine » est retirée.
-- L'étape 1 dépasse MedVAE (+0.044), mais les deux modèles diffèrent par l'architecture
+- L'étape 1 dépasse MedVAE (+0.043), mais les deux modèles diffèrent par l'architecture
   (256 contre 512 canaux), le taux de compression (×8 contre ×4 par côté) et les données
   (ARCADE contre radiographies et mammographies) : cet écart ne dit rien de JEPA et on ne
   l'attribue à aucun de ces facteurs.
