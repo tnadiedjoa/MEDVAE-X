@@ -1,3 +1,6 @@
 *.ipynb filter=nbstripout
 *.zpln filter=nbstripout
 *.ipynb diff=ipynb
+
+# Report and slides: not counted in GitHub language stats
+final_report/** linguist-documentation

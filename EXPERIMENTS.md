@@ -23,8 +23,8 @@ mesuré dans les mêmes conditions (même GPU, même dataset, même seed).
 | E13 | B | FiLM refait (256×256, entraînement identique, contrôles sur c) | fine-tuning +7.4 dB ; FiLM ≈ baseline ; score C inutilisable (quasi constant à l'entraînement) | refait |
 | E14 | C | JEPA refait (test exclu, probe sur la couche entraînée) | JEPA dégrade la représentation (−0.056) et la reconstruction ; pas de contraction | refait, précisé par E19 |
 | E15 | D | Augmentation par dégradations réalistes (Poisson, JPEG, flou) sur A | robustesse rétablie (+0.1 à +0.25 aux fortes dégradations), −0.007 sur images propres | option (non activée par défaut), refait en E17 |
-| E16 | D | Témoins de la compression : même tête sur l'image réduite à 128×128 (R) ; U-Net de A sur l'image réduite puis ré-agrandie | R 0.405 ≈ B 0.412 (+0.006, non établi) : le latent ne fait pas mieux qu'une réduction ; en pixels, MedVAE coûte −0.004 contre −0.039 | témoins ajoutés |
-| E17 | D | E10, E12 et E15 relancés (augmentations différentes par worker et par epoch, commit figé) | A 0.428, B 0.412, C 0.410, D 0.427 ; C ≈ B (−0.001) ; D ≈ A (0.000) ; augmentation par dégradations : +0.010 sur images propres | remplace E10, E12, E15 |
+| E16 | D | Témoins de la compression : même tête sur l'image réduite à 128×128 (R) ; U-Net de A sur l'image réduite puis ré-agrandie | R 0.405 ≈ B 0.411 (+0.006, non établi) : le latent ne fait pas mieux qu'une réduction ; en pixels, MedVAE coûte −0.004 contre −0.039 | témoins ajoutés |
+| E17 | D | E10, E12 et E15 relancés (augmentations différentes par worker et par epoch, commit figé) | A 0.428, B 0.411, C 0.410, D 0.427 ; C ≈ B (−0.001) ; D ≈ A (0.000) ; augmentation par dégradations : +0.010 sur images propres | remplace E10, E12, E15 |
 | E18 | B | FiLM avec les scores A et B sur 3 seeds | le réseau utilise A et B, mais ≤ 0.03 dB ; FiLM − baseline non établi | conclusion B confirmée |
 | E19 | C | JEPA sur 3 pré-entraînements (bruit et seeds corrigés, lr du probe choisi sur la validation) | JEPA baisse le probe de son étape 1 (−0.025, 3 seeds sur 3) ; étape 2 ≈ MedVAE (+0.019, non établi) ; rang : pas d'effet net | remplace E14 |
 | E20 | A | Visibilité des vaisseaux fins et épais : CNR (contraste / bruit du fond local) | sous Poisson, MedVAE améliore le CNR (épais +0.16 à +0.54, fins +0.01 à +0.15) mais moins que les filtres 5×5, y compris sur les vaisseaux fins ; sans bruit, MedVAE ne change presque rien | mesuré |
@@ -380,7 +380,7 @@ MedVAE reconstruit l'image propre à 33.1 dB (vaisseaux : 33.1 dB), ce qui fixe 
   `experiments/robustness/e11_baselines/`). Sur les mêmes 100 images et le même bruit seedé, un flou
   gaussien 5×5 gagne **+6.3 → +10.3 dB** (vaisseaux +7.1 → +10.9) et un filtre médian 5×5
   **+7.2 → +10.0 dB**, contre +1.2 → +6.6 dB pour MedVAE : MedVAE réduit le bruit de Poisson, mais
-  4 à 5 dB de moins qu'un filtre trivial ; « véritable débruiteur » était exagéré. Sur le JPEG le plus
+  3.4 à 6.3 dB de moins qu'un filtre trivial ; « véritable débruiteur » était exagéré. Sur le JPEG le plus
   fort, le médian gagne même un peu (+0.4 dB), MedVAE jamais.
 - Le résultat d'origine sur le flou (« les images floues se reconstruisent mieux », r ≈ −0.998)
   venait de la métrique : la courbe orange des figures (reconstruction vs entrée dégradée)
@@ -617,7 +617,7 @@ comparé à aucune compression triviale.
 
 | Dice artères (test, 3 seeds) | Moyenne | Écart apparié (IC 95 % sur les seeds) | Par seed |
 |---|---|---|---|
-| B — latent MedVAE + tête | 0.412 ± 0.005 | | |
+| B — latent MedVAE + tête | 0.411 ± 0.005 | | |
 | C — latent fine-tuné + tête | 0.410 ± 0.009 | | |
 | **R — image réduite à 128×128 + même tête** | 0.405 ± 0.002 | B − R = +0.006 [−0.002, +0.014] | +0.009 / +0.003 / +0.007 |
 | | | (validation : B − R = +0.005 [−0.020, +0.030]) | +0.016 / −0.002 / +0.001 |
@@ -665,7 +665,7 @@ validation.
 |---|---|---|---|---|
 | A — U-Net | 0.481 ± 0.010 | 0.428 ± 0.008 | 0.309 ± 0.006 | 0.430 ± 0.005 |
 | A* — U-Net A sur reconstructions | — | 0.424 ± 0.008 | 0.305 ± 0.006 | 0.425 (seed 42) |
-| B — latent MedVAE | 0.473 ± 0.009 | 0.412 ± 0.005 | 0.292 ± 0.004 | 0.393 ± 0.008 |
+| B — latent MedVAE | 0.473 ± 0.009 | 0.411 ± 0.005 | 0.292 ± 0.004 | 0.393 ± 0.008 |
 | C — latent fine-tuné | 0.473 ± 0.006 | 0.410 ± 0.009 | 0.291 ± 0.008 | 0.403 ± 0.002 |
 | D — MedVAE → U-Net | 0.488 ± 0.010 | 0.427 ± 0.009 | 0.309 ± 0.005 | 0.432 ± 0.004 |
 | A + dégradations (p = 0.3) | 0.489 ± 0.011 | 0.437 ± 0.010 | 0.316 ± 0.008 | 0.423 ± 0.011 (E15) |
@@ -687,13 +687,13 @@ validation.
 
 **Conclusions**
 
-- A, C et D reproduisent E10 à ±0.005. B gagne 0.018 (0.393 → 0.412) ; seules la graine des
+- A, C et D reproduisent E10 à ±0.005. B gagne 0.019 (0.393 → 0.411, écart calculé sur les valeurs non arrondies) ; seules la graine des
   augmentations et l'exécution depuis un commit figé ont changé, sans qu'on isole la cause.
 - **D ≈ A confirmé** (+0.000) : entraîner sur des reconstructions n'apporte rien de mesurable.
 - **Fine-tuner MedVAE sur ARCADE n'a pas d'effet sur la segmentation depuis le latent** (C − B =
   −0.001, signes −/+/− ; même chose sur la validation). La formulation « aide légèrement » de E10
   et du rapport est retirée.
-- B et C atteignent 96 % du Dice de A (0.412 et 0.410 contre 0.428), mais le témoin R de E16 fait
+- B et C atteignent 96 % du Dice de A (0.411 et 0.410 contre 0.428), mais le témoin R de E16 fait
   presque aussi bien.
 - **A* ≈ A sur 3 seeds** (−0.004, légèrement en dessous pour les 3).
 - **Robustesse : les conclusions de E12 tiennent.** Sous bruit de Poisson, A* fait moins bien que
