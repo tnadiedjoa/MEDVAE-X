@@ -231,7 +231,7 @@ every level, and the gain grows with the noise, from $+1.2$~dB at the
 weakest level to $+6.6$~dB ($+6.8$~dB on vessels) at the strongest. This
 noise reduction is, however, modest: a $5\times5$ Gaussian filter gains
 $+6.3$ to $+10.3$~dB on the same images and a $5\times5$ median filter
-$+7.2$ to $+10.0$~dB, 4 to 5~dB more than MedVAE at every level. MedVAE's
+$+7.2$ to $+10.0$~dB, $3.4$ to $6.3$~dB more than MedVAE at every level. MedVAE's
 gain is bounded by its own reconstruction error: even for mild noise,
 the output ($28$~dB) stays well below the reconstruction of the clean
 image ($33$~dB).
@@ -300,7 +300,7 @@ The CNR confirms the PSNR ranking, thin vessels included. Under Poisson
 noise, MedVAE makes vessels more visible than the noisy input, clearly
 for thick vessels ($+0.16$ to $+0.54$) but barely for thin ones ($+0.01$
 to $+0.15$), and the Gaussian filter does better at every level, by
-$0.08$ to $0.16$ on thin vessels and $0.27$ to $0.36$ on thick ones
+$0.08$ to $0.18$ on thin vessels and $0.27$ to $0.39$ on thick ones
 ($95\%$ bootstrap confidence intervals excluding zero). Both keep the
 contrast of thick vessels, but the filter removes more noise; on thin
 vessels, MedVAE loses up to a third of the contrast at the strongest
@@ -836,7 +836,7 @@ Cond. & Input of the trained model & Artery Dice & Artery IoU & Dice (all) \\
 \midrule
 A        & Original images                   & \textbf{0.428 $\pm$ 0.008} & \textbf{0.309 $\pm$ 0.006} & 0.450 \\
 A$^{*}$  & Reconstructed images (eval. only) & 0.424 $\pm$ 0.008 & 0.305 $\pm$ 0.006 & 0.447 \\
-B        & Pre-trained latent                & 0.412 $\pm$ 0.005 & 0.292 $\pm$ 0.004 & 0.435 \\
+B        & Pre-trained latent                & 0.411 $\pm$ 0.005 & 0.292 $\pm$ 0.004 & 0.435 \\
 C        & Fine-tuned latent                 & 0.410 $\pm$ 0.009 & 0.291 $\pm$ 0.008 & 0.434 \\
 D        & Reconstructed images              & 0.427 $\pm$ 0.009 & \textbf{0.309 $\pm$ 0.005} & 0.450 \\
 \midrule
@@ -864,7 +864,7 @@ Table~\ref{tab:results} and Fig.~\ref{fig:seg_results} summarise test performanc
 \end{figure}
 
 \paragraph{Segmentation from the latent works, but no better than from a downsampled image.}
-With an adequate head and learning rate, conditions B and C reach an artery Dice of $0.412$ and $0.410$, that is $96\,\%$ of the baseline A ($0.428$), from a representation sixteen times smaller than the image. They detect the same segments as A (Fig.~\ref{fig:seg_results}), with the largest gaps on thin and rare branches, and their predictions follow the coronary tree (Fig.~\ref{fig:predictions}). The control R shows, however, that this is mostly a property of the $128\times128$ resolution: the same head, trained on the image average-pooled to $128\times128$, reaches $0.405$, only $0.006$ below B (95\,\% CI $[-0.002, +0.014]$; B is above R for the three seeds on the test set, but not on the validation set). Fine-tuning the compressor on ARCADE has no measurable effect: C $-$ B $= -0.001$ (CI $[-0.036, +0.034]$, with signs differing across seeds).
+With an adequate head and learning rate, conditions B and C reach an artery Dice of $0.411$ and $0.410$, that is $96\,\%$ of the baseline A ($0.428$), from a representation sixteen times smaller than the image. They detect the same segments as A (Fig.~\ref{fig:seg_results}), with the largest gaps on thin and rare branches, and their predictions follow the coronary tree (Fig.~\ref{fig:predictions}). The control R shows, however, that this is mostly a property of the $128\times128$ resolution: the same head, trained on the image average-pooled to $128\times128$, reaches $0.405$, only $0.006$ below B (95\,\% CI $[-0.002, +0.014]$; B is above R for the three seeds on the test set, but not on the validation set). Fine-tuning the compressor on ARCADE has no measurable effect: C $-$ B $= -0.001$ (CI $[-0.036, +0.034]$, with signs differing across seeds).
 
 \paragraph{Pixel-space compression is nearly neutral, unlike naive downsampling.}
 Condition A$^{*}$ measures the effect of compression alone: applying the baseline models, without retraining, to MedVAE-reconstructed images costs only $0.004$ of artery Dice ($0.424$ against $0.428$, CI $[-0.009, +0.002]$), and the predictions are nearly identical to those of A (Fig.~\ref{fig:predictions}). A trivial compression of the same rate is far more harmful: the same models applied to the image downsampled to $128\times128$ and upsampled back lose $0.039$ (A$^{\downarrow\uparrow}$, CI $[-0.070, -0.008]$), the thin vessels being blurred away. Rendered in pixel space, the $16\times$ compression of MedVAE therefore preserves the anatomical information exploited by the network, which a naive downsampling does not.
@@ -906,7 +906,7 @@ Ultimately, the value of such a foundation model can only be established by eval
 
 \section{Conclusion}
 
-Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE reduces Poisson noise, though 4 to 5~dB less than a simple $5\times5$ filter, which also keeps vessels, thin ones included, more visible, and restores neither JPEG artefacts nor blur; this noise reduction does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, rendered in pixel space, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, unlike a naive downsampling of the same rate; the single-channel latent, with a head that has convolutions at its resolution, reaches $96\,\%$ of the full-image Dice, but no more than a downsampled image of the same size.
+Across four complementary axes, we probed how a generic large-scale medical compressor, MedVAE, behaves on the demanding domain of coronary angiography. Measuring restoration against the clean image, our robustness analysis showed that MedVAE reduces Poisson noise, though $3.4$ to $6.3$~dB less than a simple $5\times5$ filter, which also keeps vessels, thin ones included, more visible, and restores neither JPEG artefacts nor blur; this noise reduction does not make the segmentation of degraded images more robust. Conditioning the autoencoder on an image-quality score through FiLM, trained and evaluated rigorously, neither improves nor degrades its reconstruction, and the network barely uses the score, which is a function of the image it already sees; fine-tuning MedVAE on ARCADE, in contrast, gains more than 7~dB. Replacing MedVAE's stage-2 BioMedCLIP alignment with a self-supervised JEPA objective, with a frozen decoder, degrades both the reconstruction and the linear separability of vessels relative to the stage-1 autoencoder it starts from, without the dimensional contraction reported earlier. Finally, rendered in pixel space, a $16\times$ lossy compression preserves the anatomical information needed for fine multi-class coronary segmentation: segmenting reconstructed images matches the original ones, unlike a naive downsampling of the same rate; the single-channel latent, with a head that has convolutions at its resolution, reaches $96\,\%$ of the full-image Dice, but no more than a downsampled image of the same size.
 
 Taken together, our results sketch a coherent picture: MedVAE's compression is anatomically faithful and reusable in pixel space, and its latent is usable for segmentation, though not better than a downsampled image; the attempts to make it acquisition-aware or semantically richer did not help in the forms we tested. Several conclusions of the first version of this study were reversed once measurement and training issues were corrected, which underlines how much such conclusions depend on the protocol: a metric comparing to the right reference, identical training for the compared models, several seeds, and an evaluation on the layer that is actually trained. The way forward we advocate, detailed in our perspectives, is to unify these axes into a single foundation model for radiation-based medical imaging, coupling a hybrid JEPA--reconstruction objective with a physically grounded model of clinical degradations and explicit conditioning on acquisition metadata.
 
