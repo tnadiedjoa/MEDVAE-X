@@ -218,7 +218,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
       $c \in [0,1]$, injected via FiLM, should let it adapt to the
       degradation level actually present.
     \item Three independent ways to compute $c$ (A: weighted, B: PCA,
-      C: learned): in-depth study with C (3 seeds), checks with A and B.
+      C: learned), each with 3~seeds.
   \end{itemize}
 \end{frame}
 
@@ -230,7 +230,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{frame}
 
 % Sanity check on the score
-\begin{frame}{Does the score make clinical sense?}
+\begin{frame}{Does the score make visual sense?}
   \begin{center}
     \includegraphics[width=\textwidth]{theophile/result_gallery_score.png}
   \end{center}
@@ -285,7 +285,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \footnotesize
   \begin{itemize}
     \item \textbf{Score C: no} --- it barely varies in training (79\,\% above 0.9)
-    \item \textbf{Scores A, B: yes, but barely} ($\leq 0.03$ dB)
+    \item \textbf{Scores A, B: yes, but barely} ($< 0.04$ dB, max~$+0.033$)
     \item FiLM gains come from the added parameters, not from the quality information
     \item $c$ is computed \emph{from the image}: for an autoencoder of that image, it carries nothing new
     \item \alert{The earlier ``only C is exploited''} compared two separately trained single runs
@@ -304,6 +304,8 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \begin{frame}{Original stage 2 — BioMedCLIP distillation}
   \centering
   \includegraphics[width=1.0\linewidth]{yanic/pipeline_ori.png}
+
+  \tiny Figure reproduced from Varma et al., MedVAE (2025), Fig.~1.
 \end{frame}
 
 \begin{frame}{Modified stage 2 — JEPA adaptation}
@@ -364,7 +366,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
   \centering
   \includegraphics[height=0.78\textheight]{yanic/pca.png}
 
-  \footnotesize Stage 2 features: large homogeneous regions, vessels barely visible.
+  \footnotesize Stage 2 features: large homogeneous regions, vessels still visible.
 \end{frame}
 
 % ############################################################################
