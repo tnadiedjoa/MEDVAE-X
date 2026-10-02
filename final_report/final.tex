@@ -33,7 +33,7 @@
 
 \section{Introduction}
 
-Deep learning on medical images is constrained by the high resolution required to preserve diagnostic detail, which inflates the computational and memory cost of every model. Large-scale variational autoencoders (VAE) offer a way out by compressing images into compact latent representations. We focus on MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation}, a representative example: trained on more than one million medical images, it learns a generic, reusable compression of medical images --- in the variant we use, reducing a $512\times512$ image by a factor of $4$ per side (sixteen times fewer values) into a single-channel $128\times128$ latent --- while seeking to preserve clinically relevant structures, and is itself built in two stages: a first stage dedicated to faithful reconstruction, and a second stage meant to enrich the latent space with semantic knowledge. Such generalist models raise a natural question, which we take as our starting point: to what extent does a generic medical compressor remain trustworthy and useful once confronted with a specific, demanding clinical domain?
+Deep learning on medical images is constrained by the high resolution required to preserve diagnostic detail, which inflates the computational and memory cost of every model. Large-scale variational autoencoders (VAE) offer a way out by compressing images into compact latent representations. We focus on MedVAE~\cite{varma2025medvaeefficientautomatedinterpretation}, a representative example: trained on more than one million medical images, it learns a generic, reusable compression of medical images --- in the variant we use, reducing a $512\times512$ image by a factor of $4$ per side (sixteen times fewer values) into a single-channel $128\times128$ latent (the FiLM study of Section~\ref{sec:theophile} uses the 4-channel variant) --- while seeking to preserve clinically relevant structures, and is itself built in two stages: a first stage dedicated to faithful reconstruction, and a second stage meant to enrich the latent space with semantic knowledge. Such generalist models raise a natural question, which we take as our starting point: to what extent does a generic medical compressor remain trustworthy and useful once confronted with a specific, demanding clinical domain?
 
 We study this question on coronary angiography, using the public ARCADE dataset~\cite{popov2024arcade}, which provides $1\,500$ annotated X-ray angiographies ($512\times512$, grayscale; $1\,000$ training, $200$ validation and $300$ test images) together with COCO segmentation annotations of the coronary tree. We deliberately chose an unfavourable setting for a generic compressor: the structures of interest are thin, tubular, and low-contrast, the acquisitions suffer from quantum noise, compression, and motion artefacts, and the relevant signal occupies only a tiny fraction of the image. This domain therefore stresses every property we would expect from a medical foundation model: robustness to degraded inputs, a semantically structured latent space, and the preservation of fine anatomical information.
 
@@ -438,14 +438,12 @@ C, in contrast, is nearly independent of both
 ($r(A,C)=0.003$, $r(B,C)=0.015$, Table~\ref{tab:corr}) and its
 distribution is much more tightly concentrated near 1 (mean 0.890) than A
 (0.448) or B (0.483): the MLP learned on deep features captures a notion
-of quality that differs from a combination of classical metrics. The
-active score is finally discretised into three classes
-\emph{bad}/\emph{medium}/\emph{good} by tertiles (TRAIN). Figure~\ref{fig:gallery}
+of quality that differs from a combination of classical metrics. Figure~\ref{fig:gallery}
 illustrates this progression on real images sorted by increasing score:
 the least sharp and noisiest angiographies (left) progressively give way
 to contrasted acquisitions where the vascular tree is clearly defined
-(right), which qualitatively confirms that the score captures a notion of
-image quality consistent with a clinical reading.
+(right), which qualitatively suggests that the score tracks visible
+sharpness and contrast.
 
 \begin{figure}[t]
   \centering
@@ -621,7 +619,7 @@ baseline, but a constant score does exactly as well as the true one.
     \midrule
     Score C (3 seeds) & $+0.026$ $[-0.04, +0.09]$ & $+0.002$ & $-0.013^{*}$ \\
     Score A (3 seeds) & $+0.038$ $[-0.01, +0.09]$ & $+0.007^{*}$ & $+0.005^{*}$ \\
-    Score B (3 seeds) & $+0.050$ $[-0.00, +0.10]$ & $+0.033^{*}$ & $+0.020^{*}$ \\
+    Score B (3 seeds) & $+0.050$ $[-0.003, +0.102]$ & $+0.033^{*}$ & $+0.020^{*}$ \\
     Score C, FiLM lr $\times100$ (1 seed) & $+0.239$ & $+0.011$ & $-0.001$ \\
     \bottomrule
   \end{tabular}}
@@ -661,8 +659,9 @@ is not a function of the input, for instance a restoration task
 known independently of the image, such as the dose. Two further limitations remain: a single
 training budget was explored (the validation error was still decreasing
 at the last of the 3000 steps for most runs), and the absence of human quality
-annotation on ARCADE means that the three scores could only be validated
-indirectly (mutual consistency, correlation with reference metrics).
+annotation on ARCADE means that the three scores could not be validated
+against human quality labels; A and B agree ($r = 0.884$, they share the
+same features), while C is unrelated to them ($r \approx 0$).
 
 \newpage
 \section{JEPA Adaptation of MedVAE Stage 2}
@@ -681,12 +680,12 @@ We propose replacing stage 2's BioMedCLIP alignment with JEPA training directly 
 \subsection{Method}
 
 \paragraph{Original stage 2 --- BioMedCLIP alignment.}
-In the original MedVAE formulation (Fig.~\ref{fig:stage2ori}), stage 2 fine-tunes the encoder by minimising the distance between the VAE's latent representations and BioMedCLIP embeddings for the same images. This step aims to semantically enrich the latent space by transmitting the knowledge of a pre-trained medical foundation model.
+In the original MedVAE formulation (Fig.~\ref{fig:stage2ori}), stage 2 freezes the encoder and decoder and trains lightweight projection layers on top of the latent so that their output matches the BioMedCLIP embedding of the same image. This step aims to semantically enrich the latent space by transmitting the knowledge of a pre-trained medical foundation model.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\columnwidth]{figures/yanic/stage_2_medvae_ori.png}
-    \caption{Original stage 2: latent space alignment on BioMedCLIP embeddings.}
+    \caption{Original stage 2: latent space alignment on BioMedCLIP embeddings. Reproduced from Varma et al.~\cite{varma2025medvaeefficientautomatedinterpretation}, Fig.~1b.}
     \label{fig:stage2ori}
 \end{figure}
 

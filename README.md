@@ -127,8 +127,9 @@ model is also evaluated with **another image's score** and with a **constant sco
 (+0.03 to +0.05 dB, not established over 3 seeds). Score C, nearly constant on the training images
 (79 % above 0.9), is **not used**: another image's score or a constant does as well. With scores A and
 B (3 seeds each, E18), the network does use the score, but the effect stays **below 0.04 dB** (at most
-+0.033 dB, score B). The score is computed from the image itself, so an
-autoencoder of that image gains no information from it. The original study (64×64, KL-dominated loss,
++0.033 dB, score B). The score is computed from the image itself, so it carries nothing the encoder
+cannot already see; at most it summarises a global property (overall sharpness or contrast), which may
+explain the small use of scores A and B. The original study (64×64, KL-dominated loss,
 unequal training, single runs) had concluded that conditioning hurts and that score C is exploited.
 
 ```bash
