@@ -287,7 +287,7 @@ MEDVAE-X/
 ├── tests/                # pytest (metrics, configs, runs, models, dataset) — run in CI
 ├── report/               # IEEE paper (report.pdf), Beamer slides (slides.pdf), figures by part
 ├── scripts/              # download_arcade.sh, promote_run.py, summarize_runs.py
-├── data/arcade/          # ARCADE dataset (not versioned, see Setup)
+├── data/arcade/          # ARCADE dataset (not versioned, see Reproducing)
 └── README.md
 ```
 
