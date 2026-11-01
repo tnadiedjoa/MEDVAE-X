@@ -1,7 +1,7 @@
 > **Document historique (première version de l'étude).** Les chiffres et conclusions ci-dessous
 > ont été remplacés par l'expérience E11 (mesure par rapport à l'image propre, témoin « filtre
-> simple ») : voir [EXPERIMENTS.md](../EXPERIMENTS.md) et `medvae_eval/robustness/`. Certains liens
-> d'images ne sont plus valides.
+> simple ») : voir [EXPERIMENTS.md](../EXPERIMENTS.md) et `medvae_eval/robustness/`. Les figures des sweeps,
+> produites dans `outputs/degradation/`, ne sont pas versionnées.
 
 # Récapitulatif - Métriques pour évaluation des performances de MedVAE sur ARCADE (comparaison entrée/sortie)
 ---
@@ -32,7 +32,7 @@ Pour lever l'ambiguïté de l'analyse précédente, on applique des dégradation
 
 ![Next pipeline](pipeline_figure/pipeline_2.jpg)
 
-![Visualisation des dégradations](outputs/degradation/degradation_visual.png)
+![Visualisation des dégradations](../final_report/figures/elias/degradation_visual.png)
 
 Le script `degradation_eval.py` implémente une rampe linéaire sur 50 niveaux combinant trois types de dégradation simultanément :
 - Bruit gaussien additif : σ ∈ [0, 80]
@@ -51,7 +51,7 @@ Ce comportement confirme qu'ARNIQA n'est pas un indicateur fiable de la qualité
 
 [Update] Depuis, le sweep a été lancé sur un sweep avec comme dégradation retenue uniquement le bruit de poisson, les résultats montre bien que ARNIQA n'est pas fiable comme indice de qualité.
 
-![arniqa_sweep](outputs/degradation/metrics_by_level_arniqa.png)
+*(Figure non versionnée : produite par `degradation_eval.py` dans `outputs/degradation/`.)*
 
 ## 5. Test du score engineered de Théophile (Option B réalisée)
 
@@ -127,7 +127,7 @@ Rappel de lecture : la courbe `MaskedPSNR(clean, degraded)` (axe de droite) desc
 
 ### Flou gaussien — anti-corrélation nette
 
-![blur_sweep](outputs/degradation/metrics_by_level_masked_blur.png)
+*(Figure non versionnée : produite par `degradation_eval.py` dans `outputs/degradation/`.)*
 
 Résultat le plus marquant : quand l'entrée se dégrade, la reconstruction *s'améliore* (de ~29 à ~39 dB). MedVAE reconstruit d'autant mieux que l'image est floutée, et les deux courbes sont quasi symétriques.
 
@@ -135,7 +135,7 @@ L'explication tient au caractère passe-bas des autoencodeurs : un VAE compresse
 
 ### Bruit de Poisson — corrélation positive, courbes superposées
 
-![poisson_sweep](outputs/degradation/metrics_by_level_masked_poisson.png)
+*(Figure non versionnée : produite par `degradation_eval.py` dans `outputs/degradation/`.)*
 
 Comportement miroir du flou, et attendu : le bruit ajoute des hautes fréquences décorrélées, précisément ce que le VAE n'encode pas. L'entrée s'éloigne du propre et la reconstruction se dégrade en parallèle, les deux courbes étant quasi confondues.
 
@@ -143,7 +143,7 @@ Le mécanisme est celui du débruitage par autoencodeur (Vincent et al. 2008) : 
 
 ### Compression JPEG — comportement à deux régimes
 
-![jpeg_sweep](outputs/degradation/metrics_by_level_masked_jpeg.png)
+*(Figure non versionnée : produite par `degradation_eval.py` dans `outputs/degradation/`.)*
 
 La reconstruction monte d'abord (~30,5 → ~32,1 dB jusqu'au niveau 14) puis s'effondre (~32,1 → ~29,7 dB). Deux régimes se succèdent :
 - **Haute/moyenne qualité** : JPEG agit comme un passe-bas par blocs (quantification des coefficients DCT, suppression des hautes fréquences). Il se comporte comme le flou et rend l'entrée plus « VAE-compatible » → la reconstruction monte.

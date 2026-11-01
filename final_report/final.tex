@@ -9,6 +9,8 @@
 \usepackage{subcaption}
 \usepackage{placeins}
 \usepackage{hyperref}
+\hypersetup{pdftitle={MedVAE: Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation},
+  pdfauthor={Yanic Rothlingshofer, Théo Palagi, Elias Corlou, Théophile Nadiedjoa}}
 
 \begin{document}
 \pagestyle{plain}
@@ -16,12 +18,21 @@
 \title{MedVAE: Adaptation, Fine-tuning and Analysis for Medical Imaging and Coronary Segmentation}
 
 \author{
-\IEEEauthorblockN{Yanic Rothlingshofer \and Théo Palagi \and Elias Corlou \and Théophile Nadiedjoa}
+\IEEEauthorblockN{Yanic Rothlingshofer, Théo Palagi, Elias Corlou, Théophile Nadiedjoa}
+\IEEEauthorblockA{Télécom Paris, Institut Polytechnique de Paris, France}
 }
 
 \IEEEspecialpapernotice{\textit{\underline{Supervisor:} Elsa Angelini}}
 
 \maketitle
+
+\begin{abstract}
+MedVAE is a generic medical autoencoder trained on chest X-rays and mammograms. We study how far it can be trusted, adapted and reused on an out-of-distribution modality, coronary angiography (ARCADE dataset), along four axes, with three seeds for every trained model and control baselines. (i) Robustness: MedVAE reduces Poisson noise, but 3.4 to 6.3~dB less than a simple $5\times5$ filter, and restores neither JPEG artefacts nor blur. (ii) Image-quality conditioning: fine-tuning MedVAE on ARCADE gains 7.4~dB, while injecting a quality score through FiLM adds at most a few hundredths of a decibel, and the network barely uses the score. (iii) JEPA adaptation: replacing the BioMedCLIP stage with a self-supervised JEPA objective lowers both the reconstruction and the linear separability of the vessels. (iv) Segmentation: segmenting MedVAE reconstructions matches the original images (artery Dice 0.424 against 0.428), unlike a naive downsampling of the same rate (0.389); its single-channel latent reaches 96\,\% of the full-image Dice, about as much as an image downsampled to the same size. MedVAE's compression is thus anatomically faithful in pixel space, but neither quality conditioning nor JEPA adaptation improves it in the forms we tested.
+\end{abstract}
+
+\begin{IEEEkeywords}
+medical image compression, variational autoencoder, coronary angiography, robustness, FiLM conditioning, JEPA, segmentation
+\end{IEEEkeywords}
 
 {\small\noindent\textbf{Code available at:} \url{https://github.com/tnadiedjoa/MEDVAE-X}}
 
