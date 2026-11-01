@@ -1,10 +1,10 @@
-"""Réévalue le checkpoint d'un run terminé sur le test set, avec les métriques actuelles.
+"""Re-evaluate the checkpoint of a finished run on the test set, with the current metrics.
 
-Utile quand les métriques évoluent (ex. ajout du Dice sur les artères seules) : le
-modèle est reconstruit depuis le config.yaml du run, son checkpoint rechargé, et les
-scores de results.json sont mis à jour (le Dice doit rester identique).
+Useful when the metrics change (e.g. adding the Dice on the arteries only): the model is
+rebuilt from the run's config.yaml, its checkpoint reloaded, and the scores of
+results.json are updated (the Dice must stay identical).
 
-Usage (depuis la racine du repo) :
+Usage (from the repository root):
     python -m finetune.evaluate experiments/runs/<run> [experiments/runs/<run> ...]
 """
 
@@ -23,7 +23,7 @@ from finetune.metrics import SegMetrics
 
 
 class AStar(torch.nn.Module):
-    """Comme eval_astar : MedVAE en précision normale, U-Net sous autocast."""
+    """As in eval_astar: MedVAE at full precision, U-Net under autocast."""
 
     def __init__(self, autoencoder, unet):
         super().__init__()
@@ -36,7 +36,7 @@ class AStar(torch.nn.Module):
 
 
 def build_eval_model(config: dict, run_dir: str, device: torch.device) -> torch.nn.Module:
-    """Modèle du run avec ses poids ; A* = U-Net de A appliqué aux images reconstruites."""
+    """Model of the run with its weights; A* = U-Net of A applied to the reconstructed images."""
     if "checkpoint_a" in config["experiment"]:
         from finetune.encoder import MedVAEAutoencoder
         from finetune.models import build_unet
@@ -88,7 +88,7 @@ def main():
 
         r = evaluate_run(run_dir, device)
         print(f"{os.path.basename(os.path.normpath(run_dir))} : Dice {previous['dice_mean']:.4f} -> "
-              f"{r['dice_mean']:.4f} | Dice artères {r['dice_fg_mean']:.4f} | IoU artères {r['iou_fg_mean']:.4f}")
+              f"{r['dice_mean']:.4f} | artery Dice {r['dice_fg_mean']:.4f} | artery IoU {r['iou_fg_mean']:.4f}")
         all_results[condition] = {
             **previous,
             **{k: r[k] for k in ("dice_mean", "iou_mean", "dice_fg_mean", "iou_fg_mean",

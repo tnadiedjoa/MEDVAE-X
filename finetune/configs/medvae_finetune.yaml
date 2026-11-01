@@ -5,19 +5,19 @@ encoder:
 data:
   train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
   img_size:     512
-  val_ratio:    0.1        # 10 % des images train → validation
+  val_ratio:    0.1        # 10 % of the training images → validation
   num_workers:  4
   pin_memory:   true
 
 training:
   epochs:                   50
   batch_size:               4
-  micro_batch_size:         1        # accumulation de gradient : batch de 4 en 4 × 1 (RTX 3090, 24 Go)
-  learning_rate:            4.5e-6   # petit LR : fine-tuning, pas training from scratch
+  micro_batch_size:         1        # gradient accumulation: batch of 4 as 4 × 1 (RTX 3090, 24 GB)
+  learning_rate:            4.5e-6   # small LR: fine-tuning, not training from scratch
   weight_decay:             0.0
   lr_min:                   1.0e-7
   early_stopping_patience:  10
   grad_clip:                1.0
 
 logging:
-  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/
+  save_dir: null   # set at launch: experiments/runs/<date>_<name>/

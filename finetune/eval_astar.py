@@ -26,7 +26,7 @@ def plot_predictions_astar(unet, autoencoder, test_dataset, device, save_dir,
     if n_samples == 1:
         axes = axes[np.newaxis, :]
 
-    for ax, title in zip(axes[0], ["Image originale", "Masque GT", "Masque prédit (A*)"]):
+    for ax, title in zip(axes[0], ["Original image", "Ground-truth mask", "Predicted mask (A*)"]):
         ax.set_title(title, fontsize=12, fontweight="bold")
 
     use_amp = device.type == "cuda"
@@ -51,14 +51,14 @@ def plot_predictions_astar(unet, autoencoder, test_dataset, device, save_dir,
         axes[row, 2].imshow(mask_pred, cmap="tab20", alpha=0.6, vmin=0, vmax=25)
         axes[row, 2].axis("off")
 
-    fig.suptitle("Condition A* — U-Net A sur images MedVAE reconstituées",
+    fig.suptitle("Condition A* — U-Net A on MedVAE reconstructions",
                  fontsize=14, fontweight="bold")
     plt.tight_layout()
     os.makedirs(save_dir, exist_ok=True)
     out_path = os.path.join(save_dir, "predictions_condition_astar.png")
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"Sauvegardé : {out_path}")
+    print(f"Saved: {out_path}")
 
 
 def main():
@@ -70,31 +70,31 @@ def main():
     parser.add_argument("--medvae_model",  default="medvae_4_1_2d")
     parser.add_argument("--medvae_modality", default="xray")
     parser.add_argument("--predict", action="store_true",
-                        help="Génère la visualisation des prédictions A*")
+                        help="Generate the visualisation of the A* predictions")
     parser.add_argument("--save_dir", default=None,
-                        help="Dossier de sauvegarde des figures (défaut : dossier du run)")
+                        help="Output folder of the figures (default: the run folder)")
     parser.add_argument("--n_samples", type=int, default=4)
     add_run_args(parser)
     args = parser.parse_args()
 
     config = apply_overrides(load_config(args.config_a), args.overrides)
-    # Chemin relatif à la racine du dépôt (pas de chemin propre à la machine)
+    # Path relative to the repository root (no machine-specific path)
     config["experiment"]["checkpoint_a"] = os.path.relpath(os.path.abspath(args.checkpoint_a), REPO_ROOT)
     run_dir = create_run(config, args.run_name or "condition_astar", args.overrides)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")
 
-    # ── U-Net condition A (gelé — on l'évalue, pas on l'entraîne) ────────
+    # ── U-Net of condition A (frozen — evaluated, not trained) ────────
     unet = build_unet(config["model"])
     ckpt = torch.load(args.checkpoint_a, map_location=device)
     unet.load_state_dict(ckpt["model"])
     unet.to(device).eval()
     for p in unet.parameters():
         p.requires_grad = False
-    print(f"Checkpoint A chargé : epoch {ckpt['epoch']}, Dice A = {ckpt['dice']:.4f}")
+    print(f"Checkpoint A loaded: epoch {ckpt['epoch']}, Dice A = {ckpt['dice']:.4f}")
 
-    # MedVAE gelé comme préprocesseur 
+    # Frozen MedVAE as a preprocessor
     autoencoder = MedVAEAutoencoder(
         model_name=args.medvae_model,
         modality=args.medvae_modality,
@@ -109,14 +109,14 @@ def main():
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=4,  # MedVAE attention OOM à batch_size=8
+        batch_size=4,  # MedVAE attention runs out of memory at batch_size=8
         shuffle=False,
         num_workers=data_cfg["num_workers"],
         pin_memory=data_cfg["pin_memory"],
     )
     print(f"Test set : {len(test_dataset)} images")
 
-    # Évaluation
+    # Evaluation
     use_amp = device.type == "cuda"
     metrics = SegMetrics(num_classes=data_cfg["num_classes"], device=device)
 
@@ -133,13 +133,13 @@ def main():
             metrics.update(logits, masks)
 
     results = metrics.compute()
-    print(f"\n=== Résultats A* (U-Net A sur images MedVAE reconstituées) ===")
+    print(f"\n=== A* results (U-Net A on MedVAE reconstructions) ===")
     print(f"Dice mean : {results['dice_mean']:.4f}")
     print(f"IoU  mean : {results['iou_mean']:.4f}")
-    print(f"\nRappel : Dice A (images originales) = {ckpt['dice']:.4f}")
-    print(f"  → dégradation brute MedVAE : {ckpt['dice'] - results['dice_mean']:.4f}")
+    print(f"\nReminder: Dice A (original images) = {ckpt['dice']:.4f}")
+    print(f"  → raw MedVAE degradation: {ckpt['dice'] - results['dice_mean']:.4f}")
 
-    # Sauvegarde dans le dossier du run
+    # Save in the run folder
     results_path = os.path.join(run_dir, "results.json")
     all_results = {}
     all_results["condition_astar"] = {
@@ -153,7 +153,7 @@ def main():
 
     with open(results_path, "w") as f:
         json.dump(all_results, f, indent=2)
-    print(f"\nRésultats sauvegardés dans : {results_path}")
+    print(f"\nResults saved in: {results_path}")
 
     if args.predict:
         plot_predictions_astar(

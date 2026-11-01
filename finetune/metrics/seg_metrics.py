@@ -16,41 +16,41 @@ class SegMetrics(nn.Module):
         self.num_classes = num_classes
 
         # Dice score = F1 score en segmentation
-        # average="none" : un score par classe
-        # average="macro" : moyenne sur toutes les classes
+        # average="none": one score per class
+        # average="macro": mean over all classes
         self.dice_per_class = MulticlassF1Score(
             num_classes=num_classes,
-            average="none",          # retourne un vecteur de taille num_classes
+            average="none",          # returns a vector of size num_classes
             ignore_index=ignore_index,
         ).to(device)
 
         self.dice_mean = MulticlassF1Score(
             num_classes=num_classes,
-            average="macro",         # moyenne non pondérée sur toutes les classes
+            average="macro",         # unweighted mean over all classes
             ignore_index=ignore_index,
         ).to(device)
 
-        # IoU calculé comme le Dice (même accumulation sur le dataset, même moyenne
-        # macro). MeanIoU de torchmetrics attend du one-hot par défaut et renvoyait
-        # des valeurs fausses sur nos masques d'indices.
+        # IoU computed like the Dice (same accumulation over the dataset, same macro
+        # mean). The torchmetrics MeanIoU expects one-hot masks by default and returned
+        # wrong values on the class-index masks used here.
         self.iou_mean = MulticlassJaccardIndex(
             num_classes=num_classes,
             average="macro",
             ignore_index=ignore_index,
         ).to(device)
 
-        # Pour les moyennes sur les artères seules (fond exclu, standard ARCADE)
+        # For the means over the arteries only (background excluded, ARCADE standard)
         self.iou_per_class = MulticlassJaccardIndex(
             num_classes=num_classes,
             average="none",
             ignore_index=ignore_index,
         ).to(device)
-        # Pixels prédits / réels par classe : une classe absente des deux côtés
-        # est exclue des moyennes (comme dans la moyenne macro de torchmetrics)
+        # Predicted / true pixels per class: a class absent from both sides
+        # is excluded from the means (as in the torchmetrics macro mean)
         self.register_buffer("class_pixels", torch.zeros(num_classes, dtype=torch.long, device=device))
 
     def update(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
-        # On convertit les logits en classes prédites (argmax sur la dim des classes)
+        # Convert the logits to predicted classes (argmax over the class dimension)
         preds = logits.argmax(dim=1)   # (B, H, W)
 
         self.dice_per_class.update(preds, targets)
@@ -66,26 +66,26 @@ class SegMetrics(nn.Module):
         iou_mean       = self.iou_mean.compute()         # scalar tensor
 
         iou_per_class  = self.iou_per_class.compute()
-        present_fg     = self.class_pixels[1:] > 0     # artères présentes (prédites ou réelles)
+        present_fg     = self.class_pixels[1:] > 0     # arteries present (predicted or true)
 
         results = {
             "dice_mean":      dice_mean.item(),
             "iou_mean":       iou_mean.item(),
-            # Moyennes sur les artères seules (classes 1..N-1 présentes), fond exclu
+            # Means over the arteries only (classes 1..N-1 present), background excluded
             "dice_fg_mean":   dice_per_class[1:][present_fg].mean().item() if present_fg.any() else 0.0,
             "iou_fg_mean":    iou_per_class[1:][present_fg].mean().item() if present_fg.any() else 0.0,
             "dice_per_class": dice_per_class.tolist(),
             "iou_per_class":  iou_per_class.tolist(),
         }
 
-        # Ajoute chaque classe séparément pour le logging wandb
+        # Add each class separately for wandb logging
         for i, score in enumerate(dice_per_class.tolist()):
             results[f"dice_class_{i}"] = score
 
         return results
 
     def reset(self) -> None:
-        """Remet les accumulateurs à zéro — à appeler au début de chaque epoch."""
+        """Reset the accumulators — to call at the start of each epoch."""
         self.dice_per_class.reset()
         self.dice_mean.reset()
         self.iou_mean.reset()
@@ -119,6 +119,6 @@ if __name__ == "__main__":
 
     print(f"Dice mean : {results['dice_mean']:.4f}")
     print(f"IoU mean  : {results['iou_mean']:.4f}")
-    print(f"Dice par classe (5 premières) : "
+    print(f"Dice per class (first 5): "
           f"{[round(v, 4) for v in results['dice_per_class'][:5]]}")
     print("SegMetrics OK")

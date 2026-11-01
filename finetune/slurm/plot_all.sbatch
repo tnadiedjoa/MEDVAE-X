@@ -9,7 +9,7 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 
@@ -17,12 +17,12 @@ cd "$PROJECT_DIR"
 
 source "$PROJECT_DIR/.venv/bin/activate"
 
-echo "=== Plots — démarrage ===" && date
+echo "=== Plots — start ===" && date
 
 RESULTS="finetune/results"
 FIGS="finetune/figures"
 
-# Courbes comparatives des résultats officiels du projet
+# Comparison curves of the official results of the project
 python -m finetune.plot \
   --history \
     "$RESULTS/condition_a_unet_history.json" \
@@ -32,7 +32,7 @@ python -m finetune.plot \
   --labels "Condition A" "Condition B" "Condition C" "Condition D" \
   --save_dir "$FIGS"
 
-# Figures de prédictions, dans le dossier de chaque run passé en argument :
+# Prediction figures, in the folder of each run given as argument:
 #   sbatch finetune/slurm/plot_all.sbatch experiments/runs/<run A> experiments/runs/<run B> ...
 for RUN in "$@"; do
   NAME=$(python -c "import yaml,sys; print(yaml.safe_load(open(sys.argv[1]))['experiment']['name'])" "$RUN/config.yaml")
@@ -44,4 +44,4 @@ for RUN in "$@"; do
     --config "$RUN/config.yaml"
 done
 
-echo "=== Plots — terminé ===" && date
+echo "=== Plots — done ===" && date

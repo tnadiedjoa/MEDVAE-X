@@ -215,7 +215,7 @@ class MVAE_JEPA(nn.Module):
                     dummy = torch.zeros(1, autoencoder.encoder.in_channels, 64, 64)
                     feat, _, _ = autoencoder.encode_penultimate(dummy)
                 latent_dim = feat.shape[1]
-                print(f"[MVAE_JEPA] use_penultimate=True → latent_dim auto-détecté = {latent_dim}")
+                print(f"[MVAE_JEPA] use_penultimate=True → latent_dim detected automatically = {latent_dim}")
             else:
                 latent_dim = autoencoder.embed_dim
         self.target_encoder = TargetEncoder(self.context_encoder)

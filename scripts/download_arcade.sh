@@ -1,6 +1,6 @@
 #!/bin/bash
-# Télécharge le dataset ARCADE (Zenodo, CC0) et le range dans l'arborescence
-# attendue par le code (celle du challenge d'origine) :
+# Download the ARCADE dataset (Zenodo, CC0) and arrange it in the tree expected
+# by the code (that of the original challenge):
 #
 #   $ARCADE_ROOT/
 #   ├── dataset_phase_1/
@@ -10,10 +10,10 @@
 #       ├── test_case_segmentation/{images,annotations/instances_default.json}
 #       └── test_case_stenosis/{images,annotations/instances_default.json}
 #
-# Usage (depuis la racine du repo) :
+# Usage (from the repository root):
 #   bash scripts/download_arcade.sh
-#   ARCADE_ROOT=/autre/chemin bash scripts/download_arcade.sh
-#   ARCADE_ZIP=/chemin/arcade.zip bash scripts/download_arcade.sh   # zip déjà téléchargé
+#   ARCADE_ROOT=/other/path bash scripts/download_arcade.sh
+#   ARCADE_ZIP=/path/arcade.zip bash scripts/download_arcade.sh   # zip already downloaded
 
 set -euo pipefail
 
@@ -23,7 +23,7 @@ ZENODO_URL="https://zenodo.org/api/records/10390295/files/arcade.zip/content"
 ZIP_MD5="c5b1973ade06f7dff210f878161e1a76"
 
 if [ -d "$ARCADE_ROOT/dataset_phase_1" ]; then
-    echo "ARCADE déjà présent dans $ARCADE_ROOT — rien à faire."
+    echo "ARCADE already in $ARCADE_ROOT — nothing to do."
     exit 0
 fi
 
@@ -33,18 +33,18 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 ZIP="${ARCADE_ZIP:-$TMP_DIR/arcade.zip}"
 if [ ! -f "$ZIP" ]; then
-    echo "Téléchargement d'ARCADE (~450 Mo) depuis Zenodo..."
+    echo "Downloading ARCADE (~450 MB) from Zenodo..."
     curl -L --fail --progress-bar -o "$ZIP" "$ZENODO_URL"
 fi
 
-echo "Vérification du checksum..."
+echo "Checking the checksum..."
 echo "$ZIP_MD5  $ZIP" | md5sum --check --quiet
 
 echo "Extraction..."
 unzip -q "$ZIP" -d "$TMP_DIR"
 SRC="$TMP_DIR/arcade"
 
-# move_split <source zenodo> <destination> <nom json zenodo> <nom json attendu>
+# move_split <zenodo source> <destination> <zenodo json name> <expected json name>
 move_split() {
     mkdir -p "$ARCADE_ROOT/$2/annotations"
     mv "$SRC/$1/images" "$ARCADE_ROOT/$2/images"
@@ -58,4 +58,4 @@ move_split stenosis/train dataset_phase_1/stenosis_dataset/sten_train     train.
 move_split stenosis/val   dataset_phase_1/stenosis_dataset/sten_val       val.json   sten_val.json
 move_split stenosis/test  dataset_final_phase/test_case_stenosis          test.json  instances_default.json
 
-echo "ARCADE prêt dans $ARCADE_ROOT"
+echo "ARCADE ready in $ARCADE_ROOT"

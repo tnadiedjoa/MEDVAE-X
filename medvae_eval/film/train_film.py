@@ -1,21 +1,21 @@
-"""Axe B refait : le conditionnement FiLM par un score de qualité améliore-t-il MedVAE ?
+"""Part B redone: does FiLM conditioning on a quality score improve MedVAE?
 
-Protocole (corrige l'étude d'origine, notebooks 04 à 07) :
-    - données : seg_train (1000 images) découpé en 900 entraînement / 100 validation
-      (découpage fixe, identique pour tous les runs) ; TEST = seg_val (200 images),
-      jamais vu à l'entraînement ni pour la sélection du modèle ;
-    - résolution 256×256 (contre 64×64, où les vaisseaux font ~1 pixel) ;
-    - baseline (MedVAE sans FiLM) et FiLM entraînés exactement de la même façon :
-      tous les paramètres, même nombre de pas, même learning rate ;
-    - sélection du checkpoint sur l'erreur de reconstruction de validation (et non sur
-      la loss totale, dominée par le terme KL) ;
-    - évaluation test : PSNR, SSIM, HaarPSI (piq) et PSNR sur les vaisseaux ; pour FiLM,
-      avec le vrai c, un c mélangé entre images et un c constant (moyenne d'entraînement).
-      Si c est réellement utilisé, le vrai c doit battre les deux contrôles.
-    - --steps 0 : évalue le MedVAE pré-entraîné sans aucun entraînement ;
-    - loss = MSE moyenne + kl_weight × KL / nombre de pixels (convention MedVAE, cf. main).
+Protocol (fixes the original study, notebooks 04 to 07):
+    - data: seg_train (1000 images) split into 900 training / 100 validation
+      (fixed split, the same for every run); TEST = seg_val (200 images),
+      never seen for training nor for model selection;
+    - 256×256 resolution (against 64×64, where vessels are ~1 pixel wide);
+    - baseline (MedVAE without FiLM) and FiLM trained exactly the same way:
+      all parameters, same number of steps, same learning rate;
+    - checkpoint selected on the validation reconstruction error (not on the total
+      loss, dominated by the KL term);
+    - test evaluation: PSNR, SSIM, HaarPSI (piq) and PSNR on the vessels; for FiLM,
+      with the true c, a c shuffled across images and a constant c (training mean).
+      If c is really used, the true c must beat both controls.
+    - --steps 0: evaluates the pre-trained MedVAE without any training;
+    - loss = mean MSE + kl_weight × KL / number of pixels (MedVAE convention, see main).
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/film/train_film.py --model film --approach C --seed 42
     python medvae_eval/film/train_film.py --model baseline --seed 42
 """
@@ -50,7 +50,7 @@ LABELS_CSV = REPO_ROOT / "medvae_eval" / "cvae" / "outputs_cvae" / "03_Inductive
 
 
 class QualityDataset(Dataset):
-    """(image dans [-1, 1] de taille img_size², score c, nom de fichier)."""
+    """(image in [-1, 1] of size img_size², score c, file name)."""
 
     def __init__(self, df: pd.DataFrame, score_col: str, img_size: int):
         self.df = df.reset_index(drop=True)
@@ -67,7 +67,7 @@ class QualityDataset(Dataset):
 
 
 def split_data(df: pd.DataFrame, n_val: int = 100):
-    """900 / 100 dans seg_train (découpage fixe), test = seg_val."""
+    """900 / 100 within seg_train (fixed split), test = seg_val."""
     train_all = df[df["split"] == "train"].sort_values("image_id")
     val = train_all.sample(n=n_val, random_state=0)
     return train_all.drop(val.index), val, df[df["split"] == "val"]
@@ -88,7 +88,7 @@ def val_mse(model, loader, device):
 
 @torch.no_grad()
 def evaluate(model, loader, device, masks, c_override=None):
-    """Métriques par image, sur [0, 1]. c_override : fonction (c, noms) → c utilisé."""
+    """Per-image metrics, on [0, 1]. c_override: function (c, names) → c used."""
     model.eval()
     rows = []
     for x, c, names in loader:
@@ -113,13 +113,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", choices=["baseline", "film"], required=True)
     parser.add_argument("--approach", choices=list(APPROACHES), default="C",
-                        help="score de qualité c (colonne de labels_quality.csv)")
+                        help="quality score c (column of labels_quality.csv)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--img-size", type=int, default=256)
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--film-lr", type=float, default=None,
-                        help="learning rate des couches FiLM (défaut : --lr)")
+                        help="learning rate of the FiLM layers (default: --lr)")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--kl-weight", type=float, default=1e-6)
     parser.add_argument("--val-every", type=int, default=250)
@@ -143,7 +143,7 @@ def main():
                                "data": {"n_train": len(train_df), "n_val": len(val_df), "n_test": len(test_df)}},
                               name))
 
-    # Entraînement : tous les paramètres, AdamW + cosine (lr → lr/10), loss = MSE + kl_weight * KL
+    # Training: all parameters, AdamW + cosine (lr → lr/10), loss = MSE + kl_weight * KL
     film_params = [p for n, p in model.named_parameters() if n.startswith("film.")]
     base_params = [p for n, p in model.named_parameters() if not n.startswith("film.")]
     groups = [{"params": base_params, "lr": args.lr}]
@@ -167,10 +167,10 @@ def main():
         x, c = x.to(device), c.to(device)
         rec, posterior = model(x, c, sample_posterior=True)
         rec_loss = F.mse_loss(rec, x)
-        # KL sommé sur le latent, rapporté au nombre de pixels : comme dans MedVAE /
-        # latent-diffusion, où KL et erreur de reconstruction sont tous deux sommés.
-        # Sans cette normalisation, en 256×256 le terme KL (x1e-6) pèse ~700 fois la MSE
-        # moyenne et l'entraînement dégrade la reconstruction.
+        # KL summed over the latent, divided by the number of pixels: as in MedVAE /
+        # latent-diffusion, where the KL and the reconstruction error are both summed.
+        # Without this normalisation, at 256×256 the KL term (x1e-6) weighs ~700 times the
+        # mean MSE and training degrades the reconstruction.
         kl = posterior.kl().mean() / x[0].numel()
         loss = rec_loss + args.kl_weight * kl
         optimizer.zero_grad(set_to_none=True)
@@ -192,12 +192,12 @@ def main():
     torch.save({"model": best_state, "step": best[1], "val_mse": best[0], "args": vars(args)},
                run_dir / "best_model.pth")
 
-    # Évaluation test (seg_val)
+    # Test evaluation (seg_val)
     masks = vessel_masks(SEG_VAL / "annotations" / "seg_val.json")
     variants = {"real_c": None}
     if args.model == "film":
         train_mean = float(train_df[score_col].mean())
-        # c d'une autre image du test set (permutation fixe sur les 200 images)
+        # c of another test-set image (fixed permutation of the 200 images)
         test_names = [Path(p).name for p in test_df["path"]]
         shuffled = np.random.default_rng(0).permutation(test_df[score_col].to_numpy())
         shuffled_c = dict(zip(test_names, shuffled))

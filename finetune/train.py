@@ -28,19 +28,19 @@ def get_device() -> torch.device:
         print(f"GPU : {torch.cuda.get_device_name(0)}")
     else:
         device = torch.device("cpu")
-        print("CPU uniquement")
+        print("CPU only")
     return device
 
 
 def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
     data_cfg = config["data"]
 
-    noise = data_cfg.get("gauss_noise_std_range")   # E07 ; None = comportement d'origine
-    degradation = data_cfg.get("degradation_aug_p")  # E15 ; None = pas de dégradation
+    noise = data_cfg.get("gauss_noise_std_range")   # E07; None = original behaviour
+    degradation = data_cfg.get("degradation_aug_p")  # E15; None = no degradation
 
     if data_cfg.get("validation", "split") == "official":
-        # E08 : tout seg_train (1000 images) pour l'entraînement, seg_val officiel
-        # (200 images) pour la sélection du modèle
+        # E08: all of seg_train (1000 images) for training, official seg_val
+        # (200 images) for model selection
         train_dataset = ArcadeDataset(data_cfg["train_images"], data_cfg["train_ann"],
                                       augment=True, noise_std_range=noise,
                                       degradation_p=degradation)
@@ -51,7 +51,7 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
             augment=False,
         )
     else:
-        # Comportement d'origine : seg_train découpé 80/20 selon le seed
+        # Original behaviour: seg_train split 80/20 according to the seed
         train_ids, val_ids = split_dataset(
             data_cfg["train_ann"],
             train_ratio=data_cfg["train_ratio"],
@@ -73,7 +73,7 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
         batch_size     = config["training"]["batch_size"],
         num_workers    = data_cfg["num_workers"],
         pin_memory     = data_cfg["pin_memory"],
-        worker_init_fn = seed_worker_augmentations,   # augmentations propres à chaque worker et epoch
+        worker_init_fn = seed_worker_augmentations,   # augmentations specific to each worker and epoch
     )
 
     return (
@@ -85,9 +85,9 @@ def build_dataloaders(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]
 
 def build_model(config: dict, device: torch.device):
     """
-    Instancie le bon modèle selon la condition :
-    - Condition A : U-Net complet
-    - Condition B/C : encodeur MedVAE gelé + tête de segmentation
+    Build the model of the condition:
+    - Condition A: full U-Net
+    - Condition B/C: frozen MedVAE encoder + segmentation head
     """
     condition = config["experiment"]["condition"]
 
@@ -100,8 +100,8 @@ def build_model(config: dict, device: torch.device):
 
         # Sans checkpoint, C tournerait silencieusement comme B
         if condition == "C" and not config["encoder"].get("checkpoint_path"):
-            raise ValueError("Condition C : encoder.checkpoint_path manquant "
-                             "(--set encoder.checkpoint_path=<MedVAE fine-tuné>)")
+            raise ValueError("Condition C: encoder.checkpoint_path missing "
+                             "(--set encoder.checkpoint_path=<fine-tuned MedVAE>)")
 
         encoder = MedVAEEncoder(
             model_name=config["encoder"]["model_name"],
@@ -127,7 +127,7 @@ def build_model(config: dict, device: torch.device):
         from finetune.encoder import MedVAEAutoencoder
         import torch.nn as nn
 
-        # MedVAE gelé : préprocesse les images (encode→decode) avant le U-Net
+        # Frozen MedVAE: preprocesses the images (encode→decode) before the U-Net
         autoencoder = MedVAEAutoencoder(
             model_name=config["encoder"]["model_name"],
             modality=config["encoder"]["modality"],
@@ -137,9 +137,9 @@ def build_model(config: dict, device: torch.device):
 
         class AutoencoderUNet(nn.Module):
             """
-            Préprocesse chaque image via MedVAE (encode→decode) puis la
-            segmente avec un U-Net entraînable. Le U-Net s'adapte ainsi
-            à la qualité de reconstruction MedVAE pendant l'entraînement.
+            Preprocess each image with MedVAE (encode→decode), then segment
+            it with a trainable U-Net. The U-Net thus adapts to the MedVAE
+            reconstruction quality during training.
             """
             def __init__(self, ae, unet):
                 super().__init__()
@@ -156,8 +156,8 @@ def build_model(config: dict, device: torch.device):
         import torch.nn as nn
         import torch.nn.functional as F
 
-        # Témoin (E16) : même tête que B et C, sur l'image réduite à la taille du latent
-        # (128×128×1, autant de valeurs que le latent MedVAE) au lieu du latent
+        # Control (E16): same head as B and C, on the image reduced to the latent size
+        # (128×128×1, as many values as the MedVAE latent) instead of the latent
         seg_head = build_seg_head(config["model"])
 
         class DownsampledImageHead(nn.Module):
@@ -166,7 +166,7 @@ def build_model(config: dict, device: torch.device):
                 self.seg_head, self.factor = head, factor
 
             def forward(self, x):
-                small = F.avg_pool2d(x, self.factor) * 2 - 1   # [0,1] → [-1,1], comme l'entrée de MedVAE
+                small = F.avg_pool2d(x, self.factor) * 2 - 1   # [0,1] → [-1,1], like the MedVAE input
                 return self.seg_head(small)
 
         model = DownsampledImageHead(seg_head, factor=2 ** config["model"].get("n_upsample", 2))
@@ -174,9 +174,9 @@ def build_model(config: dict, device: torch.device):
     else:
         raise ValueError(f"Condition inconnue : {condition}")
 
-    # Compte uniquement les paramètres entraînables
+    # Count the trainable parameters only
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Paramètres entraînables : {n_params:,}")
+    print(f"Trainable parameters: {n_params:,}")
 
     return model
 
@@ -188,7 +188,7 @@ def main():
     args = parser.parse_args()
 
     config = apply_overrides(load_config(args.config), args.overrides)
-    print(f"Expérience : {config['experiment']['name']}")
+    print(f"Experiment: {config['experiment']['name']}")
     run_name = args.run_name or config["experiment"]["name"]
     config["logging"]["save_dir"] = create_run(config, run_name, args.overrides)
 

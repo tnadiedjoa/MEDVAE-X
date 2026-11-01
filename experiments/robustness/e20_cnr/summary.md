@@ -1,10 +1,10 @@
-# E20 — CNR des vaisseaux (moyenne sur les images)
+# E20 — Vessel CNR (mean over the images)
 
-Images propres : thin : propre 0.88, MedVAE 0.85 ; thick : propre 1.91, MedVAE 1.90 ; all : propre 1.11, MedVAE 1.09
+Clean images: thin: clean 0.88, MedVAE 0.85; thick: clean 1.91, MedVAE 1.90; all: clean 1.11, MedVAE 1.09
 
-## Vaisseaux thin
+## Vessels: thin
 
-| Dégradation | Niveau | dégradée | MedVAE | gauss5 | median5 | MedVAE − gauss5 [IC 95 %] |
+| Degradation | Level | degraded | MedVAE | gauss5 | median5 | MedVAE − gauss5 [95 % CI] |
 |---|---|---|---|---|---|---|
 | blur | 0 | 0.88 | 0.85 | 0.83 | 0.79 | +0.02 [+0.01, +0.03] |
 | blur | 1 | 0.83 | 0.82 | 0.77 | 0.75 | +0.04 [+0.04, +0.05] |
@@ -37,9 +37,9 @@ Images propres : thin : propre 0.88, MedVAE 0.85 ; thick : propre 1.91, MedVAE 1
 | poisson | 8 | 0.47 | 0.55 | 0.74 | 0.69 | -0.18 [-0.22, -0.16] |
 | poisson | 9 | 0.30 | 0.45 | 0.62 | 0.55 | -0.16 [-0.19, -0.14] |
 
-## Vaisseaux thick
+## Vessels: thick
 
-| Dégradation | Niveau | dégradée | MedVAE | gauss5 | median5 | MedVAE − gauss5 [IC 95 %] |
+| Degradation | Level | degraded | MedVAE | gauss5 | median5 | MedVAE − gauss5 [95 % CI] |
 |---|---|---|---|---|---|---|
 | blur | 0 | 1.91 | 1.90 | 2.01 | 2.02 | -0.11 [-0.13, -0.09] |
 | blur | 1 | 2.01 | 1.99 | 2.04 | 2.04 | -0.05 [-0.06, -0.04] |
@@ -72,9 +72,9 @@ Images propres : thin : propre 0.88, MedVAE 0.85 ; thick : propre 1.91, MedVAE 1
 | poisson | 8 | 0.96 | 1.37 | 1.76 | 1.79 | -0.39 [-0.45, -0.34] |
 | poisson | 9 | 0.62 | 1.16 | 1.49 | 1.48 | -0.33 [-0.38, -0.29] |
 
-## Vaisseaux all
+## Vessels: all
 
-| Dégradation | Niveau | dégradée | MedVAE | gauss5 | median5 | MedVAE − gauss5 [IC 95 %] |
+| Degradation | Level | degraded | MedVAE | gauss5 | median5 | MedVAE − gauss5 [95 % CI] |
 |---|---|---|---|---|---|---|
 | blur | 0 | 1.11 | 1.09 | 1.11 | 1.09 | -0.01 [-0.02, -0.01] |
 | blur | 1 | 1.11 | 1.09 | 1.08 | 1.07 | +0.01 [+0.01, +0.02] |
@@ -107,11 +107,11 @@ Images propres : thin : propre 0.88, MedVAE 0.85 ; thick : propre 1.91, MedVAE 1
 | poisson | 8 | 0.65 | 0.84 | 1.02 | 1.00 | -0.19 [-0.21, -0.17] |
 | poisson | 9 | 0.44 | 0.72 | 0.91 | 0.88 | -0.19 [-0.21, -0.17] |
 
-## Mécanisme : contraste conservé (fraction du contraste propre) / bruit du fond
+## Mechanism: contrast kept (fraction of the clean contrast) / background noise
 
-Bruit du fond sur l'image propre : thin 0.088 ; thick 0.081
+Background noise on the clean image: thin 0.088; thick 0.081
 
-| Dégradation | Niveau | Vaisseaux | dégradée | MedVAE | gauss5 | median5 |
+| Degradation | Level | Vessels | degraded | MedVAE | gauss5 | median5 |
 |---|---|---|---|---|---|---|
 | blur | 0 | thick | 1.00 / 0.081 | 0.99 / 0.081 | 1.00 / 0.078 | 0.99 / 0.077 |
 | blur | 0 | thin | 1.00 / 0.088 | 0.97 / 0.089 | 0.86 / 0.086 | 0.79 / 0.086 |

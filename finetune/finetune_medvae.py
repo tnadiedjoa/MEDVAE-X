@@ -17,7 +17,7 @@ from finetune.runs import add_run_args, apply_overrides, create_run
 
 
 class ArcadeImageDataset(Dataset):
-    """Images ARCADE seules (sans masques) — pour fine-tuner MedVAE."""
+    """ARCADE images only (no masks) — to fine-tune MedVAE."""
 
     def __init__(self, images_dir: str, img_size: int = 512):
         self.images_dir = images_dir
@@ -27,8 +27,8 @@ class ArcadeImageDataset(Dataset):
             if f.lower().endswith((".png", ".jpg", ".jpeg"))
         ])
         if not self.files:
-            raise FileNotFoundError(f"Aucune image trouvée dans : {images_dir}")
-        print(f"Dataset : {len(self.files)} images dans {images_dir}")
+            raise FileNotFoundError(f"No image found in: {images_dir}")
+        print(f"Dataset: {len(self.files)} images in {images_dir}")
 
     def __len__(self) -> int:
         return len(self.files)
@@ -51,17 +51,17 @@ def fine_tune(config: dict) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device : {device}")
 
-    # Charge MedVAE depuis HuggingFace 
-    print(f"Chargement de MedVAE ({enc_cfg['model_name']})...")
+    # Load MedVAE from HuggingFace 
+    print(f"Loading MedVAE ({enc_cfg['model_name']})...")
     mvae = MVAE(model_name=enc_cfg["model_name"], modality=enc_cfg["modality"]).to(device)
 
-    # Dégèle tout pour le fine-tuning
+    # Unfreeze everything for the fine-tuning
     for p in mvae.parameters():
         p.requires_grad = True
     mvae.train()
 
     n_params = sum(p.numel() for p in mvae.parameters())
-    print(f"MedVAE prêt — {n_params:,} paramètres entraînables")
+    print(f"MedVAE ready — {n_params:,} trainable parameters")
 
     # Dataset
     full_ds = ArcadeImageDataset(
@@ -96,7 +96,7 @@ def fine_tune(config: dict) -> None:
         eta_min=train_cfg.get("lr_min", 1e-7),
     )
 
-    # Sauvegarde 
+    # Save
     save_dir = log_cfg["save_dir"]
     os.makedirs(save_dir, exist_ok=True)
     ckpt_path = os.path.join(save_dir, "best_medvae_finetuned.pth")
@@ -108,7 +108,7 @@ def fine_tune(config: dict) -> None:
     no_imp    = 0
     history   = {"train": [], "val": []}
 
-    # Boucle d'entraînement 
+    # Training loop
     for epoch in range(1, train_cfg["epochs"] + 1):
 
         # train 
@@ -117,8 +117,8 @@ def fine_tune(config: dict) -> None:
         for images in train_loader:
             optimizer.zero_grad()
 
-            # Accumulation de gradient par micro-batchs : identique au batch entier
-            # (L1 moyenne, normalisations par image) mais tient en mémoire sur 24 Go
+            # Gradient accumulation over micro-batches: identical to the full batch
+            # (mean L1, per-image normalisations) but fits in 24 GB of memory
             batch_loss = 0.0
             for chunk in images.split(micro_batch_size):
                 chunk = chunk.to(device)
@@ -165,11 +165,11 @@ def fine_tune(config: dict) -> None:
                 "val_loss":   val_loss,
                 "config":     config,
             }, ckpt_path)
-            print(f"  ✓ val_loss={best_val:.5f} — checkpoint sauvegardé")
+            print(f"  ✓ val_loss={best_val:.5f} — checkpoint saved")
         else:
             no_imp += 1
             if no_imp >= patience:
-                print(f"\nEarly stopping à l'epoch {epoch}.")
+                print(f"\nEarly stopping at epoch {epoch}.")
                 break
 
     # historique 
@@ -177,9 +177,9 @@ def fine_tune(config: dict) -> None:
     with open(hist_path, "w") as f:
         json.dump(history, f, indent=2)
 
-    print(f"\nFine-tuning terminé.")
-    print(f"Checkpoint : {ckpt_path}")
-    print(f"→ Condition C avec ce MedVAE :")
+    print(f"\nFine-tuning done.")
+    print(f"Checkpoint: {ckpt_path}")
+    print(f"→ Condition C with this MedVAE:")
     print(f"    MEDVAE_CKPT={ckpt_path} sbatch finetune/slurm/train_c.sbatch")
 
 

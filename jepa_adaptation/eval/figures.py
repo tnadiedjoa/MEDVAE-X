@@ -1,10 +1,10 @@
-"""Figures de l'axe C (rapport) avec les modèles E19 (seed 42) : reconstructions et PCA des features.
+"""Figures of part C (report) with the E19 models (seed 42): reconstructions and PCA of the features.
 
-    - recon.png : une image de test et ses reconstructions (MedVAE, étape 1, étape 2 JEPA) ;
-    - pca.png   : features avant conv_out projetées sur 3 composantes principales (RGB),
-                  PCA ajustée sur 50 images de test, montrée sur 3 autres.
+    - recon.png: a test image and its reconstructions (MedVAE, stage 1, stage 2 JEPA);
+    - pca.png  : features before conv_out projected on 3 principal components (RGB),
+                 PCA fitted on 50 test images, shown on 3 others.
 
-Usage (racine du repo) : python jepa_adaptation/eval/figures.py
+Usage (from the repository root): python jepa_adaptation/eval/figures.py
 """
 
 import sys
@@ -26,8 +26,8 @@ from finetune.config import load_config               # noqa: E402
 from finetune.dataset import ArcadeDataset             # noqa: E402
 from probe import _penultimate_hook, load_autoencoder  # noqa: E402
 
-OUT = REPO_ROOT / "final_report" / "figures" / "yanic"
-RUNS = REPO_ROOT / "experiments" / "runs"                                       # pré-entraînement E19, seed 42
+OUT = REPO_ROOT / "report" / "figures" / "jepa"
+RUNS = REPO_ROOT / "experiments" / "runs"                                       # E19 pre-training, seed 42
 MODELS = {"MedVAE": ("medvae", None),
           "Stage 1": ("stage1", str(sorted(RUNS.glob("*_e19_jepa_stage1_seed42"))[-1] / "best.pt")),
           "Stage 2 (JEPA)": ("stage2", str(sorted(RUNS.glob("*_e19_jepa_stage2_seed42"))[-1] / "best.pt"))}
@@ -63,7 +63,7 @@ def main():
     d = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_a.yaml"))["data"]
     ds = ArcadeDataset(d["val_images"], d["val_ann"])
     show = torch.stack([ds[i][0] for i in SHOW]).to(device) * 2 - 1
-    fit_idx = [i for i in range(0, 300, 6) if i not in SHOW]                      # images non montrées
+    fit_idx = [i for i in range(0, 300, 6) if i not in SHOW]                      # images not shown
     fit = torch.stack([ds[i][0] for i in fit_idx]).to(device) * 2 - 1
 
     recons, rgbs = {}, {}

@@ -1,10 +1,10 @@
-"""Schéma des cinq conditions de segmentation (A, A*, B, C, D), pour le rapport et le README.
+"""Diagram of the five segmentation conditions (A, A*, B, C, D), for the report and the README.
 
-Les vignettes viennent d'une vraie image du test set : l'angiographie, son latent MedVAE,
-sa reconstruction et son masque de vérité terrain (26 classes).
+The thumbnails come from a real test-set image: the angiogram, its MedVAE latent, its
+reconstruction and its ground-truth mask (26 classes).
 
-Usage (racine du repo) : python -m finetune.figures_conditions
-    → final_report/figures/theo/conditions.pdf (+ .png)
+Usage (from the repository root): python -m finetune.figures_conditions
+    → report/figures/segmentation/conditions.pdf (+ .png)
 """
 
 from pathlib import Path
@@ -20,12 +20,12 @@ from finetune.config import REPO_ROOT, load_config
 from finetune.dataset import ArcadeDataset
 from finetune.figures_report import mask_to_rgb
 
-OUT = REPO_ROOT / "final_report" / "figures" / "theo" / "conditions.pdf"
+OUT = REPO_ROOT / "report" / "figures" / "segmentation" / "conditions.pdf"
 TRAINED, FROZEN = "#3d7ab8", "#dbe8f5"
 
 
 @torch.no_grad()
-def thumbnails(index: int = 144):   # image du test set contrastée, 9 segments annotés
+def thumbnails(index: int = 144):   # high-contrast test-set image, 9 annotated segments
     from medvae import MVAE
     d = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_a.yaml"))["data"]
     image, mask = ArcadeDataset(d["val_images"], d["val_ann"])[index]
@@ -58,7 +58,7 @@ def main():
     image, latent, rec, mask = thumbnails()
     mask_rgb = mask_to_rgb(mask)
 
-    s, gap = 0.95, 1.55   # taille des vignettes, hauteur d'une ligne
+    s, gap = 0.95, 1.55   # thumbnail size, row height
     rows = [
         ("A", "Full-resolution\nbaseline",
          [("img", image, "image 512²"), ("box", "U-Net (ResNet-34)", "trained on original images", True),
@@ -88,7 +88,7 @@ def main():
         y = gap * (len(rows) - 1 - r)
         ax.text(-1.4, y + s / 2 + 0.12, name, fontsize=13, fontweight="bold", va="center")
         ax.text(-1.4, y + s / 2 - 0.3, title, fontsize=6.8, va="center")
-        # positions : vignettes de largeur s, boîtes de largeur 2.1, flèches entre les deux
+        # positions: thumbnails of width s, boxes of width 2.1, arrows in between
         if len(items) == 3:
             xs = [0.4, 2.9, 9.4]
             widths = [s, 5.0, s]
@@ -97,7 +97,7 @@ def main():
             widths = [s, 2.1, s, 2.6, s]
         for (kind, *payload), x, w in zip(items, xs, widths):
             if kind == "img":
-                if payload[0] is latent:   # contraste sur l'intérieur (le bord du latent est saturé)
+                if payload[0] is latent:   # contrast computed on the interior (the latent border is saturated)
                     lo, hi = np.percentile(latent[8:-8, 8:-8], [1, 99])
                     thumb(ax, x, y, s, latent, payload[1], cmap="viridis", vmin=lo, vmax=hi)
                 else:

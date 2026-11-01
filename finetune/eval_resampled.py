@@ -1,11 +1,11 @@
-"""Témoin de A* (E16) : le U-Net de A appliqué à une image réduite puis ré-agrandie.
+"""Control of A* (E16): the U-Net of A applied to an image reduced then enlarged back.
 
-A* mesure ce que coûte à A le passage de l'image par MedVAE (latent 128×128, 16 fois moins
-de valeurs). Ce témoin applique au même U-Net, sans réentraînement, une compression triviale
-du même taux : moyenne sur des blocs 4×4 (image 128×128), puis ré-agrandissement à 512×512
-(bilinéaire ou bicubique). Test set de 300 images, Dice / IoU sur les artères.
+A* measures what passing the image through MedVAE costs A (128×128 latent, 16 times fewer
+values). This control applies to the same U-Net, without retraining, a trivial compression of
+the same rate: mean over 4×4 blocks (128×128 image), then enlargement back to 512×512
+(bilinear or bicubic). 300-image test set, Dice / IoU on the arteries.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python finetune/eval_resampled.py --run-a experiments/runs/*_e17_seed4?_condition_a \
         --out experiments/diagnostics/e16_resampled.csv
 """

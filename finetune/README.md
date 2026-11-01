@@ -1,329 +1,300 @@
-# Pipeline `finetune/` — récapitulatif technique
+# `finetune/` pipeline — technical notes
 
-Comparaison de quatre pipelines de segmentation d'artères coronariennes sur le
-dataset **ARCADE** (26 classes, images rayons-X 512×512 en niveaux de gris). La
-question centrale : **une représentation latente compressée par MedVAE permet-elle
-une segmentation aussi efficace que le travail directement sur l'image pleine
-résolution ?**
+Comparison of four coronary-artery segmentation pipelines on the **ARCADE** dataset (26 classes,
+512×512 greyscale X-ray images). The central question: **does a latent representation compressed by
+MedVAE allow a segmentation as effective as working directly on the full-resolution image?**
 
-Point d'entrée : `python -m finetune.train --config finetune/configs/condition_{a,b,c,d}.yaml`
-(toujours depuis la racine du projet). Chaque run crée son dossier
-`experiments/runs/<date>_<nom>/` (config exacte, commit, GPU, historique, scores) ;
-toutes les expériences et leurs résultats sont dans [`EXPERIMENTS.md`](../EXPERIMENTS.md).
+Entry point: `python -m finetune.train --config finetune/configs/condition_{a,b,c,d}.yaml` (always
+from the repository root). Each run creates its own folder `experiments/runs/<date>_<name>/` (exact
+config, commit, GPU, history, scores); every experiment and its results are in
+[`experiments.md`](../experiments.md).
 
 ---
 
-## 1. Socle commun à toutes les conditions
+## 1. Common base of all conditions
 
-Tout ce qui suit est partagé par les conditions A, B, C, D — seul le **modèle**
-change d'une condition à l'autre. Le cœur logique vit dans
-[`trainer/trainer.py`](trainer/trainer.py).
+Everything below is shared by conditions A, B, C and D — only the **model** changes from one
+condition to the next. The core logic lives in [`trainer/trainer.py`](trainer/trainer.py).
 
-### 1.1 Données et augmentation ([`dataset.py`](dataset.py))
+### 1.1 Data and augmentation ([`dataset.py`](dataset.py))
 
-- Images chargées en niveaux de gris (`convert("L")`), normalisées dans **`[0, 1]`**
-  (`/ 255.0`). Le masque est reconstruit à partir des annotations COCO (RLE →
-  `category_id` par pixel).
-- **Split** (`data.validation: official`, E08) : entraînement sur les **1000**
-  images de `seg_train`, sélection du modèle sur le **`seg_val` officiel** (200
-  images). Le **test set est un dataset séparé** (phase finale ARCADE, 300 images) —
-  jamais vu pendant l'entraînement. L'ancien découpage 80/20 de `seg_train` selon le
-  seed reste disponible (`data.validation: split`).
-- **Augmentation** (train uniquement, Albumentations, image+masque synchronisés) :
-  `HorizontalFlip(0.5)`, `VerticalFlip(0.2)`, `ShiftScaleRotate` (shift 0.05,
-  scale 0.1, rotate ±15°, p=0.7), `RandomBrightnessContrast(0.2/0.2, p=0.5)`,
-  `GaussNoise` léger (écart-type 3–7 / 255, p=0.3, `data.gauss_noise_std_range`, E07 ;
-  sans paramètre, albumentations ≥ 2 ajoute un bruit de ~65–84 / 255), `CLAHE(0.3)`.
-  La val/test n'a qu'un `Resize`.
-- **Dégradations réalistes** (option, E15 puis E17, désactivée par défaut) : `data.degradation_aug_p: 0.3`
-  applique à 30 % des images une dégradation parmi bruit de Poisson, JPEG (qualité 5–95) et
-  flou gaussien (noyau 3–31). Sur A (E17, 3 seeds) : robustesse aux images dégradées largement
-  rétablie, +0.010 de Dice sur images propres (cf. [EXPERIMENTS.md](../EXPERIMENTS.md)).
+- Images loaded in greyscale (`convert("L")`), normalised to **`[0, 1]`** (`/ 255.0`). The mask is
+  rebuilt from the COCO annotations (RLE → `category_id` per pixel).
+- **Split** (`data.validation: official`, E08): training on the **1000** images of `seg_train`,
+  model selection on the **official `seg_val`** (200 images). The **test set is a separate dataset**
+  (ARCADE final phase, 300 images) — never seen during training. The former 80/20 split of
+  `seg_train` by seed is still available (`data.validation: split`).
+- **Augmentation** (training only, Albumentations, image and mask in sync): `HorizontalFlip(0.5)`,
+  `VerticalFlip(0.2)`, `ShiftScaleRotate` (shift 0.05, scale 0.1, rotate ±15°, p=0.7),
+  `RandomBrightnessContrast(0.2/0.2, p=0.5)`, light `GaussNoise` (standard deviation 3–7 / 255,
+  p=0.3, `data.gauss_noise_std_range`, E07; without parameters, albumentations ≥ 2 adds a noise of
+  ~65–84 / 255), `CLAHE(0.3)`. Validation and test only get a `Resize`.
+- **Realistic degradations** (option, E15 then E17, off by default): `data.degradation_aug_p: 0.3`
+  applies to 30 % of the images one degradation among Poisson noise, JPEG (quality 5–95) and
+  Gaussian blur (kernel 3–31). On A (E17, 3 seeds): robustness to degraded images largely restored,
+  +0.010 Dice on clean images (see [experiments.md](../experiments.md)).
 
-### 1.2 Fonction de coût ([`losses/seg_loss.py`](losses/seg_loss.py))
+### 1.2 Loss function ([`losses/seg_loss.py`](losses/seg_loss.py))
 
-`SegLoss` est une **combinaison pondérée de trois termes** :
+`SegLoss` is a **weighted combination of three terms**:
 
 ```
 L = dice_weight · L_Dice + ce_weight · L_CE + cl_weight · L_clDice
 ```
 
-| Terme | Rôle | Détail d'implémentation |
-|-------|------|-------------------------|
-| **Dice** | recouvrement région-à-région, robuste au déséquilibre de classes | `smp.losses.DiceLoss` mode `multiclass`, `from_logits=True`, `smooth=1e-6` |
-| **Cross-Entropy** | classification pixel par pixel, gradients stables | `nn.CrossEntropyLoss` standard sur les 26 classes |
-| **clDice** | **préserve la connexité/topologie** des vaisseaux (artères fines) | calculé sur les classes d'avant-plan uniquement (`[:, 1:]`), via squelette morphologique soft |
+| Term | Role | Implementation detail |
+|------|------|-----------------------|
+| **Dice** | region overlap, robust to class imbalance | `smp.losses.DiceLoss` mode `multiclass`, `from_logits=True`, `smooth=1e-6` |
+| **Cross-entropy** | per-pixel classification, stable gradients | standard `nn.CrossEntropyLoss` over the 26 classes |
+| **clDice** | **preserves the connectivity / topology** of the vessels (thin arteries) | computed on the foreground classes only (`[:, 1:]`), through a soft morphological skeleton |
 
-**Pourquoi clDice ?** Le Dice classique peut être élevé alors qu'une artère est
-*coupée en deux* : quelques pixels manquants pénalisent peu le recouvrement mais
-brisent la connexité — catastrophique pour des vaisseaux. clDice compare les
-**squelettes** (`soft_skel`, obtenu par érosions/dilatations morphologiques
-différentiables, `skel_iters=5`) du masque prédit et de la cible, et mesure une
-précision/sensibilité topologique. Il pousse le réseau à produire des structures
-**continues**.
+**Why clDice?** The standard Dice can be high while an artery is *cut in two*: a few missing pixels
+barely penalise the overlap but break the connectivity — a serious error for vessels. clDice
+compares the **skeletons** (`soft_skel`, obtained by differentiable morphological erosions and
+dilations, `skel_iters=5`) of the predicted and target masks, and measures a topological precision /
+sensitivity. It pushes the network towards **continuous** structures.
 
-> **Réglage actuel** : dans les quatre configs, `dice_weight = ce_weight = 0.5` et
-> **`cl_weight = 0.0`**. clDice est donc **implémenté mais désactivé** (mis à 0
-> pour économiser la mémoire GPU — le calcul du squelette one-hot sur 26 classes
-> est coûteux). Pour l'activer : passer `cl_weight` à ~0.2 dans le YAML.
+> **Current setting**: in the four configs, `dice_weight = ce_weight = 0.5` and **`cl_weight = 0.0`**.
+> clDice is therefore **implemented but turned off** (set to 0 to save GPU memory — the one-hot
+> skeleton over 26 classes is expensive). To turn it on: set `cl_weight` to ~0.2 in the YAML.
 
-### 1.3 Métriques d'évaluation ([`metrics/seg_metrics.py`](metrics/seg_metrics.py))
+### 1.3 Evaluation metrics ([`metrics/seg_metrics.py`](metrics/seg_metrics.py))
 
-Le **score** rapporté n'est *pas* la loss mais des métriques `torchmetrics`
-calculées sur les prédictions `argmax` :
+The reported **score** is *not* the loss but `torchmetrics` metrics computed on the `argmax`
+predictions.
 
-Toutes les moyennes sont calculées sur l'ensemble du jeu évalué (pixels cumulés), puis
-moyennées sur les **classes présentes** (dans la prédiction ou la vérité terrain).
+All means are computed over the whole evaluated set (accumulated pixels), then averaged over the
+**classes present** (in the prediction or the ground truth).
 
-- **Dice mean** = `MulticlassF1Score(average="macro")` (le Dice est le F1 en
-  segmentation), **fond compris**. C'est la métrique de sélection du meilleur modèle.
-- **IoU mean** = `MulticlassJaccardIndex(average="macro")`, même moyenne. *(Avant E01,
-  `MeanIoU` recevait des masques d'indices au lieu du one-hot attendu : les IoU publiés
-  à l'origine sont faux.)*
-- **Dice / IoU artères** (`dice_fg_mean`, `iou_fg_mean`, E09) : mêmes moyennes sur les
-  25 classes d'artères seules, **fond exclu** (standard ARCADE). Le fond, facile
-  (Dice ~0.99), gonfle `dice_mean` d'environ 0.02.
-- **Dice / IoU par classe** : vecteurs de 26 valeurs dans `results.json`.
-- Un run terminé peut être réévalué avec les métriques actuelles :
+- **Dice mean** = `MulticlassF1Score(average="macro")` (the Dice is the F1 score in segmentation),
+  **background included**. This is the metric used to select the best model.
+- **IoU mean** = `MulticlassJaccardIndex(average="macro")`, same averaging. *(Before E01, `MeanIoU`
+  received index masks instead of the expected one-hot masks: the originally published IoUs are
+  wrong.)*
+- **Artery Dice / IoU** (`dice_fg_mean`, `iou_fg_mean`, E09): same averages over the 25 artery
+  classes only, **background excluded** (ARCADE standard). The easy background (Dice ~0.99) inflates
+  `dice_mean` by about 0.02.
+- **Per-class Dice / IoU**: vectors of 26 values in `results.json`.
+- A finished run can be re-evaluated with the current metrics:
   `python -m finetune.evaluate experiments/runs/<run>`.
 
-> ⚠️ Distinction importante : `dice_loss` (dans la loss, dérivable, sur logits) ≠
-> `dice_mean` (métrique d'éval, sur `argmax`, non dérivable). Les courbes
-> d'historique tracent les deux.
+> ⚠️ Important distinction: `dice_loss` (in the loss, differentiable, on logits) ≠ `dice_mean`
+> (evaluation metric, on `argmax`, not differentiable). The history curves plot both.
 
-### 1.4 Optimiseur, scheduler et boucle d'entraînement
+### 1.4 Optimiser, scheduler and training loop
 
-| Élément | Valeur | Remarque |
-|---------|--------|----------|
-| **Optimiseur** | `AdamW` | **filtré** : `filter(lambda p: p.requires_grad, ...)` → les params gelés du MedVAE sont **exclus** de l'optimiseur |
-| **Weight decay** | `1e-4` | régularisation L2 |
-| **Scheduler** | `CosineAnnealingLR` | voir ci-dessous |
-| **Gradient clipping** | `clip_grad_norm_ = 1.0` | borne la norme du gradient, stabilise l'entraînement |
-| **AMP** | `autocast` + `GradScaler` en **bfloat16** | activé **uniquement si CUDA** — le code tourne aussi en CPU sans erreur |
-| **Early stopping** | patience 15 epochs | surveille `dice_mean` de validation |
-| **Epochs max** | 100 | |
-| **Checkpoint** | `experiments/runs/<run>/best_model_{experiment_name}.pth` | un dossier par run → rien n'est écrasé (non versionné) |
-| **Seed** | `experiment.seed` | fixe torch, numpy, random et, via `worker_init_fn`, les augmentations de chaque worker (avant la correction de l'audit, les 4 workers rejouaient la même suite d'augmentations à chaque epoch). `cudnn.deterministic` est activé, mais certaines opérations CUDA (backward de l'interpolation bilinéaire) restent non déterministes : deux runs de même seed peuvent différer légèrement |
+| Element | Value | Note |
+|---------|-------|------|
+| **Optimiser** | `AdamW` | **filtered**: `filter(lambda p: p.requires_grad, ...)` → the frozen MedVAE parameters are **excluded** from the optimiser |
+| **Weight decay** | `1e-4` | L2 regularisation |
+| **Scheduler** | `CosineAnnealingLR` | see below |
+| **Gradient clipping** | `clip_grad_norm_ = 1.0` | bounds the gradient norm, stabilises training |
+| **AMP** | `autocast` + `GradScaler` in **bfloat16** | enabled **only with CUDA** — the code also runs on CPU without error |
+| **Early stopping** | patience 15 epochs | monitors the validation `dice_mean` |
+| **Max epochs** | 100 | |
+| **Checkpoint** | `experiments/runs/<run>/best_model_{experiment_name}.pth` | one folder per run → nothing is overwritten (not versioned) |
+| **Seed** | `experiment.seed` | fixes torch, numpy, random and, through `worker_init_fn`, the augmentations of each worker (before the fix made after the audit, the 4 workers replayed the same sequence of augmentations at every epoch). `cudnn.deterministic` is on, but some CUDA operations (backward of the bilinear interpolation) remain non-deterministic: two runs with the same seed can differ slightly |
 
-#### Le cosine annealing — comment et pourquoi
+#### Cosine annealing — how and why
 
-Le scheduler utilisé est **`CosineAnnealingLR`** (`scheduler.name: "cosine"` dans
-tous les YAML), pas à pas **une fois par epoch** (`_step_scheduler`).
+The scheduler is **`CosineAnnealingLR`** (`scheduler.name: "cosine"` in every YAML), stepped **once
+per epoch** (`_step_scheduler`).
 
-**Comment ça marche.** Le learning rate suit une demi-période de cosinus, du LR
-initial `η_max` (le `learning_rate` de la config) jusqu'à un plancher `η_min`
-(`eta_min: 1e-6`), sur `T_max = 100` epochs :
+**How it works.** The learning rate follows half a cosine period, from the initial LR `η_max` (the
+`learning_rate` of the config) down to a floor `η_min` (`eta_min: 1e-6`), over `T_max = 100` epochs:
 
 ```
 η_t = η_min + ½ (η_max − η_min) · (1 + cos(π · t / T_max))
 ```
 
-- au début (`t=0`) : `η_t = η_max` → grands pas, exploration rapide ;
-- au milieu : décroissance douce, de plus en plus lente ;
-- à la fin (`t=T_max`) : `η_t = η_min` → tout petits pas, ajustement fin.
+- at the start (`t=0`): `η_t = η_max` → large steps, fast exploration;
+- in the middle: a smooth decay, slower and slower;
+- at the end (`t=T_max`): `η_t = η_min` → tiny steps, fine adjustment.
 
-**Pourquoi ce choix.**
-1. **Décroissance lisse** plutôt qu'en escalier (vs `StepLR`) : pas de chute
-   brutale du LR qui déstabiliserait la convergence.
-2. **Grand LR au début** pour sortir vite des mauvaises régions, **petit LR à la
-   fin** pour se poser précisément dans un minimum — exactement ce qu'on veut pour
-   raffiner des frontières de segmentation pixel-précises.
-3. Pas d'hyperparamètre à régler en cours de route (contrairement à
-   `ReduceLROnPlateau`, qui est *implémenté en alternative* dans le code mais non
-   utilisé par défaut).
+**Why this choice.**
+1. **Smooth decay** rather than a staircase (vs `StepLR`): no sudden drop of the LR that would
+   destabilise convergence.
+2. **Large LR at the start** to leave bad regions quickly, **small LR at the end** to settle
+   precisely in a minimum — what pixel-accurate segmentation boundaries need.
+3. No hyperparameter to tune along the way (unlike `ReduceLROnPlateau`, which is *implemented as an
+   alternative* in the code but not used by default).
 
-> Une alternative `ReduceLROnPlateau` (mode `max` sur le Dice val, `factor 0.5`,
-> `patience 7`) est codée dans `_build_scheduler` mais désactivée — il suffit de
-> mettre `scheduler.name: "plateau"` pour l'utiliser.
+> A `ReduceLROnPlateau` alternative (mode `max` on the validation Dice, `factor 0.5`, `patience 7`)
+> is coded in `_build_scheduler` but turned off — set `scheduler.name: "plateau"` to use it.
 
 ---
 
-## 2. Les conditions
+## 2. The conditions
 
-Le rappel spatial MedVAE est essentiel ici : **`medvae_4_1_2d` compresse 4× par
-dimension spatiale** (et non 16×). Image `512×512` → latent **`128×128×1`** ; pour
-revenir à 512 il faut **2 upsamplings ×2** (`n_upsample: 2`). *(Détail de
-nomenclature : le « 4 » du nom = facteur par dimension ; le papier note ce même
-modèle `f=16` car 16 = 4² est le facteur surfacique.)*
+The MedVAE spatial factor matters here: **`medvae_4_1_2d` compresses 4× per spatial dimension**
+(not 16×). A `512×512` image → a **`128×128×1`** latent; getting back to 512 takes **2 ×2
+upsamplings** (`n_upsample: 2`). *(Naming detail: the "4" in the name is the per-dimension factor;
+the paper calls the same model `f=16` because 16 = 4² is the area factor.)*
 
-La normalisation `[0,1] → [-1,1]` exigée par MedVAE (`x*2−1`) est faite **une seule
-fois**, dans [`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
+The `[0,1] → [-1,1]` normalisation required by MedVAE (`x*2−1`) is done **only once**, in
+[`encoder/medvae_encoder.py`](encoder/medvae_encoder.py).
 
-| Cond. | Pipeline | Modèle entraîné | Question scientifique |
-|-------|----------|-----------------|-----------------------|
-| **A** | U-Net sur image 512×512 | U-Net complet | Référence haute résolution |
-| **B** | MedVAE gelé (HF) → tête U-Net sur le latent | tête (7.8 M params) | La compression généraliste suffit-elle ? |
-| **C** | MedVAE gelé (fine-tuné ARCADE) → même tête | tête (7.8 M params) | Le fine-tuning du compresseur aide-t-il ? |
-| **D** | MedVAE gelé (encode→decode) → U-Net | U-Net complet | S'adapter aux artefacts de compression compense-t-il ? |
+| Cond. | Pipeline | Trained model | Scientific question |
+|-------|----------|---------------|---------------------|
+| **A** | U-Net on the 512×512 image | full U-Net | High-resolution reference |
+| **B** | frozen MedVAE (HF) → U-Net head on the latent | head (7.8 M params) | Is general-purpose compression enough? |
+| **C** | frozen MedVAE (fine-tuned on ARCADE) → same head | head (7.8 M params) | Does fine-tuning the compressor help? |
+| **D** | frozen MedVAE (encode→decode) → U-Net | full U-Net | Does adapting to the compression artefacts compensate? |
 
-### Condition A — référence U-Net ([`models/unet.py`](models/unet.py))
+### Condition A — U-Net reference ([`models/unet.py`](models/unet.py))
 
-- **U-Net SMP**, encodeur `resnet34` pré-entraîné ImageNet, `in_channels=1`,
-  26 classes, sortie en logits bruts (pas de softmax — il est dans la loss).
-- Travaille directement sur l'image **512×512** originale.
-- `batch_size 8`, `lr 1e-4`. Tous les poids sont entraînables.
-- **Rôle** : borne supérieure de référence. Combien peut-on atteindre sans
-  aucune compression ?
+- **SMP U-Net**, ImageNet-pretrained `resnet34` encoder, `in_channels=1`, 26 classes, raw logits as
+  output (no softmax — it is in the loss).
+- Works directly on the original **512×512** image.
+- `batch_size 8`, `lr 1e-4`. All weights are trainable.
+- **Role**: reference upper bound. How far can one go without any compression?
 
-### Condition B — MedVAE pré-entraîné gelé + tête U-Net sur le latent
+### Condition B — frozen pre-trained MedVAE + U-Net head on the latent
 
-- **Encodeur** : `MedVAEEncoder` chargé depuis les poids HuggingFace
-  (`checkpoint_path = null`), **entièrement gelé** (`requires_grad=False`, `eval()`).
-- **Tête** : `LatentUNetHead` ([`models/seg_head.py`](models/seg_head.py), E04) —
-  petit U-Net à la résolution du latent (`128 → 64 → 32 → 16 → 128`, connexions
-  skip, `base_channels=64`) pour capter le contexte global nécessaire à
-  l'identification des segments, puis 2 blocs `interpolate ×2 + ConvBlock`
-  (`n_upsample=2`) jusqu'à 512 et une conv 1×1 vers 26 classes (7.8 M paramètres).
-  L'ancienne tête `SegHead` (projection 1×1 puis upsampling, aucune convolution à la
-  résolution du latent) reste disponible (`model.architecture: seg_head`).
-- `batch_size 4`, **`lr 1e-3`** (E03 : avec 5e-5, la tête restait bloquée sur « tout
-  est du fond »). Seule la tête s'entraîne.
-- **Rôle** : un compresseur médical *généraliste* (les modèles 2D de MedVAE sont entraînés
-  sur des radiographies thoraciques et des mammographies) préserve-t-il assez d'information
-  pour segmenter des artères ? B segmente le latent de l'étape 1 de MedVAE (celui de la
-  reconstruction), pas la sortie des couches de projection de l'étape 2.
+- **Encoder**: `MedVAEEncoder` loaded from the HuggingFace weights (`checkpoint_path = null`),
+  **fully frozen** (`requires_grad=False`, `eval()`).
+- **Head**: `LatentUNetHead` ([`models/seg_head.py`](models/seg_head.py), E04) — a small U-Net at the
+  latent resolution (`128 → 64 → 32 → 16 → 128`, skip connections, `base_channels=64`) to capture the
+  global context needed to identify the segments, then 2 `interpolate ×2 + ConvBlock` blocks
+  (`n_upsample=2`) up to 512 and a 1×1 convolution to 26 classes (7.8 M parameters). The former
+  `SegHead` head (1×1 projection then upsampling, no convolution at the latent resolution) is still
+  available (`model.architecture: seg_head`).
+- `batch_size 4`, **`lr 1e-3`** (E03: with 5e-5, the head stayed stuck on "everything is
+  background"). Only the head is trained.
+- **Role**: does a *general-purpose* medical compressor (the 2D MedVAE models are trained on chest
+  radiographs and mammograms) preserve enough information to segment arteries? B segments the
+  latent of MedVAE stage 1 (the reconstruction latent), not the output of the stage-2 projection
+  layers.
 
-### Condition C — MedVAE fine-tuné ARCADE gelé + tête U-Net sur le latent
+### Condition C — frozen MedVAE fine-tuned on ARCADE + U-Net head on the latent
 
-- **Architecture identique à B**, au checkpoint près, fourni au lancement :
+- **Same architecture as B**, except for the checkpoint, given at launch:
   ```bash
   python -m finetune.train --config finetune/configs/condition_c.yaml \
-    --set encoder.checkpoint_path=experiments/runs/<run medvae_finetune>/best_medvae_finetuned.pth
-  # ou : MEDVAE_CKPT=<...>/best_medvae_finetuned.pth sbatch finetune/slurm/train_c.sbatch
+    --set encoder.checkpoint_path=experiments/runs/<medvae_finetune run>/best_medvae_finetuned.pth
+  # or: MEDVAE_CKPT=<...>/best_medvae_finetuned.pth sbatch finetune/slurm/train_c.sbatch
   ```
-  → l'encodeur charge les poids MedVAE **fine-tunés sur ARCADE** (voir §3), puis
-  est gelé comme en B. Sans checkpoint, l'entraînement s'arrête avec une erreur
-  (au lieu de tourner silencieusement comme B).
-- **Rôle** : isole l'effet du fine-tuning du compresseur. Tout le reste (tête,
-  hyperparamètres) étant identique à B, **B vs C** mesure exactement le gain
-  apporté par l'adaptation du MedVAE au domaine coronarien.
+  → the encoder loads the MedVAE weights **fine-tuned on ARCADE** (see §3), then is frozen as in B.
+  Without a checkpoint, training stops with an error (instead of silently running as B).
+- **Role**: isolates the effect of fine-tuning the compressor. Everything else (head,
+  hyperparameters) being identical to B, **B vs C** measures exactly the gain brought by adapting
+  MedVAE to the coronary domain.
 
-### Condition D — MedVAE autoencodeur gelé (encode→decode) + U-Net
+### Condition D — frozen MedVAE autoencoder (encode→decode) + U-Net
 
-- **`MedVAEAutoencoder`** : l'image fait le cycle complet
-  `[0,1] → [-1,1] → encode → latent 128×128 → decode → [-1,1] → [0,1]`, **gelé**.
-  La sortie est une image **512×512 reconstruite** (donc dégradée par la
-  compression), de **même interface** que l'originale.
-- **U-Net entraînable** (même archi que A) placé *après*, qui apprend à segmenter
-  ces images reconstruites.
-- `batch_size 8`, `lr 1e-4`. Le MedVAE traite les images par paquets de 2 (son
-  attention en 512×512 coûte ~1 Go par image ; sans effet sur le résultat).
-- **Rôle** : le U-Net *voit les artefacts de compression dès l'entraînement* et
-  peut s'y adapter. **A vs D** mesure le coût pur de la compression à capacité de
-  réseau égale.
+- **`MedVAEAutoencoder`**: the image goes through the full cycle
+  `[0,1] → [-1,1] → encode → 128×128 latent → decode → [-1,1] → [0,1]`, **frozen**. The output is a
+  **reconstructed 512×512 image** (hence degraded by the compression), with the **same interface** as
+  the original.
+- A **trainable U-Net** (same architecture as A) placed *after* it learns to segment these
+  reconstructed images.
+- `batch_size 8`, `lr 1e-4`. MedVAE processes the images in groups of 2 (its attention at 512×512
+  costs ~1 GB per image; no effect on the result).
+- **Role**: the U-Net *sees the compression artefacts from training onwards* and can adapt to them.
+  **A vs D** measures the pure cost of compression at equal network capacity.
 
-### Condition A* — variante d'évaluation ([`eval_astar.py`](eval_astar.py))
+### Condition A* — evaluation variant ([`eval_astar.py`](eval_astar.py))
 
-Pas un entraînement : on prend le **U-Net de la condition A** (entraîné sur images
-*originales*) et on l'évalue sur des images **reconstruites par MedVAE**
-(`CHECKPOINT_A=experiments/runs/<run A>/best_model_condition_a_unet.pth sbatch finetune/slurm/eval_astar.sbatch`). Mesure le
-**décalage de domaine** (domain shift) : un réseau entraîné en pleine résolution
-encaisse-t-il la dégradation au test ? À comparer avec D, où le réseau a été
-*entraîné* sur les images reconstruites.
+Not a training: the **U-Net of condition A** (trained on *original* images) is evaluated on images
+**reconstructed by MedVAE**
+(`CHECKPOINT_A=experiments/runs/<run A>/best_model_condition_a_unet.pth sbatch finetune/slurm/eval_astar.sbatch`).
+It measures the **domain shift**: does a network trained at full resolution absorb the degradation at
+test time? To be compared with D, where the network was *trained* on the reconstructed images.
 
-### Témoins R et A↓↑ — compression triviale au même taux (E16)
+### Controls R and A↓↑ — trivial compression at the same rate (E16)
 
-- **R** ([`configs/condition_r.yaml`](configs/condition_r.yaml), `slurm/train_r.sbatch`) : la tête
-  de B, même architecture et même entraînement, appliquée à l'image moyennée sur des blocs 4×4
-  (128×128×1, autant de valeurs que le latent). **B vs R** dit si le latent MedVAE apporte plus
-  qu'une réduction triviale.
-- **A↓↑** ([`eval_resampled.py`](eval_resampled.py)) : le U-Net de A, sans réentraînement, sur
-  l'image réduite à 128×128 puis ré-agrandie à 512×512 (bilinéaire ou bicubique). **A* vs A↓↑**
-  dit si la reconstruction MedVAE préserve plus qu'un rééchantillonnage.
+- **R** ([`configs/condition_r.yaml`](configs/condition_r.yaml), `slurm/train_r.sbatch`): the head of
+  B, same architecture and same training, applied to the image averaged over 4×4 blocks (128×128×1,
+  as many values as the latent). **B vs R** tells whether the MedVAE latent brings more than a
+  trivial reduction.
+- **A↓↑** ([`eval_resampled.py`](eval_resampled.py)): the U-Net of A, without retraining, on the
+  image reduced to 128×128 then enlarged back to 512×512 (bilinear or bicubic). **A* vs A↓↑** tells
+  whether the MedVAE reconstruction preserves more than a resampling.
 
-### Garde-fous communs au gel du MedVAE
+### Safeguards shared by the frozen MedVAE
 
-- Le `train()` est **overridé** dans `MedVAEEncoder` et `MedVAEAutoencoder` :
-  même quand le trainer appelle `model.train()`, le MedVAE reste forcé en `eval()`
-  (MedVAE n'utilise que des GroupNorm, sans statistiques qui dériveraient, mais le
-  mode `eval()` garantit un comportement identique à l'inférence).
-- L'`encode`/`forward` du MedVAE est sous `torch.no_grad()`.
+- `train()` is **overridden** in `MedVAEEncoder` and `MedVAEAutoencoder`: even when the trainer calls
+  `model.train()`, MedVAE stays in `eval()` mode (MedVAE only uses GroupNorm, with no statistics that
+  could drift, but `eval()` guarantees the same behaviour as at inference).
+- The MedVAE `encode`/`forward` runs under `torch.no_grad()`.
 
 ---
 
-## 3. Fine-tuning MedVAE — et le rappel des stages 1 & 2 du papier
+## 3. MedVAE fine-tuning — and a reminder of the two stages of the paper
 
-### 3.1 Les deux stages d'entraînement de MedVAE (papier original)
+### 3.1 The two training stages of MedVAE (original paper)
 
-MedVAE (Varma et al., MIDL 2025) est un **autoencodeur variationnel généraliste**
-pré-entraîné sur ~1,05 M d'images médicales, en **deux stages** :
+MedVAE (Varma et al., MIDL 2025) is a **general-purpose variational autoencoder** pre-trained on
+~1.05 M medical images, in **two stages**:
 
-**Stage 1 — autoencodeur de base (qualité de reconstruction).**
-L'encodeur et le décodeur sont entraînés end-to-end pour reconstruire l'image, en
-combinant **quatre termes** :
-1. **Perte perceptuelle** (LPIPS) — similarité dans l'espace de features d'un
-   réseau pré-entraîné, plutôt que pixel-à-pixel.
-2. **Perte adversariale par patch** (discriminateur PatchGAN) — restaure les
-   hautes fréquences / la netteté que la reconstruction L1 seule rend floues.
-3. **Consistance d'embedding BiomedCLIP** — pénalité **L2 entre les embeddings
-   BiomedCLIP** de l'image d'entrée et de l'image reconstruite, pour conserver les
-   features cliniquement pertinentes.
-4. **Régularisation KL** — divergence vers une gaussienne standard, **poids très
-   faible (1e-6)** pour ne pas dégrader la reconstruction (c'est ce qui en fait un
-   *VAE* et rend le latent exploitable/régulier).
+**Stage 1 — base autoencoder (reconstruction quality).** The encoder and decoder are trained end to
+end to reconstruct the image, combining **four terms**:
+1. **Perceptual loss** (LPIPS) — similarity in the feature space of a pre-trained network, rather
+   than pixel to pixel.
+2. **Patch adversarial loss** (PatchGAN discriminator) — restores the high frequencies / sharpness
+   that an L1 reconstruction alone blurs.
+3. **BiomedCLIP embedding consistency** — an **L2 penalty between the BiomedCLIP embeddings** of the
+   input and reconstructed images, to keep the clinically relevant features.
+4. **KL regularisation** — divergence towards a standard Gaussian, with a **very small weight
+   (1e-6)** so as not to degrade the reconstruction (this is what makes it a *VAE* and keeps the
+   latent regular and usable).
 
-**Stage 2 — préservation des features cliniques (raffinement du latent).**
-Pour les modèles 2D : **encodeur et décodeur sont gelés**, et de **petites couches
-de projection entraînables** sont ajoutées sur le latent. Elles sont optimisées par
-une **perte de consistance d'embedding BiomedCLIP** (L2 entre l'embedding de
-l'image d'entrée et celui de la représentation latente projetée). Objectif :
-garantir que les détails fins, subtils mais cliniquement décisifs, survivent à la
-compression — là où un VAE généraliste les lisserait.
+**Stage 2 — preserving clinical features (latent refinement).** For the 2D models, the **encoder
+and decoder are frozen**, and **small trainable projection layers** are added on the latent. They are
+optimised with a **BiomedCLIP embedding-consistency loss** (L2 between the embedding of the input
+image and that of the projected latent representation). Goal: make sure that fine, subtle but
+clinically decisive details survive the compression — where a general-purpose VAE would smooth them
+out.
 
-> **Pourquoi deux stages ?** Le stage 1 donne un compresseur qui *reconstruit
-> bien visuellement* ; le stage 2 force le latent à rester *sémantiquement fidèle
-> au contenu clinique*. Reconstruction nette ≠ latent informatif pour une tâche
-> médicale : les deux stages couvrent ces deux objectifs distincts.
+> **Why two stages?** Stage 1 gives a compressor that *reconstructs well visually*; stage 2 forces
+> the latent to stay *semantically faithful to the clinical content*. A sharp reconstruction ≠ a
+> latent informative for a medical task: the two stages cover these two distinct goals.
 
-**Nomenclature des modèles released** : `f` = facteur de sous-échantillonnage
-**surfacique**, `C` = canaux latents. Les 4 modèles 2D sont `f16/C1`, `f16/C3`,
-`f64/C1`, `f64/C4`. Notre `medvae_4_1_2d` = `f16, C1` (le « 4 » = facteur **par
-dimension**, 16 = 4²).
+**Naming of the released models**: `f` = **area** downsampling factor, `C` = latent channels. The 4
+2D models are `f16/C1`, `f16/C3`, `f64/C1`, `f64/C4`. The `medvae_4_1_2d` used here = `f16, C1` (the
+"4" = factor **per dimension**, 16 = 4²).
 
-### 3.2 Notre fine-tuning ARCADE ([`finetune_medvae.py`](finetune_medvae.py))
+### 3.2 Fine-tuning on ARCADE ([`finetune_medvae.py`](finetune_medvae.py))
 
-Avant la condition C, on **ré-adapte tout le MedVAE** au domaine coronarien — un
-fine-tuning léger et volontairement simple (≠ les stages complexes du papier) :
+Before condition C, **the whole MedVAE is re-adapted** to the coronary domain — a light and
+deliberately simple fine-tuning (≠ the elaborate stages of the paper):
 
-- **Dataset** : images ARCADE *seules* (sans masque), redimensionnées 512,
-  normalisées `[0,255] → [-1,1]` (`/127.5 − 1`). Split 90 % / 10 % de `seg_train`.
-- **Tout le MedVAE est dégelé** (`requires_grad=True`, `mvae.train()`) — c'est le
-  seul moment où il s'entraîne.
-- **Loss = `L1` pure** entre image originale et `decode(encode(image))`. Pas de
-  perceptuelle, pas de GAN, pas de KL : on cherche juste à recaler la
-  reconstruction sur la distribution des rayons-X coronariens.
-- **Optimiseur** : `AdamW`, **`lr = 4.5e-6`** (très petit — fine-tuning, pas
-  entraînement *from scratch*), `weight_decay = 0`.
-- **Scheduler** : `CosineAnnealingLR`, `T_max = 50` (= nb d'epochs), `eta_min =
-  1e-7` — même logique cosinus que §1.4, adaptée à la durée du fine-tuning.
-- Batch de 4 traité en 4 micro-batchs de 1 avec accumulation de gradient
-  (`micro_batch_size: 1`) pour tenir sur une RTX 3090 (24 Go) ; identique au batch
-  entier (L1 moyenne, normalisations par image).
-- `grad_clip = 1.0`, **early stopping** patience 10 sur la **L1 de validation**.
-- Sauvegarde `best_medvae_finetuned.pth` dans le dossier du run → passé à la
-  condition C (`--set encoder.checkpoint_path=...` ou `MEDVAE_CKPT`).
+- **Dataset**: ARCADE images *only* (no mask), resized to 512, normalised `[0,255] → [-1,1]`
+  (`/127.5 − 1`). 90 % / 10 % split of `seg_train`.
+- **The whole MedVAE is unfrozen** (`requires_grad=True`, `mvae.train()`) — the only moment it is
+  trained.
+- **Loss = pure `L1`** between the original image and `decode(encode(image))`. No perceptual loss, no
+  GAN, no KL: the goal is only to align the reconstruction with the distribution of coronary X-rays.
+- **Optimiser**: `AdamW`, **`lr = 4.5e-6`** (very small — fine-tuning, not training *from
+  scratch*), `weight_decay = 0`.
+- **Scheduler**: `CosineAnnealingLR`, `T_max = 50` (= number of epochs), `eta_min = 1e-7` — the same
+  cosine logic as §1.4, adapted to the length of the fine-tuning.
+- Batch of 4 processed as 4 micro-batches of 1 with gradient accumulation (`micro_batch_size: 1`) to
+  fit on an RTX 3090 (24 GB); identical to the full batch (mean L1, per-image normalisations).
+- `grad_clip = 1.0`, **early stopping** with patience 10 on the **validation L1**.
+- Saves `best_medvae_finetuned.pth` in the run folder → passed to condition C
+  (`--set encoder.checkpoint_path=...` or `MEDVAE_CKPT`).
 
-À l'usage (condition C), `MedVAEEncoder._load_finetuned` recharge ces poids
-(formats `state_dict` / Lightning / `Phase1Trainer`) : les clés du MedVAE commencent
-par `model.` et non `encoder.`, c'est donc le **modèle complet** qui est rechargé
-(0 clé manquante, vérifié), puis tout est re-gelé.
+In use (condition C), `MedVAEEncoder._load_finetuned` reloads these weights (`state_dict` /
+Lightning / `Phase1Trainer` formats): the MedVAE keys start with `model.` and not `encoder.`, so the
+**whole model** is reloaded (0 missing keys, checked), then everything is frozen again.
 
 ---
 
-## 4. Tableau de synthèse des hyperparamètres
+## 4. Hyperparameter summary
 
-| | Cond. A | Cond. B | Cond. C | Cond. D | FT MedVAE |
+| | Cond. A | Cond. B | Cond. C | Cond. D | MedVAE FT |
 |---|---|---|---|---|---|
-| Modèle entraîné | U-Net r34 | LatentUNetHead | LatentUNetHead | U-Net r34 | MedVAE complet |
-| MedVAE | — | gelé (HF) | gelé (FT) | gelé (enc→dec) | **entraîné** |
-| Entrée réseau | image 512 | latent 128 | latent 128 | image reconstr. 512 | image 512 |
+| Trained model | U-Net r34 | LatentUNetHead | LatentUNetHead | U-Net r34 | full MedVAE |
+| MedVAE | — | frozen (HF) | frozen (FT) | frozen (enc→dec) | **trained** |
+| Network input | 512 image | 128 latent | 128 latent | 512 reconstructed image | 512 image |
 | `batch_size` | 8 | 4 | 4 | 8 | 4 |
 | `learning_rate` | 1e-4 | 1e-3 | 1e-3 | 1e-4 | 4.5e-6 |
 | `weight_decay` | 1e-4 | 1e-4 | 1e-4 | 1e-4 | 0 |
 | Scheduler | cosine T=100 | cosine T=100 | cosine T=100 | cosine T=100 | cosine T=50 |
 | Loss | Dice+CE | Dice+CE | Dice+CE | Dice+CE | L1 |
-| Validation | seg_val officiel | seg_val | seg_val | seg_val | 10 % de seg_train |
-| Early stop (patience) | 15 (Dice val) | 15 | 15 | 15 | 10 (L1 val) |
+| Validation | official seg_val | seg_val | seg_val | seg_val | 10 % of seg_train |
+| Early stop (patience) | 15 (val Dice) | 15 | 15 | 15 | 10 (val L1) |
 | AMP bf16 | ✓ (GPU) | ✓ | ✓ | ✓ | — |
 
 ---
@@ -331,5 +302,5 @@ par `model.` et non `encoder.`, c'est donc le **modèle complet** qui est rechar
 ## Sources
 
 - [MedVAE: Efficient Automated Interpretation of Medical Images with Large-Scale Generalizable Autoencoders (arXiv:2502.14753)](https://arxiv.org/abs/2502.14753)
-- [Version HTML du papier](https://arxiv.org/html/2502.14753v1)
-- [Dépôt officiel StanfordMIMI/MedVAE](https://github.com/StanfordMIMI/MedVAE)
+- [HTML version of the paper](https://arxiv.org/html/2502.14753v1)
+- [Official repository StanfordMIMI/MedVAE](https://github.com/StanfordMIMI/MedVAE)

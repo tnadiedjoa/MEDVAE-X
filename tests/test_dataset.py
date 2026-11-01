@@ -1,4 +1,4 @@
-"""ArcadeDataset sur un mini-jeu COCO synthétique (pas besoin d'ARCADE)."""
+"""ArcadeDataset on a small synthetic COCO set (no need for ARCADE)."""
 
 import json
 
@@ -15,7 +15,7 @@ def make_coco(tmp_path, n_images=4, size=64):
     for i in range(1, n_images + 1):
         Image.fromarray(np.full((size, size), 100, np.uint8)).save(images_dir / f"{i}.png")
         images.append({"id": i, "file_name": f"{i}.png", "height": size, "width": size})
-        # Rectangle de la classe 3 : x 10→30, y 20→40
+        # Rectangle of class 3: x 10→30, y 20→40
         annotations.append({"id": i, "image_id": i, "category_id": 3,
                             "segmentation": [[10, 20, 30, 20, 30, 40, 10, 40]]})
     ann_path = tmp_path / "ann.json"
@@ -52,8 +52,8 @@ def test_gauss_noise_strength_is_configurable():
         noise.p = 1.0
         return noise(image=image)["image"].astype(float).std()
 
-    assert noise_std((0.0124, 0.0277)) < 10        # ~3-7 niveaux sur 255 : bruit léger
-    assert noise_std(None) > 30                    # défaut albumentations >= 2 : très fort
+    assert noise_std((0.0124, 0.0277)) < 10        # ~3-7 levels out of 255: light noise
+    assert noise_std(None) > 30                    # albumentations >= 2 default: very strong
 
 
 def test_degradation_augmentation_is_optional_and_degrades():
@@ -64,21 +64,21 @@ def test_degradation_augmentation_is_optional_and_degrades():
     assert "OneOf" in names(get_train_transforms(64, (0.0124, 0.0277), degradation_p=0.3))
 
     rng = np.random.default_rng(0)
-    image = (rng.random((128, 128)) * 200 + 20).astype(np.uint8)   # texture : le flou la lisse
+    image = (rng.random((128, 128)) * 200 + 20).astype(np.uint8)   # texture: the blur smooths it
     for member in degradation_transform(1.0).transforms:
         member.p = 1.0
         out = member(image=image)["image"]
         name = type(member).__name__
         assert out.shape == image.shape and out.dtype == np.uint8
         assert np.abs(out.astype(float) - image).mean() > 1, name          # l'image change
-        assert abs(out.mean() - image.mean()) < 10, name                   # mais reste la même image
+        assert abs(out.mean() - image.mean()) < 10, name                   # but stays the same image
     blur = degradation_transform(1.0).transforms[-1]
     blur.p = 1.0
-    assert blur(image=image)["image"].std() < image.std()                  # le flou lisse
+    assert blur(image=image)["image"].std() < image.std()                  # the blur smooths
 
 
 def test_worker_augmentations_differ_between_workers_and_epochs(tmp_path):
-    """Sans réensemencement, albumentations >= 2 rejouait la même suite dans chaque worker."""
+    """Without reseeding, albumentations >= 2 replayed the same sequence in every worker."""
     import hashlib
 
     import torch
@@ -95,8 +95,8 @@ def test_worker_augmentations_differ_between_workers_and_epochs(tmp_path):
     torch.manual_seed(0)
     loader = DataLoader(ds, batch_size=2, num_workers=2, worker_init_fn=seed_worker_augmentations)
     e0, e1 = epoch_hashes(loader), epoch_hashes(loader)
-    # toutes les images sont identiques : seules les augmentations les distinguent
+    # all images are identical: only the augmentations tell them apart
     assert e0[:2] != e0[2:4]                  # worker 0 (batch 0) ≠ worker 1 (batch 1)
-    assert e0 != e1                           # une autre suite à l'epoch suivante
+    assert e0 != e1                           # another sequence at the next epoch
     torch.manual_seed(0)
-    assert epoch_hashes(loader) == e0         # reproductible pour un même seed
+    assert epoch_hashes(loader) == e0         # reproducible for the same seed

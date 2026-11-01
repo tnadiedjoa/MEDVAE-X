@@ -1,14 +1,13 @@
-"""Dimensionnalité des features entraînées par JEPA (axe C) : y a-t-il contraction ?
+"""Dimensionality of the features trained by JEPA (part C): is there a contraction?
 
-Sur les 300 images de test, on prend les features de l'encodeur avant conv_out (la couche
-que la loss JEPA entraîne, ramenée à 64×64, comme le linear probe), un vecteur par pixel,
-standardisé canal par canal. Sur un échantillon de pixels, on calcule :
-    - le rang effectif exp(H(p)), p_i = σ_i / Σσ (σ : valeurs singulières) ;
-    - le nombre de composantes principales pour 90 % de la variance.
-Une contraction de l'espace (JEPA qui se concentre sur quelques directions) fait baisser
-les deux.
+On the 300 test images, take the encoder features before conv_out (the layer the JEPA
+loss trains, brought to 64×64 as for the linear probe), one vector per pixel,
+standardised channel by channel. On a sample of pixels, compute:
+    - the effective rank exp(H(p)), p_i = σ_i / Σσ (σ: singular values);
+    - the number of principal components for 90 % of the variance.
+A contraction of the space (JEPA focusing on a few directions) lowers both.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python jepa_adaptation/eval/feature_rank.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
 """
 
@@ -31,7 +30,7 @@ from probe import build_encoder, extract    # noqa: E402
 
 
 def spectrum_stats(x: np.ndarray) -> dict:
-    """x : (n, c) vecteurs standardisés → rang effectif et dimensions pour 90 % de variance."""
+    """x: (n, c) standardised vectors → effective rank and dimensions for 90 % of the variance."""
     s = np.linalg.svd(x - x.mean(0), compute_uv=False)
     p = s / s.sum()
     var = np.cumsum(s ** 2) / (s ** 2).sum()
@@ -49,7 +48,7 @@ def main():
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
     if args.model != "medvae" and not args.ckpt:
-        parser.error("--ckpt est requis pour stage1 / stage2")
+        parser.error("--ckpt is required for stage1 / stage2")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     d = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_a.yaml"))["data"]

@@ -1,31 +1,31 @@
 """
-Configuration partagée du pipeline biais inductif.
-Modifier APPROACH pour changer la méthode de calcul du score de qualité c.
+Shared configuration of the inductive-bias pipeline.
+Change APPROACH to change how the quality score c is computed.
 
-Notebooks à relancer après changement d'approche :
-  - Approche A (score pondéré, poids = loadings PCA) ou B (PCA PC1) : relancer NB3 → NB4 → NB5.
-  - Approche C (score appris MLP + ResNet-18) : relancer NB2 → NB3 → NB4 → NB5
-    (NB2 doit être relancé/disponible car l'approche C nécessite les features ResNet-18).
+Notebooks to rerun after a change of approach:
+  - Approach A (weighted score, weights = PCA loadings) or B (PCA PC1): rerun NB3 → NB4 → NB5.
+  - Approach C (learned MLP score + ResNet-18): rerun NB2 → NB3 → NB4 → NB5
+    (NB2 must be rerun or available, since approach C needs the ResNet-18 features).
 """
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║  HYPERPARAMÈTRE PRINCIPAL — Approche de calcul du score c  ║
+# ║  MAIN HYPERPARAMETER — how the score c is computed           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 APPROACH = "C"
 
-# ── Définition des approches ──────────────────────────────────
+# ── Approaches ────────────────────────────────────────────────
 
 APPROACHES = {
     "A": {
         "score_col": "score_weighted",
-        "name": "Score pondéré (poids PCA)",
+        "name": "Weighted score (PCA weights)",
         "use_resnet": False,
         "description": (
-            "Combinaison linéaire de 6 métriques IQA normalisées Min-Max, "
-            "pondérées par les loadings absolus du PC1 (|loading| / Σ|loading|, "
-            "fittés sur TRAIN). Poids objectifs et reproductibles, plus de "
-            "valeurs manuelles arbitraires."
+            "Linear combination of 6 min-max normalised IQA metrics, "
+            "weighted by the absolute PC1 loadings (|loading| / Σ|loading|, "
+            "fitted on TRAIN). Objective and reproducible weights, no more "
+            "arbitrary manual values."
         ),
     },
     "B": {
@@ -33,51 +33,51 @@ APPROACHES = {
         "name": "PCA (PC1)",
         "use_resnet": False,
         "description": (
-            "Premier composant principal normalisé [0,1], signe corrigé "
-            "par corrélation avec Tenengrad. Objectif, data-driven."
+            "First principal component normalised to [0,1], sign corrected "
+            "through the correlation with Tenengrad. Objective, data-driven."
         ),
     },
     "C": {
         "score_col": "score_dl",
-        "name": "Score appris (MLP + ResNet-18)",
+        "name": "Learned score (MLP + ResNet-18)",
         "use_resnet": True,
         "description": (
-            "MLP (512→128→32→1) entraîné par MSE sur les features ResNet-18 "
-            "figées d'images TRAIN dégradées synthétiquement (bruit/flou/JPEG), "
-            "avec une cible de qualité = 1 - sévérité connue. Score appliqué "
-            "ensuite aux features ResNet-18 réelles (NB2). Supervision = proxy "
-            "synthétique (ARCADE n'a pas d'annotation qualité réelle)."
+            "MLP (512→128→32→1) trained with MSE on the frozen ResNet-18 features "
+            "of synthetically degraded TRAIN images (noise/blur/JPEG), "
+            "with a quality target = 1 - known severity. The score is then "
+            "applied to the real ResNet-18 features (NB2). Supervision = synthetic "
+            "proxy (ARCADE has no real quality annotation)."
         ),
     },
 }
 
 
 def get_approach_config(approach=None):
-    """Retourne la config de l'approche sélectionnée."""
+    """Return the config of the selected approach."""
     approach = approach or APPROACH
     if approach not in APPROACHES:
         raise ValueError(
-            f"Approche '{approach}' inconnue. Choix : {list(APPROACHES.keys())}"
+            f"Unknown approach '{approach}'. Choices: {list(APPROACHES.keys())}"
         )
     return APPROACHES[approach]
 
 
 def get_score_column(approach=None):
-    """Retourne le nom de la colonne de score pour l'approche."""
+    """Return the name of the score column of the approach."""
     return get_approach_config(approach)["score_col"]
 
 
 def use_resnet(approach=None):
-    """Retourne True si l'approche requiert les features ResNet-18."""
+    """Return True if the approach needs the ResNet-18 features."""
     return get_approach_config(approach)["use_resnet"]
 
 
 def print_approach_summary(approach=None):
-    """Affiche un résumé de l'approche sélectionnée."""
+    """Print a summary of the selected approach."""
     approach = approach or APPROACH
     cfg = get_approach_config(approach)
     print(f"╔{'═' * 58}╗")
-    print(f"║  Approche : {approach} — {cfg['name']:<43s} ║")
+    print(f"║  Approach: {approach} — {cfg['name']:<44s} ║")
     print(f"╚{'═' * 58}╝")
     print(f"  Colonne de score : {cfg['score_col']}")
     print(f"  {cfg['description']}")
@@ -90,16 +90,16 @@ import os
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 ARCADE_ROOT = Path(os.environ.get("ARCADE_ROOT", _REPO_ROOT / "data" / "arcade"))
 
 
 def resolve_image_path(path) -> str:
-    """Chemin d'image valable sur cette machine.
+    """Image path valid on this machine.
 
-    Les CSV (NB2, NB3) stockent des chemins absolus propres à la machine qui les a
-    produits (ex. /home/infres/<autre>/arcade_challenge_datasets/...) : on garde la
-    partie relative à la racine ARCADE et on la rattache à ARCADE_ROOT.
+    The CSV files (NB2, NB3) store absolute paths specific to the machine that
+    produced them (e.g. /home/infres/<other>/arcade_challenge_datasets/...): keep the
+    part relative to the ARCADE root and attach it to ARCADE_ROOT.
     """
     path = str(path)
     for marker in ("arcade_challenge_datasets/", "/dataset_phase_1/", "/dataset_final_phase/"):
@@ -112,7 +112,7 @@ def resolve_image_path(path) -> str:
 
 
 def read_csv_with_paths(csv_path):
-    """pd.read_csv, avec la colonne « path » convertie par resolve_image_path."""
+    """pd.read_csv, with the "path" column converted by resolve_image_path."""
     import pandas as pd
     df = pd.read_csv(csv_path)
     if "path" in df.columns:

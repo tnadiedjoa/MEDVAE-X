@@ -6,31 +6,31 @@ experiment:
 data:
   train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
   train_ann:    "dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
-  # val_images / val_ann = test set officiel (300 images) : nom historique ; la validation
-  # (sélection du modèle) est seg_val, cf. validation ci-dessous
+  # val_images / val_ann = official test set (300 images): historical name; validation
+  # (model selection) is seg_val, see `validation` below
   val_images:   "dataset_final_phase/test_case_segmentation/images"
   val_ann:      "dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
-  train_ratio:  0.8        # utilisé seulement si validation: split
+  train_ratio:  0.8        # only used with validation: split
   num_classes:  26
   img_size:     512
   num_workers:  4
   pin_memory:   true
-  validation:   official          # E08 : entraînement sur tout seg_train, sélection sur seg_val
-  gauss_noise_std_range: [0.0124, 0.0277]   # E07 : bruit léger (écart-type ~3-7 / 255)
+  validation:   official          # E08: training on all of seg_train, selection on seg_val
+  gauss_noise_std_range: [0.0124, 0.0277]   # E07: light noise (standard deviation ~3-7 / 255)
 
-# Témoin E16 : même tête que B et C, sur l'image réduite à 128×128 (moyenne 4×4)
-# au lieu du latent MedVAE : autant de valeurs en entrée, sans MedVAE
+# E16 control: same head as B and C, on the image reduced to 128×128 (4×4 mean)
+# instead of the MedVAE latent: as many input values, without MedVAE
 model:
   architecture:   "latent_unet_head"
   latent_channels: 1            # image en niveaux de gris
   num_classes:     26
   base_channels:   64
-  n_upsample:      2            # 128 → 256 → 512 (2 upsampling ×2, f=4 par dim)
+  n_upsample:      2            # 128 → 256 → 512 (2 upsampling ×2, f=4 per dim)
 
 training:
   epochs:                   100
   batch_size:               4
-  learning_rate:            1.0e-3   # E03 : 5e-5 bloquait la tête sur « tout est du fond »
+  learning_rate:            1.0e-3   # E03: 5e-5 kept the head stuck on "everything is background"
   weight_decay:             1.0e-4
   early_stopping_patience:  15
   grad_clip:                1.0
@@ -51,4 +51,4 @@ loss:
   cl_weight:   0.0
 
 logging:
-  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/
+  save_dir: null   # set at launch: experiments/runs/<date>_<name>/

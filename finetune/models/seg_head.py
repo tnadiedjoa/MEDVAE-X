@@ -31,18 +31,18 @@ class SegHead(nn.Module):
     ):
         super().__init__()
 
-        # Projection initiale : adapte les canaux latents
+        # Initial projection: adapts the latent channels
         self.input_proj = nn.Conv2d(in_channels, base_channels, kernel_size=1)
 
         # Blocs d'upsampling
         self.up_blocks = nn.ModuleList()
         ch = base_channels
         for i in range(n_upsample):
-            out_ch = max(ch // 2, 32)   # diminue les canaux à chaque niveau
+            out_ch = max(ch // 2, 32)   # fewer channels at each level
             self.up_blocks.append(ConvBlock(ch, out_ch))
             ch = out_ch
 
-        # Tête de classification finale
+        # Final classification head
         self.head = nn.Conv2d(ch, num_classes, kernel_size=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -57,11 +57,11 @@ class SegHead(nn.Module):
 
 class LatentUNetHead(nn.Module):
     """
-    Tête avec un petit U-Net à la résolution du latent (E04).
+    Head with a small U-Net at the latent resolution (E04).
 
-    Le latent 128×128 est réduit jusqu'à 16×16 (contexte global, nécessaire pour
-    distinguer les segments d'artères) puis reconstruit avec des connexions skip
-    (détails fins), avant l'upsampling vers 512×512 comme dans SegHead.
+    The 128×128 latent is reduced down to 16×16 (global context, needed to tell
+    the artery segments apart) then rebuilt with skip connections (fine
+    details), before the upsampling to 512×512 as in SegHead.
     """
 
     def __init__(
@@ -77,7 +77,7 @@ class LatentUNetHead(nn.Module):
 
         self.stem = ConvBlock(in_channels, base_channels)
 
-        # Encodeur : résolution / 2 et canaux × 2 à chaque niveau
+        # Encoder: resolution / 2 and channels × 2 at each level
         chans = [base_channels]
         self.down_blocks = nn.ModuleList()
         for _ in range(depth):
@@ -85,14 +85,14 @@ class LatentUNetHead(nn.Module):
             self.down_blocks.append(ConvBlock(chans[-1], out_ch))
             chans.append(out_ch)
 
-        # Décodeur : remonte jusqu'à la résolution du latent avec les skips
+        # Decoder: back up to the latent resolution with the skips
         self.up_blocks = nn.ModuleList()
         ch = chans[-1]
         for skip_ch in reversed(chans[:-1]):
             self.up_blocks.append(ConvBlock(ch + skip_ch, skip_ch))
             ch = skip_ch
 
-        # Upsampling vers la résolution de l'image (latent f=4 → ×2 ×2)
+        # Upsampling to the image resolution (latent f=4 → ×2 ×2)
         self.out_blocks = nn.ModuleList()
         for _ in range(n_upsample):
             out_ch = max(ch // 2, 32)
@@ -107,7 +107,7 @@ class LatentUNetHead(nn.Module):
         for block in self.down_blocks:
             x = block(F.max_pool2d(x, 2))
             skips.append(x)
-        skips.pop()  # le niveau le plus bas n'a pas de skip
+        skips.pop()  # the lowest level has no skip
 
         for block in self.up_blocks:
             x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False)
@@ -137,4 +137,4 @@ def build_seg_head(config: dict) -> nn.Module:
             depth=config.get("depth", 3),
             n_upsample=config.get("n_upsample", 2),
         )
-    raise ValueError(f"Architecture de tête inconnue : {architecture}")
+    raise ValueError(f"Unknown head architecture: {architecture}")

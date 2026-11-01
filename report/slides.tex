@@ -24,7 +24,7 @@
 % Look for figures in all subfolders
 \graphicspath{%
   {figures/}%
-  {figures/elias/}{figures/theophile/}{figures/yanic/}{figures/theo/}%
+  {figures/robustness/}{figures/film/}{figures/jepa/}{figures/segmentation/}%
 }
 
 % ---------- Theme ----------
@@ -62,7 +62,7 @@
 \maketitle
 
 % ############################################################################
-% INTRODUCTION (from final.tex, Sec. Introduction)
+% INTRODUCTION (from report.tex, Sec. Introduction)
 % ############################################################################
 \begin{frame}{Introduction}
   \begin{columns}[T]
@@ -98,8 +98,8 @@
 
 % ############################################################################
 % PART 1 — ELIAS
-% Figures available in figures/elias/ :
-%   degradation_visual.png, pipeline_corrected.pdf, mpsnr.pdf, robustness_corrected.png,
+% Figures available in figures/robustness/ :
+%   degradation_visual.png, pipeline.pdf, mpsnr.pdf, robustness.png,
 %   179_clean.png, 179_clean_ov.png, 179_deg_ov.png, 179_poisson.png,
 
 %   metrics_by_level_masked_blur_NEW.png,
@@ -110,7 +110,7 @@
 
 \begin{frame}{Method: evaluation protocol}
 \centering
-\includegraphics[width=0.85\linewidth]{elias/pipeline_corrected.pdf}
+\includegraphics[width=0.85\linewidth]{robustness/pipeline.pdf}
 
 \vspace{0.6em}
 \footnotesize The reconstruction is compared to the \alert{clean} image: does MedVAE bring a degraded input closer to it?
@@ -142,7 +142,7 @@ quantiles 5/50/95 & 0.3772 / 0.4566 / 0.5391 \\
 \end{column}
 \begin{column}{0.44\textwidth}
 \centering
-\includegraphics[width=0.68\textwidth]{elias/mpsnr.pdf}
+\includegraphics[width=0.68\textwidth]{robustness/mpsnr.pdf}
 
 \vspace{0.3em}
 \tiny mPSNR illustration (vessel mask)
@@ -184,14 +184,14 @@ Blur & $-2.0 \to +0.1$ & -- \\
 
 \begin{frame}{Result: restoration curves (vessel pixels)}
 \centering
-\includegraphics[height=0.74\textheight]{elias/robustness_corrected.png}
+\includegraphics[height=0.74\textheight]{robustness/robustness.png}
 
 \footnotesize Grey: degraded input vs clean. Blue: reconstruction vs clean. Orange: reconstruction vs degraded input (earlier metric). Bottom: $\Delta$.
 \end{frame}
 
 \begin{frame}{Vessel visibility: contrast-to-noise ratio (CNR)}
 \centering
-\includegraphics[width=0.68\textwidth]{elias/cnr.pdf}
+\includegraphics[width=0.68\textwidth]{robustness/cnr.pdf}
 
 \scriptsize
 \begin{itemize}\setlength\itemsep{0.05em}
@@ -204,7 +204,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % ############################################################################
 % PART 2 — THÉOPHILE
 % Image-quality inductive bias for MedVAE (conditioning via FiLM)
-% Figures in figures/theophile/
+% Figures in figures/film/
 % ############################################################################
 \section{Image-quality inductive bias (FiLM)}
 
@@ -225,14 +225,14 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % Quality score construction
 \begin{frame}{Building the quality score $c$}
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{theophile/pipeline_B_score.pdf}
+    \includegraphics[width=0.95\textwidth]{film/pipeline_B_score.pdf}
   \end{center}
 \end{frame}
 
 % Sanity check on the score
 \begin{frame}{Does the score make visual sense?}
   \begin{center}
-    \includegraphics[width=\textwidth]{theophile/result_gallery_score.png}
+    \includegraphics[width=\textwidth]{film/result_gallery_score.png}
   \end{center}
   \begin{center}
     \footnotesize ARCADE images sorted by increasing score $c$ (approach A).
@@ -242,7 +242,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % FiLM conditioning + revised protocol
 \begin{frame}{FiLM conditioning \& revised protocol}
   \begin{center}
-    \includegraphics[width=0.92\textwidth]{theophile/pipeline_film_corrected.pdf}
+    \includegraphics[width=0.92\textwidth]{film/pipeline.pdf}
   \end{center}
   \footnotesize
   \begin{itemize}
@@ -254,7 +254,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % Main result
 \begin{frame}{Result: fine-tuning helps, conditioning does not}
   \begin{center}
-    \includegraphics[width=\textwidth]{theophile/film_results.pdf}
+    \includegraphics[width=\textwidth]{film/film_results.pdf}
   \end{center}
   \footnotesize
   \begin{itemize}
@@ -297,20 +297,20 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % ############################################################################
 % PART 3 — YANIC
 % Semantic structuring of the latent space (JEPA vs BioMedCLIP)
-% Figures in figures/yanic/
+% Figures in figures/jepa/
 % ############################################################################
 \section{Semantic structuring of the latent space (JEPA)}
 
 \begin{frame}{Original stage 2 — BioMedCLIP distillation}
   \centering
-  \includegraphics[width=1.0\linewidth]{yanic/pipeline_ori.png}
+  \includegraphics[width=1.0\linewidth]{jepa/medvae_pipeline_original.png}
 
   \tiny Figure reproduced from Varma et al., MedVAE (2025), Fig.~1.
 \end{frame}
 
 \begin{frame}{Modified stage 2 — JEPA adaptation}
   \centering
-  \includegraphics[width=0.72\linewidth]{yanic/stage_2_pipeline.pdf}
+  \includegraphics[width=0.72\linewidth]{jepa/pipeline.pdf}
 
   \vfill
   {\small
@@ -351,7 +351,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 
 \begin{frame}{Results — reconstruction and features}
   \centering
-  \includegraphics[width=0.8\linewidth]{yanic/recon.png}
+  \includegraphics[width=0.8\linewidth]{jepa/recon.png}
 
   \vspace{0.2em}
   {\footnotesize
@@ -364,7 +364,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 
 \begin{frame}{Results — RGB PCA of the intermediate features}
   \centering
-  \includegraphics[height=0.78\textheight]{yanic/pca.png}
+  \includegraphics[height=0.78\textheight]{jepa/pca.png}
 
   \footnotesize Stage 2 features: large homogeneous regions, vessels still visible.
 \end{frame}
@@ -372,7 +372,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 % ############################################################################
 % PART 4 — THÉO
 % Integration of MedVAE for multi-class segmentation
-% Figures in figures/theo/
+% Figures in figures/segmentation/
 % ############################################################################
 \section{Integration for multi-class segmentation}
 
@@ -416,7 +416,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{column}
 \begin{column}{0.64\textwidth}
 \centering
-\includegraphics[width=\linewidth]{theo/conditions.pdf}
+\includegraphics[width=\linewidth]{segmentation/conditions.pdf}
 \end{column}
 \end{columns}
 \end{frame}
@@ -438,7 +438,7 @@ Blur & $-2.0 \to +0.1$ & -- \\
 \end{column}
 \begin{column}{0.52\textwidth}
 \centering
-\includegraphics[width=\linewidth]{theo/seg_curves.pdf}
+\includegraphics[width=\linewidth]{segmentation/seg_curves.pdf}
 
 \footnotesize Validation Dice, mean over 3 seeds
 \end{column}
@@ -476,12 +476,12 @@ A$^{\downarrow\uparrow}$ & 0.389 $\pm$ 0.018 & 0.275 \\
 \end{columns}
 \vspace{0.2em}
 \centering
-\includegraphics[width=0.72\textwidth]{theo/seg_results.pdf}
+\includegraphics[width=0.72\textwidth]{segmentation/seg_results.pdf}
 \end{frame}
 
 \begin{frame}{Segmentation of degraded images}
 \centering
-\includegraphics[width=0.95\textwidth]{theo/seg_robustness.pdf}
+\includegraphics[width=0.95\textwidth]{segmentation/seg_robustness.pdf}
 
 \small
 \begin{itemize}
@@ -492,13 +492,13 @@ A$^{\downarrow\uparrow}$ & 0.389 $\pm$ 0.018 & 0.275 \\
 
 \begin{frame}{Qualitative predictions}
 \centering
-\includegraphics[width=0.9\textwidth]{theo/seg_predictions.png}
+\includegraphics[width=0.9\textwidth]{segmentation/seg_predictions.png}
 
 \footnotesize Seed-42 models on three test images: A, A* and D nearly identical; B, C (latent) and R (downsampled image) follow the coronary tree at $128\times128$.
 \end{frame}
 
 % ############################################################################
-% GENERAL CONCLUSION (from final.tex, Sec. Conclusion)
+% GENERAL CONCLUSION (from report.tex, Sec. Conclusion)
 % ############################################################################
 \begin{frame}{General conclusion}
   \footnotesize
@@ -522,7 +522,7 @@ A$^{\downarrow\uparrow}$ & 0.389 $\pm$ 0.018 & 0.275 \\
 \end{frame}
 
 % ############################################################################
-% PERSPECTIVES (from final.tex, Sec. Perspectives)
+% PERSPECTIVES (from report.tex, Sec. Perspectives)
 % ############################################################################
 \begin{frame}{Perspectives}
   \begin{block}{Toward a \emph{foundation model} for radiation-based medical imaging}

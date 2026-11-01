@@ -1,4 +1,4 @@
-"""Promotion d'un run et résolution des chemins de l'axe B."""
+"""Promotion of a run and path resolution of part B."""
 
 import importlib.util
 import json

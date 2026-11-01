@@ -7,10 +7,10 @@ from pathlib import Path
 import cv2
 import glob
 
-# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+# Outputs in <repo>/medvae_eval/outputs/, whatever the current folder
 _OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
@@ -67,14 +67,14 @@ for kind in ["poisson", "blur", "jpeg"]:
         deg = degrade(img_gray, level, kind)
         rec = reconstruct(deg)
         axes[0, j].imshow(deg, cmap="gray")
-        axes[0, j].set_title(f"Dégradée — niveau {level}")
+        axes[0, j].set_title(f"Degraded — level {level}")
         axes[1, j].imshow(rec, cmap="gray")
-        axes[1, j].set_title(f"Reconstruction — niveau {level}")
+        axes[1, j].set_title(f"Reconstruction — level {level}")
         for ax in (axes[0, j], axes[1, j]):
             ax.axis("off")
-    axes[0, 0].set_ylabel("Entrée dégradée")
+    axes[0, 0].set_ylabel("Degraded input")
     axes[1, 0].set_ylabel("MedVAE")
-    fig.suptitle(f"Reconstruction MedVAE par niveau ({kind})", fontsize=14)
+    fig.suptitle(f"MedVAE reconstruction by level ({kind})", fontsize=14)
     plt.tight_layout()
     plt.savefig(f"{OUTPUT_DIR}/recon_visual_{kind}.png", dpi=150, bbox_inches="tight")
     plt.close()

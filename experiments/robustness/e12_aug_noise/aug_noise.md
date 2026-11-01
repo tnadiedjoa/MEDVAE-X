@@ -1,4 +1,4 @@
-| Dégradation | Niveau | A, light noise (E07) | A, strong noise (E06) | D, strong noise (E06) |
+| Degradation | Level | A, light noise (E07) | A, strong noise (E06) | D, strong noise (E06) |
 |---|---|---|---|---|
 | blur | 0 | 0.410 ± 0.008 | 0.400 ± 0.011 | 0.418 ± 0.003 |
 | blur | 3 | 0.359 ± 0.015 | 0.382 ± 0.023 | 0.403 ± 0.004 |

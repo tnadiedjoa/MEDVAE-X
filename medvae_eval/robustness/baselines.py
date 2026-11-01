@@ -1,13 +1,13 @@
-"""Témoins de l'axe A : que font de simples filtres, là où MedVAE « restaure » ?
+"""Controls of part A: what do simple filters do, where MedVAE "restores"?
 
-Mêmes images (les n premières de seg_val), mêmes dégradations et même bruit seedé que
-sweep.py ; au lieu de passer l'image dégradée d dans MedVAE, on la filtre :
-    gauss5   flou gaussien 5×5 (σ déduit du noyau, OpenCV)
-    median5  filtre médian 5×5
-et on calcule le même gain delta = PSNR(propre, filtrée) − PSNR(propre, d), sur toute
-l'image et sur les vaisseaux. Le tableau résumé met en regard le delta de MedVAE (E11).
+Same images (the first n of seg_val), same degradations and same seeded noise as
+sweep.py; instead of passing the degraded image d through MedVAE, it is filtered:
+    gauss5   5×5 Gaussian blur (σ derived from the kernel, OpenCV)
+    median5  5×5 median filter
+and the same gain delta = PSNR(clean, filtered) − PSNR(clean, d) is computed, on the
+whole image and on the vessels. The summary table sets it against the MedVAE delta (E11).
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/robustness/baselines.py --out experiments/robustness/e11_baselines
 """
 
@@ -52,7 +52,7 @@ def main():
         clean, mask = clean_u8 / 255.0, masks[name]
         for kind, values in params.items():
             for level, value in enumerate(values):
-                rng = np.random.default_rng([args.seed, idx, level])   # même bruit que sweep.py
+                rng = np.random.default_rng([args.seed, idx, level])   # same noise as sweep.py
                 d_u8 = degrade(clean_u8, kind, value, rng)
                 d = d_u8 / 255.0
                 for fname, f in FILTERS.items():

@@ -9,11 +9,11 @@
 #SBATCH --error=jepa_adaptation/jobs/logs/recon_%j.err
 
 set -e
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 cd "$PROJECT_ROOT"
 source "$PROJECT_ROOT/.venv/bin/activate"
-# Reconstruction (test officiel) du MedVAE pré-entraîné et des étapes 1 et 2 JEPA.
+# Reconstruction (official test set) of the pre-trained MedVAE and of JEPA stages 1 and 2.
 STAGE1="${STAGE1_CKPT:-jepa_adaptation/outputs/stage1/best.pt}"
 STAGE2="${STAGE2_CKPT:-jepa_adaptation/outputs/stage2/best.pt}"
 python jepa_adaptation/eval/reconstruction.py --model medvae

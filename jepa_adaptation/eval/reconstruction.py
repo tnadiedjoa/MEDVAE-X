@@ -1,11 +1,11 @@
-"""Qualité de reconstruction des encodeurs de l'axe C (MedVAE, étape 1, étape 2 JEPA).
+"""Reconstruction quality of the part-C encoders (MedVAE, stage 1, stage 2 JEPA).
 
-À l'étape 2, seul l'encodeur est entraîné (décodeur figé) : si la loss JEPA déplace le
-latent hors de ce que le décodeur sait lire, la reconstruction se dégrade. On la mesure
-sur les 300 images de test officielles, en 512×512, latent déterministe (moyenne du
-posterior), images comparées dans [0, 1] : PSNR, SSIM et PSNR sur les vaisseaux.
+At stage 2, only the encoder is trained (frozen decoder): if the JEPA loss moves the
+latent outside what the decoder can read, the reconstruction degrades. It is measured
+on the 300 official test images, at 512×512, with a deterministic latent (posterior
+mean), images compared in [0, 1]: PSNR, SSIM and PSNR on the vessels.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python jepa_adaptation/eval/reconstruction.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
 """
 
@@ -41,7 +41,7 @@ def main():
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
     if args.model != "medvae" and not args.ckpt:
-        parser.error("--ckpt est requis pour stage1 / stage2")
+        parser.error("--ckpt is required for stage1 / stage2")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ae = load_autoencoder(args.model, args.ckpt, device)

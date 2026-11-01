@@ -27,7 +27,7 @@ class Trainer:
         data_cfg  = config["data"]
         log_cfg   = config["logging"]
 
-        # Optimizer — uniquement les params entraînables (encodeur gelé exclu)
+        # Optimiser — trainable parameters only (frozen encoder excluded)
         self.optimizer = AdamW(
             filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=train_cfg["learning_rate"],
@@ -47,7 +47,7 @@ class Trainer:
             ignore_index=loss_cfg.get("ignore_index", None),
         )
 
-        # Métriques 
+        # Metrics
         self.train_metrics = SegMetrics(num_classes=data_cfg["num_classes"], device=device)
         self.val_metrics   = SegMetrics(num_classes=data_cfg["num_classes"], device=device)
 
@@ -59,7 +59,7 @@ class Trainer:
         # Gradient clipping
         self.grad_clip = train_cfg.get("grad_clip", 1.0)
 
-        # AMP : activé uniquement sur GPU
+        # AMP: enabled on GPU only
         self.use_amp = device.type == "cuda"
         self.scaler  = GradScaler(device=device.type, enabled=self.use_amp)
 
@@ -67,7 +67,7 @@ class Trainer:
         self.save_dir = log_cfg["save_dir"]
         os.makedirs(self.save_dir, exist_ok=True)
 
-        # Historique des métriques 
+        # Metric history
         self.history = {"train": [], "val": []}
 
     def fit(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
@@ -78,13 +78,13 @@ class Trainer:
 
             print(f"\nEpoch {epoch}/{num_epochs}")
 
-            epoch_lr      = self.optimizer.param_groups[0]["lr"]   # lr utilisé pendant cette epoch
+            epoch_lr      = self.optimizer.param_groups[0]["lr"]   # lr used during this epoch
             train_results = self._train_one_epoch(train_loader)
             val_results   = self._val_one_epoch(val_loader)
 
             self._step_scheduler(val_results["dice_mean"])
 
-            # Sauvegarde des métriques dans l'historique
+            # Store the metrics in the history
             self.history["train"].append({
                 "epoch":     epoch,
                 "loss":      train_results["loss"],
@@ -116,22 +116,22 @@ class Trainer:
                 self.best_dice     = val_results["dice_mean"]
                 self.epochs_no_imp = 0
                 self._save_checkpoint(epoch, val_results["dice_mean"])
-                print(f"  ✓ Meilleur Dice val : {self.best_dice:.4f} — checkpoint sauvegardé")
+                print(f"  ✓ Best val Dice: {self.best_dice:.4f} — checkpoint saved")
             else:
                 self.epochs_no_imp += 1
-                print(f"  Pas d'amélioration ({self.epochs_no_imp}/{self.patience})")
+                print(f"  No improvement ({self.epochs_no_imp}/{self.patience})")
                 if self.epochs_no_imp >= self.patience:
-                    print(f"\nEarly stopping déclenché à l'epoch {epoch}.")
+                    print(f"\nEarly stopping at epoch {epoch}.")
                     break
 
-        # Sauvegarde de l'historique complet dans un fichier JSON
+        # Save the full history to a JSON file
         history_path = os.path.join(
             self.save_dir,
             f"{self.config['experiment']['name']}_history.json"
         )
         with open(history_path, "w") as f:
             json.dump(self.history, f, indent=2)
-        print(f"\nHistorique sauvegardé : {history_path}")
+        print(f"\nHistory saved: {history_path}")
 
     def _train_one_epoch(self, loader: DataLoader) -> dict:
         self.model.train()
@@ -162,7 +162,7 @@ class Trainer:
             total_loss += loss_dict["loss"]
             total_dice += loss_dict["dice_loss"]
             total_ce   += loss_dict["ce_loss"]
-            total_cl += loss_dict["cl_loss"]   # ajoute cette ligne
+            total_cl += loss_dict["cl_loss"]
 
         n = len(loader)
         metric_results = self.train_metrics.compute()
@@ -199,7 +199,7 @@ class Trainer:
                 total_loss += loss_dict["loss"]
                 total_dice += loss_dict["dice_loss"]
                 total_ce   += loss_dict["ce_loss"]
-                total_cl += loss_dict["cl_loss"]   # ajoute cette ligne
+                total_cl += loss_dict["cl_loss"]
 
         n = len(loader)
         metric_results = self.val_metrics.compute()
@@ -235,22 +235,22 @@ class Trainer:
 
         results = test_metrics.compute()
 
-        print(f"\n=== Résultats test set ===")
-        print(f"Dice mean : {results['dice_mean']:.4f}")
-        print(f"IoU  mean : {results['iou_mean']:.4f}")
+        print(f"\n=== Test-set results ===")
+        print(f"Dice mean: {results['dice_mean']:.4f}")
+        print(f"IoU  mean: {results['iou_mean']:.4f}")
 
-        # Sauvegarde dans le fichier results.json central
+        # Save to the central results.json file
         results_path = os.path.join(self.save_dir, "results.json")
 
-        # Charge le fichier existant s'il existe déjà (pour ne pas écraser B ou C)
+        # Load the existing file if there is one (so as not to overwrite B or C)
         if os.path.exists(results_path):
             with open(results_path, "r") as f:
                 all_results = json.load(f)
         else:
             all_results = {}
 
-        # Ajoute les résultats de la condition courante
-        condition = self.config["experiment"]["condition"]  # "A", "B" ou "C"
+        # Add the results of the current condition
+        condition = self.config["experiment"]["condition"]  # "A", "B" or "C"
         all_results[f"condition_{condition.lower()}"] = {
             "dice_mean":      results["dice_mean"],
             "iou_mean":       results["iou_mean"],
@@ -262,7 +262,7 @@ class Trainer:
 
         with open(results_path, "w") as f:
             json.dump(all_results, f, indent=2)
-        print(f"Résultats sauvegardés dans : {results_path}")
+        print(f"Results saved in: {results_path}")
 
         return results
 
@@ -309,4 +309,4 @@ class Trainer:
     def _load_checkpoint(self, path: str) -> None:
         ckpt = torch.load(path, map_location=self.device)
         self.model.load_state_dict(ckpt["model"])
-        print(f"Checkpoint chargé : epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")
+        print(f"Checkpoint loaded: epoch {ckpt['epoch']}, Dice {ckpt['dice']:.4f}")

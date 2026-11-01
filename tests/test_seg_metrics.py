@@ -1,4 +1,4 @@
-"""Vérifie SegMetrics contre un calcul manuel du Dice et de l'IoU."""
+"""Check SegMetrics against a manual computation of the Dice and IoU."""
 
 import pytest
 import torch
@@ -10,8 +10,8 @@ NUM_CLASSES = 26
 
 
 def manual_scores(preds, targets, first_class=0):
-    """Dice et IoU moyens sur les classes présentes (dans la prédiction ou la cible),
-    à partir de first_class (1 = artères seules, fond exclu)."""
+    """Mean Dice and IoU over the classes present (in the prediction or the target),
+    from first_class on (1 = arteries only, background excluded)."""
     dices, ious = [], []
     for c in range(first_class, NUM_CLASSES):
         p, t = preds == c, targets == c
@@ -37,7 +37,7 @@ def make_cases():
     return {
         "parfait": t.clone(),
         "tout_fond": torch.zeros_like(t),
-        "bruit": torch.where(noise, torch.randint(0, NUM_CLASSES, t.shape, generator=g), t),
+        "noise": torch.where(noise, torch.randint(0, NUM_CLASSES, t.shape, generator=g), t),
         "classe_fantome": torch.where(t == 7, torch.full_like(t, 12), t),
     }
 
@@ -49,7 +49,7 @@ def test_matches_manual_computation(name):
     logits = F.one_hot(preds, NUM_CLASSES).permute(0, 3, 1, 2).float()
 
     metrics = SegMetrics(num_classes=NUM_CLASSES)
-    # Deux batchs : vérifie l'accumulation sur le dataset
+    # Two batches: check the accumulation over the dataset
     for k in range(2):
         metrics.update(logits[k:k + 1], targets[k:k + 1])
     results = metrics.compute()
@@ -72,5 +72,5 @@ def test_reset_clears_foreground_presence():
     metrics.reset()
     only_class_3 = torch.where(targets == 7, torch.zeros_like(targets), targets)
     metrics.update(F.one_hot(only_class_3, NUM_CLASSES).permute(0, 3, 1, 2).float(), only_class_3)
-    # Après reset, la classe 7 n'est plus « présente » : seule la 3 compte
+    # After reset, class 7 is no longer "present": only class 3 counts
     assert metrics.compute()["dice_fg_mean"] == pytest.approx(1.0)

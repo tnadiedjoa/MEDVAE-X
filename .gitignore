@@ -1,9 +1,9 @@
-# Données (non versionnées, cf. scripts/download_arcade.sh)
+# Data (not versioned, see scripts/download_arcade.sh)
 data/
 arcade_challenge_datasets/
 MedVAE-main/
 
-# Environnements, caches, éditeurs
+# Environments, caches, editors
 .venv
 .cache/
 __pycache__/
@@ -14,7 +14,7 @@ __pycache__/
 .DS_Store
 .DS_
 
-# Sorties d'entraînement et d'analyse (régénérables)
+# Training and analysis outputs (can be regenerated)
 outputs/
 runs/
 !experiments/runs/
@@ -33,7 +33,7 @@ sample.png
 sample_superposed.png
 experiments/runs/*/recon_epoch*.png
 
-# Compilation LaTeX (les PDF finaux sont versionnés)
+# LaTeX build files (the final PDFs are versioned)
 *.aux
 *.bbl
 *.blg
@@ -45,8 +45,3 @@ experiments/runs/*/recon_epoch*.png
 *.toc
 *.vrb
 
-# Brouillons de rapports individuels
-report_theo/
-report_yanic/
-report_elias/
-report_theophile/

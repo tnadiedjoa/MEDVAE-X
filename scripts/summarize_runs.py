@@ -1,13 +1,13 @@
-"""Résume des groupes de runs (plusieurs seeds) : moyenne ± écart-type des scores.
+"""Summarise groups of runs (several seeds): mean ± standard deviation of the scores.
 
-La colonne val_dice est le meilleur Dice de validation (seg_val, avec le fond) : c'est
-sur elle que se prennent les décisions ; les autres colonnes sont les scores de test.
+The val_dice column is the best validation Dice (seg_val, with the background): decisions
+are made on it; the other columns are test scores.
 
-Chaque groupe est « nom=motif », le motif étant un glob sur les noms de dossiers de
-experiments/runs/ (plusieurs motifs séparés par des virgules). Avec --ref, affiche aussi
-l'écart de chaque groupe au groupe de référence, seed par seed (runs appariés par seed).
+Each group is "name=pattern", the pattern being a glob on the folder names of
+experiments/runs/ (several patterns separated by commas). With --ref, also prints the
+gap of each group to the reference group, seed by seed (runs paired by seed).
 
-Exemple (depuis la racine du repo) :
+Example (from the repository root):
     python scripts/summarize_runs.py --ref A \\
         "A=*_e02_condition_a,*_e06_seed4?_condition_a" "E08=*_e08_official_val_seed*"
 """
@@ -25,7 +25,7 @@ METRICS = ("val_dice", "dice_mean", "dice_fg_mean", "iou_fg_mean")
 
 
 def best_val_dice(run_dir: Path):
-    """Meilleur Dice de validation de l'historique du run (None s'il n'y en a pas)."""
+    """Best validation Dice of the run history (None if there is none)."""
     history = next(iter(run_dir.glob("*_history.json")), None)
     if history is None:
         return None
@@ -34,7 +34,7 @@ def best_val_dice(run_dir: Path):
 
 
 def load_group(patterns: str) -> dict:
-    """{seed: scores} pour les runs dont le nom correspond à l'un des motifs."""
+    """{seed: scores} for the runs whose name matches one of the patterns."""
     runs = {}
     for run_dir in sorted(RUNS_DIR.iterdir()):
         if not any(fnmatch.fnmatch(run_dir.name, p) for p in patterns.split(",")):
@@ -45,7 +45,7 @@ def load_group(patterns: str) -> dict:
         (_, scores), = json.loads(results.read_text()).items()
         seed = yaml.safe_load((run_dir / "config.yaml").read_text())["experiment"]["seed"]
         if seed in runs:
-            raise SystemExit(f"Deux runs avec le seed {seed} pour « {patterns} » : {run_dir.name}")
+            raise SystemExit(f"Two runs with seed {seed} for \"{patterns}\": {run_dir.name}")
         runs[seed] = {**scores, "run": run_dir.name}
         val = best_val_dice(run_dir)
         if val is not None:
@@ -63,7 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("groups", nargs="+", help="nom=motif[,motif...]")
-    parser.add_argument("--ref", help="nom du groupe de référence pour les écarts appariés")
+    parser.add_argument("--ref", help="name of the reference group for the paired gaps")
     args = parser.parse_args()
 
     groups = {}
@@ -81,7 +81,7 @@ def main():
     if args.ref:
         ref = groups[args.ref]
         for metric in ("val_dice", "dice_mean"):
-            print(f"\nÉcart de {metric} au groupe {args.ref}, seed par seed :")
+            print(f"\nGap in {metric} to group {args.ref}, seed by seed:")
             for name, runs in groups.items():
                 if name == args.ref:
                     continue

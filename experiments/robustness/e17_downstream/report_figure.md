@@ -1,4 +1,4 @@
-| Dégradation | Niveau | A | A* | D | A + degradation aug. | A, earlier strong noise |
+| Degradation | Level | A | A* | D | A + degradation aug. | A, earlier strong noise |
 |---|---|---|---|---|---|---|
 | blur | 0 | 0.428 ± 0.008 | 0.424 ± 0.008 | 0.427 ± 0.009 | 0.437 ± 0.010 | 0.400 ± 0.011 |
 | blur | 3 | 0.390 ± 0.020 | 0.394 ± 0.019 | 0.393 ± 0.013 | 0.423 ± 0.013 | 0.382 ± 0.023 |

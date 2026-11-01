@@ -10,17 +10,17 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 cd "$PROJECT_ROOT"
 source "$PROJECT_ROOT/.venv/bin/activate"
 
-# Linear probe vaisseaux / fond du MedVAE pré-entraîné et des étapes 1 et 2 JEPA, réglage publié
-# (E19) : 100 epochs, lr 1e-3 et 1e-2, le lr étant choisi ensuite sur val_dice_fg.
-#   STAGE1_CKPT=experiments/runs/<run étape 1>/best.pt STAGE2_CKPT=experiments/runs/<run étape 2>/best.pt \
-#   OUT=experiments/jepa/<nom> sbatch jepa_adaptation/jobs/probe.sbatch
-STAGE1="${STAGE1_CKPT:?STAGE1_CKPT : checkpoint de l'étape 1}"
-STAGE2="${STAGE2_CKPT:?STAGE2_CKPT : checkpoint de l'étape 2}"
+# Vessel / background linear probe of the pre-trained MedVAE and of JEPA stages 1 and 2, published
+# setting (E19): 100 epochs, lr 1e-3 and 1e-2, the lr being chosen afterwards on val_dice_fg.
+#   STAGE1_CKPT=experiments/runs/<stage-1 run>/best.pt STAGE2_CKPT=experiments/runs/<stage-2 run>/best.pt \
+#   OUT=experiments/jepa/<name> sbatch jepa_adaptation/jobs/probe.sbatch
+STAGE1="${STAGE1_CKPT:?STAGE1_CKPT: stage-1 checkpoint}"
+STAGE2="${STAGE2_CKPT:?STAGE2_CKPT: stage-2 checkpoint}"
 OUT="${OUT:-experiments/jepa/probe_$(date +%Y-%m-%d_%H%M%S)}"
 mkdir -p "$OUT"
 

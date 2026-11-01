@@ -8,19 +8,19 @@ from torch.utils.data import Dataset
 from PIL import Image
 from pycocotools import mask as coco_mask
 
-# data augmentation pour mask et image 
+# data augmentation for mask and image
 import albumentations as A
 import cv2
 from albumentations.pytorch import ToTensorV2 
 
 def seed_worker_augmentations(worker_id: int) -> None:
-    """worker_init_fn : chaque worker, à chaque epoch, tire ses propres augmentations.
+    """worker_init_fn: each worker draws its own augmentations at every epoch.
 
-    albumentations >= 2 a son propre générateur, copié tel quel dans les workers du
-    DataLoader : sans ce réensemencement, les 4 workers tiraient la même suite
-    d'augmentations, rejouée à l'identique à chaque epoch, et le seed n'y changeait rien.
-    info.seed vaut (seed de base tiré par le processus principal à chaque epoch) +
-    worker_id : il dépend donc du seed de l'expérience, du worker et de l'epoch.
+    albumentations >= 2 has its own generator, copied as is into the DataLoader
+    workers: without this reseeding, the 4 workers drew the same sequence of
+    augmentations, replayed identically at every epoch, and the seed changed nothing.
+    info.seed equals (base seed drawn by the main process at every epoch) +
+    worker_id: it therefore depends on the experiment seed, the worker and the epoch.
     """
     info = torch.utils.data.get_worker_info()
     seed = info.seed % 2**32
@@ -32,9 +32,9 @@ def seed_worker_augmentations(worker_id: int) -> None:
 
 
 class PoissonNoise(A.ImageOnlyTransform):
-    """Bruit quantique : x ← Poisson(x·s) / s, s tiré dans scale_range (petit s = fort bruit).
+    """Quantum noise: x ← Poisson(x·s) / s, s drawn in scale_range (small s = strong noise).
 
-    Même modèle et mêmes plages que l'évaluation de robustesse (medvae_eval/robustness).
+    Same model and ranges as the robustness evaluation (medvae_eval/robustness).
     """
 
     def __init__(self, scale_range=(0.05, 1.0), p: float = 0.5):
@@ -50,7 +50,7 @@ class PoissonNoise(A.ImageOnlyTransform):
 
 
 class OpenCVGaussianBlur(A.ImageOnlyTransform):
-    """Flou gaussien d'OpenCV, σ déduit de la taille (impaire) du noyau, comme l'évaluation."""
+    """OpenCV Gaussian blur, σ derived from the (odd) kernel size, as in the evaluation."""
 
     def __init__(self, kernel_range=(3, 31), p: float = 0.5):
         super().__init__(p=p)
@@ -64,7 +64,7 @@ class OpenCVGaussianBlur(A.ImageOnlyTransform):
 
 
 def degradation_transform(p: float) -> A.OneOf:
-    """Une dégradation d'acquisition, avec probabilité p : bruit de Poisson, JPEG ou flou."""
+    """One acquisition degradation, with probability p: Poisson noise, JPEG or blur."""
     return A.OneOf([
         PoissonNoise(scale_range=(0.05, 1.0)),
         A.ImageCompression(quality_range=(5, 95)),
@@ -73,12 +73,12 @@ def degradation_transform(p: float) -> A.OneOf:
 
 
 def get_train_transforms(img_size: int = 512, noise_std_range=None, degradation_p=None) -> A.Compose:
-    # GaussNoise sans paramètre : écart-type de 20 à 44 % du max avec albumentations
-    # >= 2 (~84/255, image quasi détruite), contre ~3-7/255 en 1.x. noise_std_range
-    # (fraction du max) permet de retrouver un bruit léger ; None = comportement actuel.
+    # GaussNoise without parameters: standard deviation of 20 to 44 % of the max with
+    # albumentations >= 2 (~84/255, image almost destroyed), against ~3-7/255 in 1.x.
+    # noise_std_range (fraction of the max) restores a light noise; None = current behaviour.
     gauss_noise = (A.GaussNoise(std_range=tuple(noise_std_range), p=0.3)
                    if noise_std_range is not None else A.GaussNoise(p=0.3))
-    # E15 : dégradations réalistes (Poisson, JPEG, flou) ; None = pas de dégradation
+    # E15: realistic degradations (Poisson, JPEG, blur); None = no degradation
     degradation = [degradation_transform(degradation_p)] if degradation_p else []
     return A.Compose([
         A.Resize(img_size, img_size),
@@ -123,20 +123,20 @@ class ArcadeDataset(Dataset):
         self.transforms = get_train_transforms(img_size, noise_std_range, degradation_p) if augment \
                   else get_val_transforms(img_size)
 
-        # Charge le JSON 
+        # Load the JSON 
         with open(annotations, "r") as f:
             coco = json.load(f)
 
-        # Indexe les images par leur ID
+        # Index the images by their ID
         self.images = {img["id"]: img for img in coco["images"]}
 
-        # Filtre sur les IDs demandés si fournis, sinon toutes les images
+        # Keep the requested IDs if given, otherwise all images
         if image_ids is not None:
             self.image_ids = image_ids
         else:
             self.image_ids = list(self.images.keys())
 
-        # Regroupe les annotations par image_id
+        # Group the annotations by image_id
         self.annotations = {}
         for ann in coco["annotations"]:
             img_id = ann["image_id"]
@@ -151,11 +151,11 @@ class ArcadeDataset(Dataset):
         img_id   = self.image_ids[idx]
         img_info = self.images[img_id]
 
-        # charge l'image en numpy ce qui est nécessaire pour les transforms d'albumentations
+        # load the image as numpy, as required by the albumentations transforms
         img_path = os.path.join(self.images_dir, img_info["file_name"])
         image    = np.array(Image.open(img_path).convert("L")) 
 
-        # construit le masque de segmentation à partir des annotations
+        # build the segmentation mask from the annotations
         h, w = img_info["height"], img_info["width"]
         mask = np.zeros((h, w), dtype=np.uint8)
 
@@ -167,7 +167,7 @@ class ArcadeDataset(Dataset):
             binary_mask  = coco_mask.decode(rle).astype(bool)
             mask[binary_mask] = category_id
 
-        # applique les transforms (image + masque synchronisés)
+        # apply the transforms (image and mask in sync)
         augmented = self.transforms(image=image, mask=mask)
         image     = augmented["image"]
         mask      = augmented["mask"]
@@ -190,7 +190,7 @@ def split_dataset(
 
     all_ids = [img["id"] for img in coco["images"]]
 
-    random.Random(seed).shuffle(all_ids)   # générateur local : pas d'effet sur le random global
+    random.Random(seed).shuffle(all_ids)   # local generator: no effect on the global random state
 
     split = int(len(all_ids) * train_ratio)
     return all_ids[:split], all_ids[split:]

@@ -1,10 +1,10 @@
-"""Analyse du sweep de robustesse (sweep.py) : moyennes par niveau et IC 95 % bootstrap.
+"""Analysis of the robustness sweep (sweep.py): means per level and 95 % bootstrap CIs.
 
-Pour chaque dégradation et chaque niveau : PSNR(propre, dégradée), PSNR(propre,
-reconstruite) et leur différence delta, sur toute l'image et sur les vaisseaux.
-L'intervalle de confiance est obtenu par bootstrap sur les images (appariées).
+For each degradation and level: PSNR(clean, degraded), PSNR(clean, reconstructed) and
+their difference delta, on the whole image and on the vessels.
+The confidence interval is obtained by bootstrap over the (paired) images.
 
-Usage : python medvae_eval/robustness/analyze.py [--csv .../sweep.csv]
+Usage: python medvae_eval/robustness/analyze.py [--csv .../sweep.csv]
 """
 
 import argparse
@@ -35,13 +35,13 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
         for col in ("psnr_clean_deg", "psnr_clean_rec", "psnr_deg_rec", "delta",
                     "mpsnr_clean_deg", "mpsnr_clean_rec", "mpsnr_deg_rec", "mdelta"):
             vals = g[col].to_numpy()
-            vals = vals[np.isfinite(vals)]   # PSNR infini : entrée identique (flou de noyau 1)
+            vals = vals[np.isfinite(vals)]   # infinite PSNR: identical input (blur with a kernel of 1)
             if len(vals) == 0:
                 row.update({col: np.nan, f"{col}_lo": np.nan, f"{col}_hi": np.nan})
                 continue
             lo, hi = bootstrap_ci(vals)
             row.update({col: vals.mean(), f"{col}_lo": lo, f"{col}_hi": hi})
-        # Part des images pour lesquelles la reconstruction est plus proche de l'image propre
+        # Share of the images for which the reconstruction is closer to the clean image
         row["frac_restored"] = float((g["delta"] > 0).mean())
         rows.append(row)
     return pd.DataFrame(rows)
@@ -72,7 +72,7 @@ def plot(summary: pd.DataFrame, baseline: float, out_png: Path, prefix: str, tit
         ax.set_ylabel("Δ PSNR (dB)  > 0 : MedVAE restores")
         ax.set_xlabel(PARAM_LABEL[kind])
         if kind == "poisson":
-            axes[0, j].invert_xaxis()   # axe partagé par la colonne : inverser une seule fois
+            axes[0, j].invert_xaxis()   # axis shared by the column: invert only once
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(out_png, dpi=150)
@@ -99,8 +99,8 @@ def main():
     cols = ["degradation", "level", "param", "psnr_clean_deg", "psnr_clean_rec", "delta",
             "delta_lo", "delta_hi", "mdelta", "mdelta_lo", "mdelta_hi", "frac_restored"]
     print(summary[cols].round(2).to_string(index=False))
-    print(f"\nReconstruction de l'image propre : PSNR {base['psnr_clean_recclean'].mean():.2f} dB, "
-          f"vaisseaux {base['mpsnr_clean_recclean'].mean():.2f} dB")
+    print(f"\nReconstruction of the clean image: PSNR {base['psnr_clean_recclean'].mean():.2f} dB, "
+          f"vessels {base['mpsnr_clean_recclean'].mean():.2f} dB")
 
 
 if __name__ == "__main__":

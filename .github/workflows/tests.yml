@@ -13,10 +13,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Dépendances (torch CPU, sans GPU ni dataset)
+      - name: Dependencies (CPU torch, no GPU or dataset)
         run: |
           pip install torch==2.14.0 torchvision==0.29.0 --index-url https://download.pytorch.org/whl/cpu
-          # mêmes versions que le cluster (requirements-lock.txt), en version CPU
+          # same versions as the cluster (requirements-lock.txt), CPU build
           pip install -c requirements-lock.txt torchmetrics segmentation-models-pytorch albumentations \
                       pycocotools pillow pyyaml numpy pandas pytest
       - name: Tests

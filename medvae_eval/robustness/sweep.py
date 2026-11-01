@@ -1,23 +1,23 @@
-"""Robustesse de MedVAE aux dégradations d'entrée — version corrigée de l'axe A.
+"""Robustness of MedVAE to input degradations — corrected version of part A.
 
-Pour chaque image et chaque niveau de dégradation (bruit de Poisson, JPEG, flou) :
-    x        image propre            d = degrade(x)        r = MedVAE(d)
-et on mesure, sur toute l'image et sur les pixels de vaisseaux :
-    psnr_clean_deg  = PSNR(x, d)   qualité de l'entrée dégradée
-    psnr_clean_rec  = PSNR(x, r)   qualité de la reconstruction par rapport à l'image PROPRE
-    psnr_deg_rec    = PSNR(d, r)   fidélité à l'entrée dégradée (métrique de l'étude d'origine)
-La question « MedVAE restaure-t-il l'image ? » se lit dans delta = psnr_clean_rec - psnr_clean_deg
-(> 0 : la reconstruction est plus proche de l'image propre que l'entrée).
+For each image and each degradation level (Poisson noise, JPEG, blur):
+    x        clean image             d = degrade(x)        r = MedVAE(d)
+measure, on the whole image and on the vessel pixels:
+    psnr_clean_deg  = PSNR(x, d)   quality of the degraded input
+    psnr_clean_rec  = PSNR(x, r)   quality of the reconstruction against the CLEAN image
+    psnr_deg_rec    = PSNR(d, r)   fidelity to the degraded input (metric of the original study)
+The question "does MedVAE restore the image?" reads in delta = psnr_clean_rec - psnr_clean_deg
+(> 0: the reconstruction is closer to the clean image than the input).
 
-Différences avec medvae_eval/scripts/run_maskedPSNR_sweep.py :
-    - latent déterministe (moyenne du posterior) au lieu d'un tirage aléatoire ;
-    - même échelle pour toutes les métriques ([0, 1], image / 255) au lieu d'un
-      min-max par image, qui changeait d'une image à l'autre et avec la dégradation ;
-    - bruit tiré avec un générateur seedé par image et par niveau ;
-    - images de seg_val (200) au lieu de 50 images de seg_train ; une ligne par image
-      dans le CSV, pour des intervalles de confiance.
+Differences with medvae_eval/scripts/run_maskedPSNR_sweep.py:
+    - deterministic latent (posterior mean) instead of a random sample;
+    - same scale for all metrics ([0, 1], image / 255) instead of a per-image min-max,
+      which changed from one image to the next and with the degradation;
+    - noise drawn with a generator seeded per image and per level;
+    - seg_val images (200) instead of 50 seg_train images; one row per image in the
+      CSV, for confidence intervals.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/robustness/sweep.py [--n-images 200] [--levels 20]
 """
 
@@ -39,12 +39,12 @@ SEG_VAL = ARCADE_ROOT / "dataset_phase_1" / "segmentation_dataset" / "seg_val"
 
 
 def degradation_params(n_levels: int) -> dict:
-    """Mêmes plages que l'étude d'origine (niveau 0 = plus faible)."""
+    """Same ranges as the original study (level 0 = weakest)."""
     kernels = np.linspace(1, 31, n_levels).round().astype(int)
     return {
-        "poisson": np.linspace(1.0, 0.05, n_levels),                     # échelle (plus bas = plus bruité)
-        "jpeg": (95 - np.linspace(0, 1, n_levels) * 90).astype(int),     # qualité JPEG
-        "blur": np.where(kernels % 2 == 0, kernels + 1, kernels),        # taille du noyau gaussien
+        "poisson": np.linspace(1.0, 0.05, n_levels),                     # scale (lower = noisier)
+        "jpeg": (95 - np.linspace(0, 1, n_levels) * 90).astype(int),     # JPEG quality
+        "blur": np.where(kernels % 2 == 0, kernels + 1, kernels),        # Gaussian kernel size
     }
 
 
@@ -61,7 +61,7 @@ def degrade(img: np.ndarray, kind: str, param, rng: np.random.Generator) -> np.n
 
 
 def vessel_masks(ann_path: Path) -> dict:
-    """Masque binaire des vaisseaux (toutes classes) par nom de fichier."""
+    """Binary vessel mask (all classes) per file name."""
     coco = json.load(open(ann_path))
     polys = {}
     for a in coco["annotations"]:
@@ -76,14 +76,14 @@ def vessel_masks(ann_path: Path) -> dict:
 
 
 def psnr(a: np.ndarray, b: np.ndarray, mask=None) -> float:
-    """PSNR sur des images dans [0, 1] (data_range = 1)."""
+    """PSNR on images in [0, 1] (data_range = 1)."""
     diff = (a - b) if mask is None else (a[mask] - b[mask])
     mse = float(np.mean(diff ** 2))
     return float("inf") if mse == 0 else 10 * np.log10(1.0 / mse)
 
 
 class Reconstructor:
-    """MedVAE déterministe : x ∈ [0,1] → encode (moyenne du posterior) → decode → [0,1]."""
+    """Deterministic MedVAE: x ∈ [0,1] → encode (posterior mean) → decode → [0,1]."""
 
     def __init__(self, device):
         self.device = device
@@ -94,7 +94,7 @@ class Reconstructor:
         x = torch.stack([torch.from_numpy(i).float() / 255.0 for i in images_u8]).unsqueeze(1)
         x = x.to(self.device) * 2 - 1
         out = []
-        for chunk in x.split(2):   # attention MedVAE : ~1 Go par image en 512²
+        for chunk in x.split(2):   # MedVAE attention: ~1 GB per image at 512²
             z = self.mvae.model.encode(chunk).mode()
             out.append(((self.mvae.model.decode(z) + 1) / 2).clamp(0, 1))
         return [r[0].cpu().numpy() for r in torch.cat(out)]
@@ -119,7 +119,7 @@ def main():
         clean_u8 = cv2.imread(str(SEG_VAL / "images" / name), cv2.IMREAD_GRAYSCALE)
         clean = clean_u8 / 255.0
         mask = masks[name]
-        # Référence : reconstruction de l'image propre
+        # Reference: reconstruction of the clean image
         rec_clean = recon([clean_u8])[0]
         base = {"image": name, "psnr_clean_recclean": psnr(clean, rec_clean),
                 "mpsnr_clean_recclean": psnr(clean, rec_clean, mask)}
@@ -127,7 +127,7 @@ def main():
         for kind, values in params.items():
             degraded = []
             for level, value in enumerate(values):
-                rng = np.random.default_rng([args.seed, idx, level])   # bruit reproductible
+                rng = np.random.default_rng([args.seed, idx, level])   # reproducible noise
                 degraded.append(degrade(clean_u8, kind, value, rng))
             recs = recon(degraded)
             for level, (value, d_u8, r) in enumerate(zip(values, degraded, recs)):

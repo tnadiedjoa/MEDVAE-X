@@ -1,4 +1,4 @@
-# Regroupe les différentes identités git d'un même auteur (git shortlog, git log --use-mailmap)
+# Maps the different git identities of a same author (git shortlog, git log --use-mailmap)
 Théo Palagi <theo.palagi2004@gmail.com> Palagi Théo <theo.palagi2004@gmail.com>
 Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@node40.enst.fr>
 Théo Palagi <theo.palagi2004@gmail.com> Theo Palagi <tpalagi-24@gpu-gw.enst.fr>

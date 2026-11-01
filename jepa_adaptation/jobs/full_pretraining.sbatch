@@ -8,14 +8,14 @@
 #SBATCH --output=jepa_adaptation/jobs/logs/full_%j.out
 #SBATCH --error=jepa_adaptation/jobs/logs/full_%j.err
 
-# ── paramètres ────────────────────────────────────────────────
+# ── parameters ────────────────────────────────────────────────
 EPOCHS_STAGE1=30
 EPOCHS_STAGE2=30
 # ──────────────────────────────────────────────────────────────
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage1/logs"
@@ -38,10 +38,10 @@ python jepa_adaptation/stage1_training.py \
 
 CKPT="$PROJECT_ROOT/jepa_adaptation/outputs/stage1/best.pt"
 if [ ! -f "$CKPT" ]; then
-    echo "ERROR: stage-1 checkpoint introuvable ($CKPT)" >&2
+    echo "ERROR: stage-1 checkpoint not found ($CKPT)" >&2
     exit 1
 fi
-echo "=== STAGE 1 terminé — checkpoint : $CKPT ==="
+echo "=== STAGE 1 done — checkpoint: $CKPT ==="
 
 # ── stage 2 : JEPA ───────────────────────────────────────────
 echo ""
@@ -52,5 +52,5 @@ python jepa_adaptation/stage2_training.py \
     --model-config jepa_adaptation/configs/model.yaml \
     --epochs       "$EPOCHS_STAGE2"
 
-echo "=== STAGE 2 terminé — $(date) ==="
-echo "Checkpoints stage2 : $PROJECT_ROOT/jepa_adaptation/outputs/stage2/"
+echo "=== STAGE 2 done — $(date) ==="
+echo "Stage-2 checkpoints: $PROJECT_ROOT/jepa_adaptation/outputs/stage2/"

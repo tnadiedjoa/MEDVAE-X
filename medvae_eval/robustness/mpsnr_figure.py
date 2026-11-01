@@ -1,10 +1,10 @@
-"""Schéma du PSNR sur les vaisseaux (mPSNR) pour le rapport et les slides.
+"""Diagram of the PSNR on the vessels (mPSNR) for the report and the slides.
 
-Une image de seg_val et sa version bruitée (Poisson) partagent le même masque de vaisseaux ;
-le mPSNR compare les deux images sur ces seuls pixels.
+A seg_val image and its noisy (Poisson) version share the same vessel mask; the mPSNR
+compares the two images on these pixels only.
 
-Usage (racine du repo) : python medvae_eval/robustness/mpsnr_figure.py
-    → final_report/figures/elias/mpsnr.pdf
+Usage (from the repository root): python medvae_eval/robustness/mpsnr_figure.py
+    → report/figures/robustness/mpsnr.pdf
 """
 
 from pathlib import Path
@@ -18,7 +18,7 @@ from matplotlib.patches import FancyArrowPatch
 
 from sweep import SEG_VAL, degrade, vessel_masks
 
-OUT = Path(__file__).resolve().parents[2] / "final_report" / "figures" / "elias" / "mpsnr.pdf"
+OUT = Path(__file__).resolve().parents[2] / "report" / "figures" / "robustness" / "mpsnr.pdf"
 
 
 def overlay(img_u8: np.ndarray, mask: np.ndarray) -> np.ndarray:

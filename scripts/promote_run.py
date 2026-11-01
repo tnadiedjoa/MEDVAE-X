@@ -1,10 +1,10 @@
-"""Fait d'un run validé la référence officielle du projet (finetune/results/).
+"""Make a validated run the official reference of the project (finetune/results/).
 
-Copie l'historique du run et fusionne ses scores dans finetune/results/results.json,
-en notant le run d'origine. À lancer une fois l'expérience notée dans EXPERIMENTS.md
-et la modification conservée.
+Copies the history of the run and merges its scores into finetune/results/results.json,
+recording the source run. To run once the experiment is logged in experiments.md and
+the change kept.
 
-Usage (depuis la racine du repo) :
+Usage (from the repository root):
     python scripts/promote_run.py experiments/runs/<run> [experiments/runs/<run> ...]
 """
 
@@ -19,16 +19,16 @@ RESULTS_DIR = REPO_ROOT / "finetune" / "results"
 
 def promote(run_dir: Path) -> None:
     if not (run_dir / "meta.json").exists():
-        raise SystemExit(f"{run_dir} n'est pas un dossier de run (meta.json absent)")
+        raise SystemExit(f"{run_dir} is not a run folder (no meta.json)")
 
-    # Historiques d'entraînement (le fine-tuning MedVAE a son sous-dossier)
+    # Training histories (the MedVAE fine-tuning has its own subfolder)
     for history in run_dir.glob("*_history.json"):
         dest = RESULTS_DIR / ("medvae_finetuned" if history.name.startswith("medvae_") else "")
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(history, dest / history.name)
         print(f"  {history.name} -> {dest.relative_to(REPO_ROOT)}/")
 
-    # Scores test : une entrée par condition, avec le run qui l'a produite
+    # Test scores: one entry per condition, with the run that produced it
     run_results = run_dir / "results.json"
     if run_results.exists():
         official_path = RESULTS_DIR / "results.json"

@@ -75,8 +75,8 @@ class AutoencoderKL(torch.nn.Module):
     def encode_penultimate(self, x):
         """Single forward pass returning (feat, posterior, z).
 
-        feat : (B, ch*ch_mult[-1], H, W) — features avant conv_out de l'encodeur.
-        Utilisé comme cible JEPA à la place du bottleneck 1-canal.
+        feat: (B, ch*ch_mult[-1], H, W) — encoder features before conv_out.
+        Used as the JEPA target instead of the 1-channel bottleneck.
         """
         feats = []
 

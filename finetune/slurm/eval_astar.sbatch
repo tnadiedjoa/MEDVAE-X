@@ -10,7 +10,7 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 
@@ -18,11 +18,11 @@ cd "$PROJECT_DIR"
 
 source "$PROJECT_DIR/.venv/bin/activate"
 
-echo "=== Condition A* — démarrage ==="
-echo "Job ID : $SLURM_JOB_ID"
+echo "=== Condition A* — start ==="
+echo "Job ID: $SLURM_JOB_ID"
 date
 
-# Checkpoint du U-Net de la condition A, ex. :
+# Checkpoint of the U-Net of condition A, e.g.:
 #   CHECKPOINT_A=experiments/runs/<run A>/best_model_condition_a_unet.pth sbatch finetune/slurm/eval_astar.sbatch
 if [ ! -f "${CHECKPOINT_A:-}" ]; then
   echo "ERREUR : checkpoint A introuvable : '${CHECKPOINT_A:-}'"
@@ -34,4 +34,4 @@ python -m finetune.eval_astar \
   --checkpoint_a "$CHECKPOINT_A" \
   --predict "$@"
 
-echo "=== Condition A* — terminé ===" && date
+echo "=== Condition A* — done ===" && date

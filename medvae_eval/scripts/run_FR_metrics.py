@@ -6,10 +6,10 @@ import pandas as pd
 import glob
 from masked_psnr import MaskedPSNR
 
-# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+# Outputs in <repo>/medvae_eval/outputs/, whatever the current folder
 _OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"

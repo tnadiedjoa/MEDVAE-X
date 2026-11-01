@@ -1,13 +1,13 @@
 """
-MedVAE Standalone — AutoencoderKL 2D (architecture identique au repo officiel StanfordMIMI/MedVAE).
+MedVAE standalone — 2D AutoencoderKL (same architecture as the official StanfordMIMI/MedVAE repository).
 
-Ce fichier regroupe toutes les briques nécessaires pour utiliser l'AutoencoderKL 2D
-sans dépendre du dossier jepa-adaptation/ ni d'imports externes complexes.
+This file gathers every building block needed to use the 2D AutoencoderKL without
+depending on the jepa-adaptation/ folder or on complex external imports.
 
-Source : https://github.com/StanfordMIMI/MedVAE
-Licence : MIT
+Source: https://github.com/StanfordMIMI/MedVAE
+Licence: MIT
 
-Usage dans les notebooks :
+Use in the notebooks:
     from medvae_standalone import AutoencoderKL, DiagonalGaussianDistribution
 """
 
@@ -454,10 +454,10 @@ class Decoder(nn.Module):
 
 class AutoencoderKL(nn.Module):
     """
-    AutoencoderKL 2D — architecture identique au repo officiel MedVAE.
+    2D AutoencoderKL — same architecture as the official MedVAE repository.
 
-    Inclut le channel_ds (skip-connected 1×1→3×3→1×1 conv) et le channel_proj
-    utilisés pour produire la représentation latente « projetée ».
+    Includes the channel_ds (skip-connected 1×1→3×3→1×1 conv) and the channel_proj
+    used to produce the "projected" latent representation.
     """
 
     def __init__(

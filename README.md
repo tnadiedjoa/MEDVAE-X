@@ -11,7 +11,7 @@
 > JEPA adaptation brings a gain. A post-submission revision (3 seeds, control baselines, CI-tested
 > code) overturned several conclusions of the original study.
 
-📄 **[Read the paper](final_report/final.pdf)** &nbsp;·&nbsp; 🖥️ **[See the slides](final_report/presentation.pdf)**
+📄 **[Read the paper](report/report.pdf)** &nbsp;·&nbsp; 🖥️ **[See the slides](report/slides.pdf)**
 
 **Authors:** Yanic Rothlingshofer · Théo Palagi · Elias Corlou · Théophile Nadiedjoa
 *Télécom Paris IM06 course project (June 2026), supervised by Elsa Angelini; revised in September 2026
@@ -51,19 +51,19 @@ to the same size does almost as well (95 %). MedVAE reduces Poisson noise (less 
 this does not make segmentation more robust; conditioning it on a quality score or adapting its encoder
 with JEPA brings no gain. Several conclusions of the original study were overturned once measurement and
 training issues were fixed: every change and its before/after results are logged in
-[EXPERIMENTS.md](EXPERIMENTS.md) (in French).
+[experiments.md](experiments.md).
 
 ---
 
 ## A — Robustness of MedVAE to Input Degradations
 
-![Robustness pipeline](final_report/figures/elias/pipeline_corrected.png)
+![Robustness pipeline](report/figures/robustness/pipeline.png)
 
 We ask whether MedVAE can *restore* degraded angiograms (low-dose noise, compression, blur).
 For each image and degradation level we compare the reconstruction **to the clean image**:
 Δ = PSNR(clean, reconstruction) − PSNR(clean, degraded input), on the whole image and on vessel pixels
 (deterministic latent, fixed [0, 1] intensity scale, seeded noise, 100 `seg_val` images × 10 levels,
-95 % bootstrap CIs — experiment E11 in [EXPERIMENTS.md](EXPERIMENTS.md)).
+95 % bootstrap CIs — experiment E11 in [experiments.md](experiments.md)).
 
 | Degradation | Δ PSNR (weakest → strongest) | Images restored |
 |---|---|---|
@@ -87,7 +87,7 @@ input (clearly for thick vessels, barely for thin ones), but a 5×5 filter does 
 for thin vessels too. Without noise to remove (clean, JPEG, blur), MedVAE leaves the CNR almost
 unchanged, whereas the filters, which only blur, lower that of thin vessels.
 
-![Vessel CNR](final_report/figures/elias/cnr.png)
+![Vessel CNR](report/figures/robustness/cnr.png)
 
 ```bash
 python medvae_eval/robustness/sweep.py --n-images 100 --levels 10   # → medvae_eval/outputs/robustness/sweep.csv
@@ -104,12 +104,12 @@ The original scripts (fidelity to the degraded input, per-image min-max scaling)
 
 ## B — Image-Quality Inductive Bias (FiLM conditioning)
 
-![FiLM protocol](final_report/figures/theophile/pipeline_film_corrected.png)
+![FiLM protocol](report/figures/film/pipeline.png)
 
 We ask whether MedVAE (`vae_4x_4c_2D`) reconstructs better when told how degraded its input is: a
 scalar quality score `c ∈ [0, 1]` (three constructions: A weighted IQA metrics, B PCA, C learned) is
 injected through **FiLM** after each of the 19 ResNet blocks (zero-initialised heads, +1.7M parameters).
-Protocol (experiment E13 in [EXPERIMENTS.md](EXPERIMENTS.md)): 256×256, baseline and FiLM trained
+Protocol (experiment E13 in [experiments.md](experiments.md)): 256×256, baseline and FiLM trained
 identically (all weights, 3000 steps), tested on the 200 unseen `seg_val` images, 3 seeds; each FiLM
 model is also evaluated with **another image's score** and with a **constant score**.
 
@@ -121,7 +121,7 @@ model is also evaluated with **another image's score** and with a **constant sco
 | FiLM, shuffled `c` | 42.29 ± 0.02 |
 | FiLM, constant `c` | 42.30 ± 0.02 |
 
-![FiLM results](final_report/figures/theophile/film_results.png)
+![FiLM results](report/figures/film/film_results.png)
 
 **Conclusion:** fine-tuning MedVAE on ARCADE gains **+7.4 dB**; FiLM adds almost nothing on top
 (+0.03 to +0.05 dB, not established over 3 seeds). Score C, nearly constant on the training images
@@ -147,7 +147,7 @@ The quality scores are built in notebooks 01–03 of [`medvae_eval/cvae/`](medva
 
 ## C — JEPA Adaptation of MedVAE Stage 2
 
-![JEPA pipeline](assets/pipeline_jepa.png)
+![JEPA pipeline](report/figures/jepa/pipeline.png)
 
 MedVAE's stage 2 relies on **BioMedCLIP** to enrich the latent space. We replace that external
 vision-language supervision with a self-supervised **JEPA** objective (inspired by I-JEPA): a context
@@ -157,7 +157,7 @@ recipe on ARCADE, **stage 1** trains an autoencoder of the MedVAE family from sc
 ×8 per side, 64×64×1 latent; test images excluded), and **stage 2** adapts its encoder with JEPA.
 
 Evaluation on the 300 test images, on the layer JEPA trains (features before `conv_out`), over three
-pre-trainings of each stage — experiment E19 in [EXPERIMENTS.md](EXPERIMENTS.md):
+pre-trainings of each stage — experiment E19 in [experiments.md](experiments.md):
 
 | | MedVAE (released, ×4) | Stage 1 (×8, from scratch) | Stage 2 JEPA |
 |---|---|---|---|
@@ -203,10 +203,10 @@ We test whether MedVAE's latent can drive **26-class coronary segmentation** on 
 | **R** | Head of B on the image average-pooled to 128×128 (control, E16) | Does the latent beat a trivial compression? |
 | **A↓↑** | U-Net of A on the image downsampled to 128×128 and upsampled back (control, E16) | Does MedVAE beat naive resampling? |
 
-![Conditions](final_report/figures/theo/conditions.png)
+![Conditions](report/figures/segmentation/conditions.png)
 
 Trained on the 1000 `seg_train` images, selected on the official `seg_val` (200), evaluated on the
-official test set (300), 3 seeds per condition (experiments E16 and E17 in [EXPERIMENTS.md](EXPERIMENTS.md)).
+official test set (300), 3 seeds per condition (experiments E16 and E17 in [experiments.md](experiments.md)).
 Artery Dice / IoU = mean over the artery segments (background excluded).
 
 | Condition | Artery Dice | Artery IoU | Dice incl. background |
@@ -219,7 +219,7 @@ Artery Dice / IoU = mean over the artery segments (background excluded).
 | R (control) | 0.405 ± 0.002 | 0.288 ± 0.003 | 0.429 |
 | A↓↑ (control) | 0.389 ± 0.018 | 0.275 ± 0.014 | 0.413 |
 
-![Segmentation results](final_report/figures/theo/seg_results.png)
+![Segmentation results](report/figures/segmentation/seg_results.png)
 
 **Conclusion:** in pixel space, the ×16 compression (in number of values) preserves what segmentation
 needs: compression alone costs almost nothing (A\* ≈ A, −0.004), whereas a naive downsampling of the same
@@ -239,7 +239,7 @@ blur from 0.21 to 0.35, at no cost on clean images (+0.010; option `data.degrada
 by default). These are the same
 degradation families and ranges as in the evaluation: this is robustness to degradations seen in training.
 
-![Robustness of segmentation](final_report/figures/theo/seg_robustness.png)
+![Robustness of segmentation](report/figures/segmentation/seg_robustness.png)
 
 ```bash
 # Always run from the repo root, as a module (imports are absolute)
@@ -257,7 +257,7 @@ python finetune/eval_resampled.py --run-a experiments/runs/*_e17_seed4?_conditio
 python -m finetune.figures_report
 ```
 
-See [`finetune/README.md`](finetune/README.md) (in French) for the full pipeline (A\*, Slurm scripts, hyperparameters).
+See [`finetune/README.md`](finetune/README.md) for the full pipeline (A\*, Slurm scripts, hyperparameters).
 
 ---
 
@@ -283,10 +283,9 @@ MEDVAE-X/
 ├── experiments/
 │   ├── runs/             # one folder per run (config, metadata, scores)
 │   └── robustness/ film/ diagnostics/  # analyses of the logged experiments
-├── EXPERIMENTS.md        # experiment log (in French): every change tested, before/after
+├── experiments.md        # experiment log: every change tested, before/after
 ├── tests/                # pytest (metrics, configs, runs, models, dataset) — run in CI
-├── final_report/         # IEEE paper (final.pdf) + Beamer slides (presentation.pdf)
-├── assets/               # figures used in this README
+├── report/               # IEEE paper (report.pdf), Beamer slides (slides.pdf), figures by part
 ├── scripts/              # download_arcade.sh, promote_run.py, summarize_runs.py
 ├── data/arcade/          # ARCADE dataset (not versioned, see Setup)
 └── README.md
@@ -347,7 +346,7 @@ python -m finetune.train --config finetune/configs/condition_a.yaml \
   --set training.learning_rate=3e-4 --run-name lr3e-4_condition_a
 ```
 
-Every change tested on the project is logged in [EXPERIMENTS.md](EXPERIMENTS.md) with its
+Every change tested on the project is logged in [experiments.md](experiments.md) with its
 before/after results, whether it was kept or not.
 
 ### MedVAE — spatial reminder

@@ -1,16 +1,16 @@
-"""Résumé des runs FiLM (train_film.py) : niveaux et différences appariées.
+"""Summary of the FiLM runs (train_film.py): levels and paired differences.
 
-Pour chaque groupe (motif de dossiers de runs), moyenne ± écart-type entre seeds des
-métriques de test. Puis deux types de différences appariées :
-    - dans un même run FiLM : vrai c − c mélangé, vrai c − c constant (si c est utilisé,
-      ces différences doivent être nettement positives). Même modèle : la seule source
-      de variation est l'image, d'où un IC 95 % bootstrap sur les images ;
-    - entre groupes, à seed égal : groupe − référence (variante real_c). Ce sont des
-      modèles entraînés séparément : l'IC 95 % porte sur les seeds (loi de Student sur
-      les écarts moyens par seed), l'IC sur les images ignorerait la variabilité
-      d'entraînement. Avec un seul seed, pas d'IC.
+For each group (pattern of run folders), mean ± standard deviation across seeds of the
+test metrics. Then two kinds of paired differences:
+    - within one FiLM run: true c − shuffled c, true c − constant c (if c is used, these
+      differences must be clearly positive). Same model: the only source of variation
+      is the image, hence a 95 % bootstrap CI over images;
+    - between groups, at equal seed: group − reference (real_c variant). These are
+      separately trained models: the 95 % CI is over seeds (Student's t on the mean
+      per-seed differences); a CI over images would ignore the training variability.
+      With a single seed, no CI.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/film/analyze.py \
         --group pretrained='*_e13_film_pretrained' \
         --group baseline='*_e13_film_baseline_seed4?' \
@@ -34,12 +34,12 @@ METRICS = ("psnr", "mpsnr", "ssim", "haarpsi")
 
 
 def load_group(pattern: str) -> dict:
-    """{seed: tableau par image} pour tous les runs correspondant au motif."""
+    """{seed: per-image table} for all runs matching the pattern."""
     runs = {}
     for run in sorted(RUNS_DIR.glob(pattern)):
         csv = run / "test_per_image.csv"
         if not csv.exists():
-            print(f"  (ignoré, pas de test_per_image.csv) {run.name}")
+            print(f"  (skipped, no test_per_image.csv) {run.name}")
             continue
         m = re.search(r"seed(\d+)", run.name)
         runs[int(m.group(1)) if m else 0] = pd.read_csv(csv)
@@ -53,7 +53,7 @@ def bootstrap_ci(values: np.ndarray, n_boot: int = 10000, seed: int = 0):
 
 
 def paired(diffs_per_seed: list, metric: str) -> dict:
-    """diffs_per_seed : Series indexées par image. Moyenne par seed, puis IC sur les images."""
+    """diffs_per_seed: Series indexed by image. Mean per seed, then CI over images."""
     per_seed = [float(d.mean()) for d in diffs_per_seed]
     per_image = pd.concat(diffs_per_seed, axis=1).mean(axis=1).to_numpy()
     lo, hi = bootstrap_ci(per_image)
@@ -62,7 +62,7 @@ def paired(diffs_per_seed: list, metric: str) -> dict:
 
 
 def matched_pairs(runs: dict, ref: dict) -> list:
-    """Runs appariés par seed ; une référence à un seul run (ex. pré-entraîné) sert pour tous."""
+    """Runs paired by seed; a reference with a single run (e.g. pre-trained) serves for all."""
     common = sorted(set(runs) & set(ref))
     if common:
         return [(runs[s], ref[s]) for s in common]
@@ -73,7 +73,7 @@ def matched_pairs(runs: dict, ref: dict) -> list:
 
 
 def paired_seeds(diffs_per_seed: list, metric: str) -> dict:
-    """Écarts entre modèles entraînés séparément : IC de Student sur les moyennes par seed."""
+    """Gaps between separately trained models: Student CI on the per-seed means."""
     from scipy import stats
     per_seed = np.array([float(d.mean()) for d in diffs_per_seed])
     mean, n = float(per_seed.mean()), len(per_seed)
@@ -92,9 +92,9 @@ def variant(df: pd.DataFrame, name: str) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--group", action="append", required=True, help="nom=motif (glob dans experiments/runs)")
-    parser.add_argument("--ref", default=None, help="groupe de référence pour les différences entre groupes")
-    parser.add_argument("--out", default=None, help="dossier où écrire levels.csv et paired.csv")
+    parser.add_argument("--group", action="append", required=True, help="name=pattern (glob in experiments/runs)")
+    parser.add_argument("--ref", default=None, help="reference group for the differences between groups")
+    parser.add_argument("--out", default=None, help="folder where levels.csv and paired.csv are written")
     args = parser.parse_args()
 
     groups = {}
@@ -103,7 +103,7 @@ def main():
         groups[name] = load_group(pattern)
         print(f"{name} : {len(groups[name])} run(s), seeds {sorted(groups[name])}")
 
-    # Niveaux : moyenne ± écart-type entre seeds
+    # Levels: mean ± standard deviation across seeds
     levels = []
     for name, runs in groups.items():
         for v in sorted({v for df in runs.values() for v in df["variant"].unique()}):
@@ -120,7 +120,7 @@ def main():
         cells = [f"{r[m]:.4f} ± {r[f'{m}_std']:.4f}" if r["n_seeds"] > 1 else f"{r[m]:.4f}" for m in METRICS]
         print(f"| {r['group']} | {r['variant']} | {r['n_seeds']} | " + " | ".join(cells) + " |")
 
-    # Différences appariées
+    # Paired differences
     rows = []
     for name, runs in groups.items():
         for control in ("shuffled_c", "constant_c"):
@@ -136,7 +136,7 @@ def main():
                     diffs = [variant(a, "real_c")[m] - variant(b, "real_c")[m] for a, b in pairs]
                     rows.append({"comparison": f"{name} − {args.ref}", **paired_seeds(diffs, m)})
     paired_df = pd.DataFrame(rows)
-    print("\n| comparaison | métrique | différence moyenne | IC 95 % | IC sur | par seed |")
+    print("\n| comparison | metric | mean difference | 95 % CI | CI over | per seed |")
     print("|---|---|---|---|---|---|")
     for _, r in paired_df.iterrows():
         ci = "—" if np.isnan(r["ci_low"]) else f"[{r['ci_low']:+.4f}, {r['ci_high']:+.4f}]"

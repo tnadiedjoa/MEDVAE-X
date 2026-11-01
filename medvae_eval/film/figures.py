@@ -1,9 +1,9 @@
-"""Figures de l'axe B refait (E13) pour le rapport et les slides.
+"""Figures of the redone part B (E13) for the report and the slides.
 
-    - pipeline_film_corrected.pdf : protocole (entraînement identique, contrôles sur c) ;
-    - film_results.pdf : PSNR de test par modèle, et différences appariées par image.
+    - pipeline.pdf: protocol (identical training, controls on c);
+    - film_results.pdf: test PSNR per model, and per-image paired differences.
 
-Usage (racine du repo) : python medvae_eval/film/figures.py
+Usage (from the repository root): python medvae_eval/film/figures.py
 """
 
 import sys
@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 from finetune.runs import RUNS_DIR  # noqa: E402
 
-OUT = REPO_ROOT / "final_report" / "figures" / "theophile"
+OUT = REPO_ROOT / "report" / "figures" / "film"
 BLUE, GREY, ORANGE, GREEN = "#dbe8f5", "#ececec", "#fbe3c8", "#d9efd9"
 
 
@@ -64,8 +64,8 @@ def pipeline():
             "If the model uses $c$: real $c$ > shuffled $c$ and real $c$ > constant $c$",
             ha="center", va="center", fontsize=9.5, style="italic")
     fig.tight_layout()
-    fig.savefig(OUT / "pipeline_film_corrected.pdf", bbox_inches="tight")
-    fig.savefig(OUT / "pipeline_film_corrected.png", dpi=110, bbox_inches="tight")
+    fig.savefig(OUT / "pipeline.pdf", bbox_inches="tight")
+    fig.savefig(OUT / "pipeline.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -75,7 +75,7 @@ def load(pattern: str) -> list:
 
 
 def per_image(runs: list, variant: str, metric: str = "psnr") -> pd.Series:
-    """PSNR par image, moyenné sur les seeds."""
+    """Per-image PSNR, averaged over the seeds."""
     return pd.concat([df[df["variant"] == variant].set_index("image")[metric] for df in runs], axis=1).mean(axis=1)
 
 
@@ -83,7 +83,7 @@ def results():
     pre, base, film = load("*_e13_film_pretrained"), load("*_e13_film_baseline_seed4?"), load("*_e13_film_C_seed4?")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3.6), gridspec_kw={"width_ratios": [1, 1.25]})
 
-    # Niveaux (moyenne ± écart-type entre seeds)
+    # Levels (mean ± standard deviation across seeds)
     bars = [("pretrained", pre, "real_c"), ("baseline", base, "real_c"), ("FiLM\nreal $c$", film, "real_c"),
             ("FiLM\nshuffled $c$", film, "shuffled_c"), ("FiLM\nconstant $c$", film, "constant_c")]
     means = [np.mean([df[df["variant"] == v]["psnr"].mean() for df in runs]) for _, runs, v in bars]
@@ -98,7 +98,7 @@ def results():
         ax1.text(i, m + 0.15, f"{m:.2f}", ha="center", fontsize=8)
     ax1.set_title("Reconstruction on seg_val (256×256)", fontsize=10)
 
-    # Différences appariées par image
+    # Per-image paired differences
     diffs = {"FiLM real $c$\n− baseline": per_image(film, "real_c") - per_image(base, "real_c"),
              "real $c$\n− shuffled $c$": per_image(film, "real_c") - per_image(film, "shuffled_c"),
              "real $c$\n− constant $c$": per_image(film, "real_c") - per_image(film, "constant_c")}
@@ -122,4 +122,4 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     pipeline()
     results()
-    print(f"-> {OUT}/pipeline_film_corrected.pdf, {OUT}/film_results.pdf")
+    print(f"-> {OUT}/pipeline.pdf, {OUT}/film_results.pdf")

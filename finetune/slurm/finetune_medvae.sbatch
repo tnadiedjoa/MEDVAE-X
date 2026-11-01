@@ -10,7 +10,7 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 
@@ -18,10 +18,10 @@ cd "$PROJECT_DIR"
 
 source "$PROJECT_DIR/.venv/bin/activate"
 
-echo "=== Fine-tuning MedVAE — démarrage ==="
-echo "Job ID : $SLURM_JOB_ID"
+echo "=== Fine-tuning MedVAE — start ==="
+echo "Job ID: $SLURM_JOB_ID"
 date
 
 python -m finetune.finetune_medvae --config finetune/configs/medvae_finetune.yaml "$@"
 
-echo "=== Fine-tuning MedVAE — terminé ===" && date
+echo "=== Fine-tuning MedVAE — done ===" && date

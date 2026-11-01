@@ -1,32 +1,32 @@
-"""Visibilité des vaisseaux fins et épais (E20) : rapport contraste sur bruit (CNR).
+"""Visibility of thin and thick vessels (E20): contrast-to-noise ratio (CNR).
 
-Complément de E11 (PSNR) : mêmes images (les n premières de seg_val), mêmes dégradations et
-même bruit seedé que sweep.py et baselines.py. Pour chaque version d'une image (propre,
-reconstruction MedVAE de la propre ; puis, à chaque niveau de dégradation : dégradée, MedVAE
-de la dégradée, filtres gaussien et médian 5×5 de la dégradée), on mesure
+Complement of E11 (PSNR): same images (the first n of seg_val), same degradations and
+same seeded noise as sweep.py and baselines.py. For each version of an image (clean,
+MedVAE reconstruction of the clean image; then, at each degradation level: degraded,
+MedVAE of the degraded image, 5×5 Gaussian and median filters of the degraded image), measure
 
-    CNR = (moyenne du fond local − moyenne sur la ligne centrale des vaisseaux) / écart-type du fond local
+    CNR = (mean of the local background − mean on the vessel centreline) / standard deviation of the local background
 
-Les vaisseaux sont sombres : le CNR est positif, et d'autant plus grand que les vaisseaux se
-détachent du fond. La géométrie vient des annotations de l'image propre, identique pour toutes
-les versions :
-    - ligne centrale : squelette du masque ; largeur locale = 2 × distance au bord du masque ;
-    - vaisseaux fins : largeur annotée ≤ 6 px (quartile inférieur des 100 images) ;
-      épais : ≥ 12 px (quartile supérieur) ; « all » : tous ;
-    - fond local : pixels hors du masque dilaté de 3 px et à moins de 13 px du masque, hors du
-      bord noir du collimateur, rattachés au point de ligne centrale le plus proche (donc à la
-      classe fine ou épaisse de ce point).
+Vessels are dark: the CNR is positive, and larger as the vessels stand out from the
+background. The geometry comes from the annotations of the clean image, the same for all
+versions:
+    - centreline: skeleton of the mask; local width = 2 × distance to the mask edge;
+    - thin vessels: annotated width ≤ 6 px (lower quartile of the 100 images);
+      thick: ≥ 12 px (upper quartile); "all": all;
+    - local background: pixels outside the mask dilated by 3 px and within 13 px of the
+      mask, outside the black collimator border, attached to the nearest centreline point
+      (hence to the thin or thick class of that point).
 
-Le CNR récompense le lissage (le bruit du fond baisse) : il se lit avec le mPSNR de E11, et
-séparément sur les vaisseaux fins, que le lissage efface. Les colonnes contrast et noise donnent
-le numérateur et le dénominateur.
+The CNR rewards smoothing (the background noise drops): read it together with the mPSNR of
+E11, and separately on the thin vessels, which smoothing erases. The contrast and noise
+columns give the numerator and the denominator.
 
-Usage (depuis medvae_eval/robustness/ ; le calcul complet prend ~13 min sur une RTX 3090) :
+Usage (from medvae_eval/robustness/; the full computation takes ~13 min on an RTX 3090):
     python cnr.py --out ../../experiments/robustness/e20_cnr
-ou en deux moitiés, puis fusion :
-    python cnr.py --start 0 --n-images 50 --out <dossier>/part0
-    python cnr.py --start 50 --n-images 50 --out <dossier>/part1
-    python cnr.py --from-csv <dossier>/part0/cnr.csv <dossier>/part1/cnr.csv --out <dossier>
+or in two halves, then merged:
+    python cnr.py --start 0 --n-images 50 --out <folder>/part0
+    python cnr.py --start 50 --n-images 50 --out <folder>/part1
+    python cnr.py --from-csv <folder>/part0/cnr.csv <folder>/part1/cnr.csv --out <folder>
 """
 
 import argparse
@@ -45,8 +45,8 @@ from tqdm import tqdm
 from sweep import SEG_VAL, Reconstructor, degradation_params, degrade, vessel_masks
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-THIN_MAX, THICK_MIN = 6, 12        # largeur annotée (px)
-GAP, RING = 3, 10                  # fond : entre 3 et 3 + 10 px du masque
+THIN_MAX, THICK_MIN = 6, 12        # annotated width (px)
+GAP, RING = 3, 10                  # background: between 3 and 3 + 10 px from the mask
 FILTERS = {
     "gauss5": lambda img: cv2.GaussianBlur(img, (5, 5), 0),
     "median5": lambda img: cv2.medianBlur(img, 5),
@@ -56,11 +56,11 @@ KINDS = {"poisson": "Poisson noise", "jpeg": "JPEG compression", "blur": "Gaussi
 
 
 def geometry(mask: np.ndarray, clean_u8: np.ndarray) -> dict:
-    """{classe: (pixels de ligne centrale, pixels de fond local)} pour thin, thick et all."""
+    """{class: (centreline pixels, local background pixels)} for thin, thick and all."""
     m = mask.astype(np.uint8)
     skel = skeletonize(mask)
     width = 2 * cv2.distanceTransform(m, cv2.DIST_L2, 5)
-    # pour chaque pixel, largeur du point de ligne centrale le plus proche
+    # for each pixel, width of the nearest centreline point
     _, labels = cv2.distanceTransformWithLabels(np.where(skel, 0, 1).astype(np.uint8), cv2.DIST_L2, 5,
                                                 labelType=cv2.DIST_LABEL_PIXEL)
     lut = np.zeros(labels.max() + 1, np.float32)
@@ -74,7 +74,7 @@ def geometry(mask: np.ndarray, clean_u8: np.ndarray) -> dict:
 
 
 def measure(img: np.ndarray, geo: dict) -> dict:
-    """img dans [0, 1] → {classe: (cnr, contraste, bruit)} (NaN si trop peu de pixels)."""
+    """img in [0, 1] → {class: (cnr, contrast, noise)} (NaN if too few pixels)."""
     out = {}
     for c, (centre, bg) in geo.items():
         if centre.sum() < 20 or bg.sum() < 100:
@@ -93,7 +93,7 @@ def bootstrap_ci(values: np.ndarray, n_boot: int = 5000, seed: int = 0):
 
 
 def summarize(df: pd.DataFrame, out: Path):
-    """Moyennes par réglage, écarts appariés par image (IC bootstrap sur les images)."""
+    """Means per setting, per-image paired gaps (bootstrap CI over images)."""
     wide = df.pivot_table(index=["image", "degradation", "level", "cls"], columns="method", values="cnr")
     rows = []
     for (kind, level, cls), g in wide.groupby(level=["degradation", "level", "cls"]):
@@ -111,12 +111,12 @@ def summarize(df: pd.DataFrame, out: Path):
     summary.to_csv(out / "summary.csv", index=False)
 
     clean = df[df["degradation"] == "none"].pivot_table(index="cls", columns="method", values="cnr")
-    lines = ["# E20 — CNR des vaisseaux (moyenne sur les images)", "",
-             "Images propres : " + " ; ".join(f"{c} : propre {clean.loc[c, 'clean']:.2f}, MedVAE {clean.loc[c, 'medvae']:.2f}"
+    lines = ["# E20 — Vessel CNR (mean over the images)", "",
+             "Clean images: " + "; ".join(f"{c}: clean {clean.loc[c, 'clean']:.2f}, MedVAE {clean.loc[c, 'medvae']:.2f}"
                                               for c in ("thin", "thick", "all")), ""]
     for cls in ("thin", "thick", "all"):
-        lines += [f"## Vaisseaux {cls}", "",
-                  "| Dégradation | Niveau | dégradée | MedVAE | gauss5 | median5 | MedVAE − gauss5 [IC 95 %] |",
+        lines += [f"## Vessels: {cls}", "",
+                  "| Degradation | Level | degraded | MedVAE | gauss5 | median5 | MedVAE − gauss5 [95 % CI] |",
                   "|---|---|---|---|---|---|---|"]
         for _, r in summary[summary["cls"] == cls].iterrows():
             if r["degradation"] == "none":
@@ -125,16 +125,16 @@ def summarize(df: pd.DataFrame, out: Path):
                          f"{r['gauss5']:.2f} | {r['median5']:.2f} | {r['medvae-gauss5']:+.2f} {r['medvae-gauss5_ci']} |")
         lines.append("")
 
-    # Mécanisme : contraste conservé (fraction du contraste de l'image propre, par image) et bruit du fond
+    # Mechanism: contrast kept (fraction of the contrast of the clean image, per image) and background noise
     ref = df[(df["degradation"] == "none") & (df["method"] == "clean")].set_index(["image", "cls"])
     deg = df[df["degradation"] != "none"].join(ref[["contrast", "noise"]], on=["image", "cls"], rsuffix="_clean")
     deg = deg.assign(contrast_kept=deg["contrast"] / deg["contrast_clean"])
     mech = deg.groupby(["degradation", "level", "cls", "method"])[["contrast_kept", "noise"]].mean().reset_index()
     mech.to_csv(out / "mechanism.csv", index=False)
     clean_noise = ref.groupby("cls")["noise"].mean()
-    lines += ["## Mécanisme : contraste conservé (fraction du contraste propre) / bruit du fond", "",
-              "Bruit du fond sur l'image propre : " + " ; ".join(f"{c} {clean_noise[c]:.3f}" for c in ("thin", "thick")), "",
-              "| Dégradation | Niveau | Vaisseaux | dégradée | MedVAE | gauss5 | median5 |", "|---|---|---|---|---|---|---|"]
+    lines += ["## Mechanism: contrast kept (fraction of the clean contrast) / background noise", "",
+              "Background noise on the clean image: " + "; ".join(f"{c} {clean_noise[c]:.3f}" for c in ("thin", "thick")), "",
+              "| Degradation | Level | Vessels | degraded | MedVAE | gauss5 | median5 |", "|---|---|---|---|---|---|---|"]
     for (kind, level, cls), g in mech.groupby(["degradation", "level", "cls"]):
         if level not in (0, 3, 6, 9) or cls == "all":
             continue
@@ -170,13 +170,13 @@ def plot(df: pd.DataFrame, out: Path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--start", type=int, default=0, help="première image (pour découper le calcul)")
+    parser.add_argument("--start", type=int, default=0, help="first image (to split the computation)")
     parser.add_argument("--n-images", type=int, default=100)
     parser.add_argument("--levels", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out", default=str(REPO_ROOT / "experiments" / "robustness" / "e20_cnr"))
     parser.add_argument("--from-csv", nargs="+", default=None,
-                        help="ne rien recalculer : fusionner ces cnr.csv, puis résumé et figure dans --out")
+                        help="recompute nothing: merge these cnr.csv files, then summary and figure in --out")
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -195,7 +195,7 @@ def main():
     params = degradation_params(args.levels)
 
     rows = []
-    for idx, name in enumerate(tqdm(files, desc="images"), start=args.start):   # idx global : même bruit que sweep.py
+    for idx, name in enumerate(tqdm(files, desc="images"), start=args.start):   # global idx: same noise as sweep.py
         clean_u8 = cv2.imread(str(SEG_VAL / "images" / name), cv2.IMREAD_GRAYSCALE)
         geo = geometry(masks[name], clean_u8)
         versions = {("none", 0, None, "clean"): clean_u8 / 255.0,
@@ -203,7 +203,7 @@ def main():
         for kind, values in params.items():
             degraded = []
             for level, value in enumerate(values):
-                rng = np.random.default_rng([args.seed, idx, level])   # même bruit que sweep.py
+                rng = np.random.default_rng([args.seed, idx, level])   # same noise as sweep.py
                 degraded.append(degrade(clean_u8, kind, value, rng))
             for level, (value, d_u8, r) in enumerate(zip(values, degraded, recon(degraded))):
                 versions[(kind, level, float(value), "degraded")] = d_u8 / 255.0

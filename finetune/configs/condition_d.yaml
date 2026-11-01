@@ -6,24 +6,24 @@ experiment:
 data:
   train_images: "dataset_phase_1/segmentation_dataset/seg_train/images"
   train_ann:    "dataset_phase_1/segmentation_dataset/seg_train/annotations/seg_train.json"
-  # val_images / val_ann = test set officiel (300 images) : nom historique ; la validation
-  # (sélection du modèle) est seg_val, cf. validation ci-dessous
+  # val_images / val_ann = official test set (300 images): historical name; validation
+  # (model selection) is seg_val, see `validation` below
   val_images:   "dataset_final_phase/test_case_segmentation/images"
   val_ann:      "dataset_final_phase/test_case_segmentation/annotations/instances_default.json"
-  train_ratio:  0.8        # utilisé seulement si validation: split
+  train_ratio:  0.8        # only used with validation: split
   num_classes:  26
   img_size:     512
   num_workers:  4
   pin_memory:   true
-  validation:   official          # E08 : entraînement sur tout seg_train, sélection sur seg_val
-  gauss_noise_std_range: [0.0124, 0.0277]   # E07 : bruit léger (écart-type ~3-7 / 255)
+  validation:   official          # E08: training on all of seg_train, selection on seg_val
+  gauss_noise_std_range: [0.0124, 0.0277]   # E07: light noise (standard deviation ~3-7 / 255)
 
-# MedVAE gelé, utilisé uniquement comme préprocesseur (encode→decode)
+# Frozen MedVAE, used only as a preprocessor (encode→decode)
 encoder:
   model_name: "medvae_4_1_2d"
   modality:   "xray"
 
-# U-Net, même architecture que condition A
+# U-Net, same architecture as condition A
 model:
   architecture:    "unet"
   encoder_name:    "resnet34"
@@ -55,4 +55,4 @@ loss:
   cl_weight:   0.0
 
 logging:
-  save_dir: null   # défini au lancement : experiments/runs/<date>_<nom>/
+  save_dir: null   # set at launch: experiments/runs/<date>_<name>/

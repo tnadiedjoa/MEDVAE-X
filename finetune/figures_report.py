@@ -1,11 +1,11 @@
-"""Figures de la section segmentation du rapport, à partir des runs E17 et du témoin R de E16
-(3 seeds par condition ; A* : seed 42).
+"""Figures of the segmentation section of the report, from the E17 runs and the R control of E16
+(3 seeds per condition; A*: seed 42).
 
-    - seg_results.pdf : Dice artères de test par condition (moyenne ± écart-type, un point par seed)
-      et Dice par classe d'artère (moyenne sur les seeds) ;
-    - seg_curves.pdf  : Dice de validation au fil des epochs (moyenne sur les seeds).
+    - seg_results.pdf: test artery Dice per condition (mean ± standard deviation, one point per seed)
+      and Dice per artery class (mean over the seeds);
+    - seg_curves.pdf : validation Dice over the epochs (mean over the seeds).
 
-Usage (racine du repo) : python -m finetune.figures_report
+Usage (from the repository root): python -m finetune.figures_report
 """
 
 import glob
@@ -21,15 +21,15 @@ import torch
 from finetune.config import REPO_ROOT
 
 RUNS = REPO_ROOT / "experiments" / "runs"
-OUT = REPO_ROOT / "final_report" / "figures" / "theo"
+OUT = REPO_ROOT / "report" / "figures" / "segmentation"
 CONDITIONS = {"A": "e17_seed4?_condition_a", "A*": "e17_seed42_condition_astar", "B": "e17_seed4?_condition_b",
               "C": "e17_seed4?_condition_c", "D": "e17_seed4?_condition_d", "R": "e16_seed4?_condition_r"}
 COLORS = {"A": "#1f77b4", "A*": "#aec7e8", "B": "#ff7f0e", "C": "#d62728", "D": "#2ca02c", "R": "#7f7f7f"}
-ABSENT = {12}   # classe absente du test set (E09)
+ABSENT = {12}   # class absent from the test set (E09)
 
 
 def mask_to_rgb(mask: np.ndarray) -> np.ndarray:
-    """Masque de classes (0-25) → image RGB : fond sombre, une couleur par segment."""
+    """Class mask (0-25) → RGB image: dark background, one colour per segment."""
     colors = plt.get_cmap("tab20")(np.linspace(0, 1, 20))[:, :3].tolist()
     colors += plt.get_cmap("Set2")(np.linspace(0, 1, 8))[:, :3].tolist()
     rgb = np.ones((*mask.shape, 3)) * 0.12
@@ -39,7 +39,7 @@ def mask_to_rgb(mask: np.ndarray) -> np.ndarray:
 
 
 def load() -> dict:
-    """{condition: [(résultats, historique ou None), ...]} sur les seeds disponibles."""
+    """{condition: [(results, history or None), ...]} over the available seeds."""
     out = {}
     for name, pattern in CONDITIONS.items():
         runs = []
@@ -100,7 +100,7 @@ def curves_figure(data: dict):
 
 @torch.no_grad()
 def predictions_figure(indices=(144, 120, 219)):
-    """Prédictions des modèles du seed 42 sur quelques images du test set."""
+    """Predictions of the seed-42 models on a few test-set images."""
     from torch.amp import autocast
 
     from finetune.config import load_config

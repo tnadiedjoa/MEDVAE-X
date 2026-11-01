@@ -180,8 +180,8 @@ class TrainerStage2:
             return {}
         self.model.eval()
         totals, count = {}, 0
-        # Masques de validation fixes : la loss de validation (qui choisit best.pt) ne
-        # dépend plus du tirage des masques
+        # Fixed validation masks: the validation loss (which picks best.pt) no longer
+        # depends on the random masks
         generator = torch.Generator(device=self.device).manual_seed(0)
         for x in self.val_loader:
             x = x.to(self.device, non_blocking=True).float()

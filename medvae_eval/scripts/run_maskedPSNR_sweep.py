@@ -10,7 +10,7 @@ import glob
 from tqdm import tqdm
 from masked_psnr import MaskedPSNR
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
@@ -19,8 +19,8 @@ OUTPUT_DIR = os.path.join(_REPO_ROOT, "medvae_eval", "outputs", "degradation")
 N_IMAGES = 50
 N_LEVELS = 20
 SEED = 42
-DEGRADATION = "poisson"  # "poisson" ou "jpeg" ou "blur"
-DEGRA_METRIC = "arniqa"  # "masked" (masked_psnr clean vs deg) ou "arniqa" (sur l'image dégradée)
+DEGRADATION = "poisson"  # "poisson", "jpeg" or "blur"
+DEGRA_METRIC = "arniqa"  # "masked" (masked_psnr clean vs deg) or "arniqa" (on the degraded image)
 
 POISSON_SCALES = np.linspace(1.0, 0.05, N_LEVELS)
 JPEG_QUALITIES = (95 - np.linspace(0, 1, N_LEVELS) * 90).astype(int)
@@ -35,7 +35,7 @@ Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
 print(device, flush=True)
 
-print("Chargement MedVAE...", flush=True)
+print("Loading MedVAE...", flush=True)
 model = MVAE(model_name="medvae_4_1_2d", modality="xray").to(device)
 model.requires_grad_(False)
 model.eval()
@@ -47,7 +47,7 @@ masked_cleanrec = MaskedPSNR(ANN_PATH, data_range=2.0).to(device)
 if DEGRA_METRIC == "arniqa":
     arniqa = ARNIQA(regressor_dataset="koniq10k", normalize=True).to(device)
 
-print(f"{len(image_paths)} images, démarrage du sweep ({DEGRADATION})...", flush=True)
+print(f"{len(image_paths)} images, starting the sweep ({DEGRADATION})...", flush=True)
 results = []
 
 for level in range(N_LEVELS):
@@ -115,4 +115,4 @@ for level in range(N_LEVELS):
 prefix = "arniqa" if DEGRA_METRIC == "arniqa" else "masked"
 df = pd.DataFrame(results)
 df.to_csv(f"{OUTPUT_DIR}/{prefix}_sweep_{DEGRADATION}.csv", index=False)
-print(f"\nSauvegardé dans {OUTPUT_DIR}/{prefix}_sweep_{DEGRADATION}.csv")
+print(f"\nSaved in {OUTPUT_DIR}/{prefix}_sweep_{DEGRADATION}.csv")

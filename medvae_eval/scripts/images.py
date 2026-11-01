@@ -4,13 +4,13 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/segmentation_dataset/seg_train"
 ANN_PATH = f"{DATASET_PATH}/annotations/seg_train.json"
 OUTPUT_DIR = os.path.join(_REPO_ROOT, "medvae_eval", "outputs", "sample")
-POISSON_SCALE = 0.1  # plus bas = plus de bruit shot
+POISSON_SCALE = 0.1  # lower = more shot noise
 SEED = 42
 
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)

@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class UNet(nn.Module):
-    """ UNet avec un backbone pré-entraîné de segmentation_models_pytorch. """
+    """U-Net with a pre-trained segmentation_models_pytorch backbone."""
     def __init__(
         self,
         encoder_name: str = "resnet34",
@@ -19,7 +19,7 @@ class UNet(nn.Module):
             encoder_weights=encoder_weights,
             in_channels=in_channels,
             classes=num_classes,
-            activation=None,  # pas de softmax (dans la loss)
+            activation=None,  # no softmax (it is in the loss)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -44,14 +44,14 @@ if __name__ == "__main__":
         num_classes=26,
     )
 
-    # Simule un batch de 2 images 512x512 en niveaux de gris
+    # Simulate a batch of 2 greyscale 512x512 images
     dummy_input = torch.randn(2, 1, 512, 512)
     output = model(dummy_input)
 
     print(f"Input  : {dummy_input.shape}")   # (2, 1, 512, 512)
     print(f"Output : {output.shape}")        # (2, 26, 512, 512)
 
-    # Vérifie que les prédictions ont la bonne forme
+    # Check that the predictions have the right shape
     preds = output.argmax(dim=1)
     print(f"Preds  : {preds.shape}")         # (2, 512, 512)
 

@@ -3,4 +3,4 @@
 *.ipynb diff=ipynb
 
 # Report and slides: not counted in GitHub language stats
-final_report/** linguist-documentation
+report/** linguist-documentation

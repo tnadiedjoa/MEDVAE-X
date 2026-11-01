@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import glob
 import random
 
-# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+# Outputs in <repo>/medvae_eval/outputs/, whatever the current folder
 _OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ARCADE_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 DATASET_PATH = f"{ARCADE_ROOT}/dataset_phase_1/stenosis_dataset/sten_train"
@@ -41,7 +41,7 @@ col_titles = ["Clean", "Poisson", "JPEG", "Flou gaussien"]
 n_rows = 3
 
 fig, axes = plt.subplots(n_rows, 4, figsize=(12, 3 * n_rows))
-fig.suptitle("Visualisation des dégradations synthétiques", fontsize=14, fontweight="bold", y=1.0)
+fig.suptitle("Synthetic degradations", fontsize=14, fontweight="bold", y=1.0)
 
 for row in range(n_rows):
     cells = [
@@ -63,4 +63,4 @@ for row in range(n_rows):
 plt.tight_layout()
 plt.savefig(OUTPUT_PATH, dpi=150, bbox_inches="tight")
 plt.show()
-print(f"Sauvegardé dans {OUTPUT_PATH}")
+print(f"Saved in {OUTPUT_PATH}")

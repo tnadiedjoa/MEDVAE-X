@@ -1,8 +1,8 @@
-"""Un dossier par run : config utilisée, métadonnées (commit, GPU, job) et sorties.
+"""One folder per run: config used, metadata (commit, GPU, job) and outputs.
 
-Chaque run est rangé dans experiments/runs/<date>_<nom>/. Les petits fichiers
-(config, historique, scores) sont versionnés ; les checkpoints .pth sont ignorés
-par git.
+Each run is stored in experiments/runs/<date>_<name>/. The small files
+(config, history, scores) are versioned; the .pth checkpoints are ignored
+by git.
 """
 
 import json
@@ -20,17 +20,17 @@ RUNS_DIR = REPO_ROOT / "experiments" / "runs"
 
 
 def add_run_args(parser) -> None:
-    """Options communes aux scripts qui lancent un run."""
+    """Options shared by the scripts that launch a run."""
     parser.add_argument("--run-name", type=str, default=None,
-                        help="Nom du run (défaut : experiment.name de la config)")
+                        help="Run name (default: experiment.name of the config)")
     parser.add_argument("--set", dest="overrides", action="append", default=[],
-                        metavar="CLE=VALEUR",
-                        help="Surcharge une valeur de la config, ex. training.epochs=1 "
-                             "(répétable)")
+                        metavar="KEY=VALUE",
+                        help="Override a config value, e.g. training.epochs=1 "
+                             "(repeatable)")
 
 
 def apply_overrides(config: dict, overrides: list[str]) -> dict:
-    """Applique des surcharges 'a.b.c=valeur' ; la valeur est lue comme du YAML."""
+    """Apply 'a.b.c=value' overrides; the value is parsed as YAML."""
     for item in overrides:
         key, sep, raw = item.partition("=")
         if not sep:
@@ -40,7 +40,7 @@ def apply_overrides(config: dict, overrides: list[str]) -> dict:
         for part in parents:
             node = node.setdefault(part, {})
         value = yaml.safe_load(raw)
-        # PyYAML lit « 1e-3 » comme du texte (il faut « 1.0e-3 » en YAML 1.1)
+        # PyYAML reads "1e-3" as text (YAML 1.1 needs "1.0e-3")
         if isinstance(value, str):
             try:
                 value = float(value)
@@ -59,13 +59,13 @@ def _git(*args: str) -> str:
 
 
 def create_run(config: dict, name: str, overrides: list[str] = ()) -> str:
-    """Crée le dossier du run, y écrit config.yaml et meta.json, et renvoie son chemin."""
+    """Create the run folder, write config.yaml and meta.json in it, and return its path."""
     stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     run_dir = RUNS_DIR / f"{stamp}_{name}"
     run_dir.mkdir(parents=True, exist_ok=False)
 
-    # Config sauvegardée avec les chemins du dataset relatifs à ARCADE_ROOT,
-    # comme dans les yaml d'origine (pas de chemin propre à la machine)
+    # Config saved with the dataset paths relative to ARCADE_ROOT,
+    # as in the original yaml files (no machine-specific path)
     saved = {**config, "data": dict(config.get("data", {}))}
     for key in DATA_PATH_KEYS:
         if key in saved["data"]:
@@ -80,8 +80,8 @@ def create_run(config: dict, name: str, overrides: list[str] = ()) -> str:
         "run": run_dir.name,
         "date": datetime.now().isoformat(timespec="seconds"),
         "git_commit": _git("rev-parse", "HEAD"),
-        # Modifications non commitées au moment du lancement (le run n'est alors
-        # pas exactement reproductible depuis le commit)
+        # Uncommitted changes at launch time (the run is then not exactly
+        # reproducible from the commit)
         "git_dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
         "overrides": list(overrides),
         "host": socket.gethostname(),
@@ -92,8 +92,8 @@ def create_run(config: dict, name: str, overrides: list[str] = ()) -> str:
     with open(run_dir / "meta.json", "w") as f:
         json.dump(meta, f, indent=2)
     if meta["git_dirty"]:
-        # Trace exacte de ce qui différait du commit au lancement
+        # Exact record of what differed from the commit at launch
         (run_dir / "git_diff.patch").write_text(_git("diff", "HEAD") + "\n")
 
-    print(f"Dossier du run : {run_dir}")
+    print(f"Run folder: {run_dir}")
     return str(run_dir)

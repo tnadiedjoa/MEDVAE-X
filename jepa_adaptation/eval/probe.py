@@ -1,22 +1,22 @@
-"""Linear probe de segmentation sur les représentations figées (axe C, évaluation corrigée).
+"""Segmentation linear probe on frozen representations (part C, corrected evaluation).
 
-Mesure ce que chaque encodeur a appris, avec exactement la même procédure pour tous :
-    - représentation : « penultimate » = features de l'encodeur avant conv_out (la couche
-      que la loss JEPA entraîne) ou « latent » = z (moyenne du posterior, 1 canal) ;
-      ramenées à 64×64 pour que tous les modèles aient la même résolution ;
-    - probe : standardisation par canal (statistiques d'entraînement) puis convolution 1×1
-      linéaire vers 26 classes, logits remis en 512×512 par interpolation bilinéaire ;
-    - données : entraînement sur seg_train (1000), sélection sur seg_val (200), test sur les
-      300 images officielles ; métrique : Dice sur les artères (fond exclu) ; plusieurs seeds ;
-    - tâche : « segments » (26 classes : fond + 25 segments d'artères, qui demandent du
-      contexte) ou « vessels » (vaisseau / fond, 2 classes : l'information locale suffit).
+Measures what each encoder learned, with exactly the same procedure for all:
+    - representation: "penultimate" = encoder features before conv_out (the layer the
+      JEPA loss trains) or "latent" = z (posterior mean, 1 channel);
+      brought to 64×64 so that all models have the same resolution;
+    - probe: per-channel standardisation (training statistics) then a linear 1×1
+      convolution to 26 classes, logits brought back to 512×512 by bilinear interpolation;
+    - data: training on seg_train (1000), selection on seg_val (200), test on the 300
+      official images; metric: Dice on the arteries (background excluded); several seeds;
+    - task: "segments" (26 classes: background + 25 artery segments, which need context)
+      or "vessels" (vessel / background, 2 classes: local information is enough).
 
-Modèles :
-    medvae   MedVAE officiel pré-entraîné (medvae_4_1_2d, facteur 4 : features ramenées à 64×64)
-    stage1   VAE de l'étape 1 (checkpoint best.pt, clé « autoencoder »)
-    stage2   encodeur cible (EMA) de l'étape 2 JEPA (checkpoint best.pt, clé « model »)
+Models:
+    medvae   official pre-trained MedVAE (medvae_4_1_2d, factor 4: features brought to 64×64)
+    stage1   stage-1 VAE (checkpoint best.pt, key "autoencoder")
+    stage2   target encoder (EMA) of JEPA stage 2 (checkpoint best.pt, key "model")
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python jepa_adaptation/eval/probe.py --model stage2 --ckpt jepa_adaptation/outputs/stage2/best.pt
 """
 
@@ -43,7 +43,7 @@ from finetune.losses import SegLoss                # noqa: E402
 from finetune.metrics import SegMetrics            # noqa: E402
 
 FEAT_SIZE = 64
-NUM_CLASSES = 26   # remplacé par 2 pour la tâche « vessels »
+NUM_CLASSES = 26   # replaced by 2 for the "vessels" task
 
 
 # ── Encodeurs ────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ def _penultimate_hook(encoder, store):
 
 
 def load_autoencoder(model: str, ckpt: str, device):
-    """AutoencoderKL (encodeur + décodeur) du modèle demandé, en mode eval."""
+    """AutoencoderKL (encoder + decoder) of the requested model, in eval mode."""
     if model == "medvae":
         from medvae import MVAE
         return MVAE(model_name="medvae_4_1_2d", modality="xray").to(device).eval().model
@@ -73,12 +73,12 @@ def load_autoencoder(model: str, ckpt: str, device):
             prefix = "target_encoder.encoder.autoencoder."
             state = {k[len(prefix):]: v for k, v in raw["model"].items() if k.startswith(prefix)}
         missing, unexpected = mvae.model.load_state_dict(state, strict=False)
-        print(f"{model} : {len(state)} tenseurs chargés, {len(missing)} manquants, {len(unexpected)} inattendus")
+        print(f"{model}: {len(state)} tensors loaded, {len(missing)} missing, {len(unexpected)} unexpected")
         return mvae.model.to(device).eval()
 
 
 def build_encoder(model: str, ckpt: str, device):
-    """Renvoie f(x ∈ [-1,1], B×1×512×512) → (features, z), à 64×64."""
+    """Return f(x ∈ [-1,1], B×1×512×512) → (features, z), at 64×64."""
     ae = load_autoencoder(model, ckpt, device)
 
     @torch.no_grad()
@@ -108,7 +108,7 @@ def extract(encode, dataset, device, representation, batch_size=2):
     return torch.cat(feats), torch.cat(masks)
 
 
-# ── Probe linéaire ───────────────────────────────────────────────────────────
+# ── Linear probe ────────────────────────────────────────────────────────────
 
 class LinearProbe(nn.Module):
     def __init__(self, channels, mean, std):
@@ -170,7 +170,7 @@ def main():
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
     if args.model != "medvae" and not args.ckpt:
-        parser.error("--ckpt est requis pour stage1 / stage2")
+        parser.error("--ckpt is required for stage1 / stage2")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     d = load_config(str(REPO_ROOT / "finetune" / "configs" / "condition_a.yaml"))["data"]

@@ -1,10 +1,10 @@
-"""Tableaux et figures de E12 (segmentation d'images dégradées, sorties de downstream.py).
+"""Tables and figures of E12 (segmentation of degraded images, outputs of downstream.py).
 
-Chaque courbe est une paire (fichier CSV, modèle) : Dice artères moyen ± écart-type entre
-seeds, en fonction du niveau de dégradation ; le trait horizontal pointillé est le Dice
-sur les images propres.
+Each curve is a (CSV file, model) pair: mean artery Dice ± standard deviation across
+seeds, as a function of the degradation level; the dotted horizontal line is the Dice
+on the clean images.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/robustness/analyze_downstream.py \
         --curve "A=experiments/robustness/e12_downstream/downstream.csv:A" \
         --curve "D=experiments/robustness/e12_downstream/downstream.csv:D" \
@@ -35,9 +35,9 @@ def load_curves(specs: list) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--curve", action="append", required=True, help="label=chemin.csv:modèle")
-    parser.add_argument("--out", required=True, help="préfixe des sorties (.md, .png, .pdf)")
-    parser.add_argument("--dashed", nargs="*", default=[], help="courbes tracées en tirets")
+    parser.add_argument("--curve", action="append", required=True, help="label=path.csv:model")
+    parser.add_argument("--out", required=True, help="prefix of the outputs (.md, .png, .pdf)")
+    parser.add_argument("--dashed", nargs="*", default=[], help="curves drawn dashed")
     args = parser.parse_args()
 
     df = load_curves(args.curve)
@@ -45,10 +45,10 @@ def main():
     stats = (df.groupby(["curve", "degradation", "level"])["dice_fg_mean"]
              .agg(["mean", "std", "count"]).reset_index())
 
-    # Tableau : une ligne par (dégradation, niveau), une colonne par courbe
+    # Table: one row per (degradation, level), one column per curve
     cell = stats.assign(v=stats["mean"].map("{:.3f}".format) + " ± " + stats["std"].fillna(0).map("{:.3f}".format))
     table = cell.pivot_table(index=["degradation", "level"], columns="curve", values="v", aggfunc="first")[labels]
-    lines = ["| Dégradation | Niveau | " + " | ".join(labels) + " |", "|---|---|" + "---|" * len(labels)]
+    lines = ["| Degradation | Level | " + " | ".join(labels) + " |", "|---|---|" + "---|" * len(labels)]
     for (kind, level), row in table.iterrows():
         lines.append(f"| {kind} | {level} | " + " | ".join(row.values) + " |")
     md = "\n".join(lines)

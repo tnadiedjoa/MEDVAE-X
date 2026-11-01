@@ -1,15 +1,15 @@
-"""MedVAE rend-il la segmentation plus robuste aux dégradations ? (axe A, volet aval)
+"""Does MedVAE make segmentation more robust to degradations? (part A, downstream)
 
-Sur le test set (300 images), chaque image est dégradée (bruit de Poisson, JPEG, flou,
-mêmes plages que sweep.py), puis segmentée par :
-    A      : U-Net entraîné sur les images propres, appliqué à l'image dégradée
-    A*     : le même U-Net, appliqué à la reconstruction MedVAE de l'image dégradée
-    D      : MedVAE → U-Net entraîné sur des reconstructions (condition D)
-On rapporte le Dice sur les artères (fond exclu) à chaque niveau. Plusieurs paires de runs
-(un A et un D par seed) donnent la variabilité d'un entraînement à l'autre ; les images
-dégradées sont identiques pour toutes les paires.
+On the test set (300 images), each image is degraded (Poisson noise, JPEG, blur, same
+ranges as sweep.py), then segmented by:
+    A      : U-Net trained on clean images, applied to the degraded image
+    A*     : the same U-Net, applied to the MedVAE reconstruction of the degraded image
+    D      : MedVAE → U-Net trained on reconstructions (condition D)
+The Dice on the arteries (background excluded) is reported at each level. Several pairs of
+runs (one A and one D per seed) give the run-to-run variability; the degraded images are
+identical for all pairs.
 
-Usage (racine du repo) :
+Usage (from the repository root):
     python medvae_eval/robustness/downstream.py \
         --run-a experiments/runs/*_e10_seed4?_condition_a --run-d experiments/runs/*_e10_seed4?_condition_d
 """
@@ -50,7 +50,7 @@ def run_seed(run_dir: str):
 
 
 def degrade_batch(images: torch.Tensor, kind: str, value, seed: int, offset: int) -> torch.Tensor:
-    """images [B,1,H,W] dans [0,1] → même format, dégradées (bruit seedé par image)."""
+    """images [B,1,H,W] in [0,1] → same format, degraded (noise seeded per image)."""
     out = []
     for i, img in enumerate(images):
         u8 = (img[0].numpy() * 255).round().astype(np.uint8)
@@ -63,16 +63,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run-a", nargs="+", required=True)
     parser.add_argument("--run-d", nargs="*", default=None,
-                        help="un run D par run A, appariés par seed (optionnel : A et A* seulement)")
+                        help="one D run per A run, paired by seed (optional: A and A* only)")
     parser.add_argument("--levels", type=int, nargs="+", default=[0, 3, 6, 9],
-                        help="indices de niveaux parmi une grille de 10 (0 = le plus faible)")
+                        help="level indices in a grid of 10 (0 = the weakest)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-batches", type=int, default=None, help="test rapide")
     parser.add_argument("--out", default=str(REPO_ROOT / "medvae_eval" / "outputs" / "robustness" / "downstream.csv"))
     args = parser.parse_args()
     if args.run_d and len(args.run_a) != len(args.run_d):
-        parser.error("autant de runs D que de runs A")
-    # A et D appariés par seed d'entraînement (l'ordre des dossiers suit l'heure de lancement)
+        parser.error("as many D runs as A runs")
+    # A and D paired by training seed (the folder order follows the launch time)
     runs_a = sorted(args.run_a, key=run_seed)
     runs_d = sorted(args.run_d, key=run_seed) if args.run_d else [None] * len(runs_a)
 
@@ -83,7 +83,7 @@ def main():
     rows = []
     for run_a, run_d in zip(runs_a, runs_d):
         rows += evaluate_pair(run_a, run_d, settings, args, device)
-        pd.DataFrame(rows).to_csv(args.out, index=False)   # sauvegarde après chaque paire
+        pd.DataFrame(rows).to_csv(args.out, index=False)   # save after each pair
 
     df = pd.DataFrame(rows)
     plot(df, Path(args.out).with_suffix(".png"))
@@ -92,7 +92,7 @@ def main():
 
 def evaluate_pair(run_a, run_d, settings, args, device):
     model_a, config = load_model(run_a, device)
-    seed = config["experiment"].get("seed")   # seed d'entraînement du run A
+    seed = config["experiment"].get("seed")   # training seed of run A
     model_astar = AStar(MedVAEAutoencoder(device=device), model_a).to(device).eval()
     models = {"A": model_a, "A*": model_astar}
     if run_d is not None:
@@ -102,8 +102,8 @@ def evaluate_pair(run_a, run_d, settings, args, device):
     loader = DataLoader(ArcadeDataset(data_cfg["val_images"], data_cfg["val_ann"], augment=False),
                         batch_size=4, shuffle=False, num_workers=data_cfg["num_workers"])
     rows = []
-    for kind, level, value in tqdm(settings, desc=f"réglages (seed {seed})"):
-        torch.manual_seed(args.seed)   # latent MedVAE tiré au hasard : même tirage pour chaque réglage
+    for kind, level, value in tqdm(settings, desc=f"settings (seed {seed})"):
+        torch.manual_seed(args.seed)   # MedVAE latent sampled at random: same draw for each setting
         metrics = {name: SegMetrics(num_classes=data_cfg["num_classes"], device=device) for name in models}
         offset = 0
         for b, (images, masks) in enumerate(loader):
@@ -131,7 +131,7 @@ def evaluate_pair(run_a, run_d, settings, args, device):
 
 
 def plot(df: pd.DataFrame, out: Path):
-    """Dice artères vs niveau de dégradation (moyenne ± écart-type entre seeds), un panneau par dégradation."""
+    """Artery Dice vs degradation level (mean ± standard deviation across seeds), one panel per degradation."""
     stats = df.groupby(["degradation", "level", "param", "model"], dropna=False)["dice_fg_mean"].agg(["mean", "std"])
     stats = stats.reset_index()
     clean = stats[stats["degradation"] == "none"].set_index("model")
@@ -148,10 +148,10 @@ def plot(df: pd.DataFrame, out: Path):
                         color=color, label=model)
             ax.axhline(clean.loc[model, "mean"], color=color, linestyle=":", linewidth=1)
         ax.set_title(kind)
-        ax.set_xlabel("niveau de dégradation (0 = le plus faible)")
+        ax.set_xlabel("degradation level (0 = the weakest)")
         ax.set_xticks(sorted(sub["level"].unique()))
-    np.atleast_1d(axes)[0].set_ylabel("Dice artères (test)")
-    np.atleast_1d(axes)[0].legend(title="pointillés : image propre", fontsize=8, title_fontsize=8)
+    np.atleast_1d(axes)[0].set_ylabel("Artery Dice (test)")
+    np.atleast_1d(axes)[0].legend(title="dotted: clean image", fontsize=8, title_fontsize=8)
     fig.tight_layout()
     fig.savefig(out, dpi=130)
     plt.close(fig)

@@ -1,4 +1,4 @@
-"""Têtes de segmentation et loss."""
+"""Segmentation heads and loss."""
 
 import pytest
 import torch
@@ -41,7 +41,7 @@ def test_loss_prefers_correct_prediction():
 
 
 def test_condition_r_segments_downsampled_image():
-    """Témoin E16 : même tête que B/C, sur l'image réduite à 128×128."""
+    """E16 control: same head as B/C, on the image reduced to 128×128."""
     import torch
 
     from finetune.config import REPO_ROOT, load_config

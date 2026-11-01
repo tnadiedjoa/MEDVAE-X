@@ -1,4 +1,4 @@
-# Environnement exact (pip freeze) des runs publiés : Python 3.12, RTX 3090, CUDA 13.0
+# Exact environment (pip freeze) of the published runs: Python 3.12, RTX 3090, CUDA 13.0
 accelerate==1.15.0
 albucore==0.0.24
 albumentations==2.0.8

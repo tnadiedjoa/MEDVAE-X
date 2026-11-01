@@ -1,7 +1,7 @@
-"""Schéma du protocole de robustesse corrigé (figure du rapport et des slides).
+"""Diagram of the corrected robustness protocol (figure of the report and the slides).
 
-Usage : python medvae_eval/robustness/pipeline_figure.py
-        → final_report/figures/elias/pipeline_corrected.pdf
+Usage: python medvae_eval/robustness/pipeline_figure.py
+        → report/figures/robustness/pipeline.pdf
 """
 
 from pathlib import Path
@@ -11,7 +11,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
-OUT = Path(__file__).resolve().parents[2] / "final_report" / "figures" / "elias" / "pipeline_corrected.pdf"
+OUT = Path(__file__).resolve().parents[2] / "report" / "figures" / "robustness" / "pipeline.pdf"
 
 BLUE, GREY, ORANGE, GREEN = "#dbe8f5", "#ececec", "#fbe3c8", "#d9efd9"
 
@@ -34,7 +34,7 @@ def main():
     ax.set_ylim(0, 3.6)
     ax.axis("off")
 
-    # Chaîne de traitement
+    # Processing chain
     box(ax, 0.1, 2.3, 1.6, 0.9, "Clean image\n$x$", GREY, bold=True)
     box(ax, 2.3, 2.3, 1.9, 0.9, "Degradation\nPoisson / JPEG / blur\n$N$ levels", BLUE, size=9)
     box(ax, 4.8, 2.3, 1.6, 0.9, "Degraded\n$d$", GREY, bold=True)
@@ -43,7 +43,7 @@ def main():
     for x1, x2 in ((1.7, 2.3), (4.2, 4.8), (6.4, 6.9), (8.1, 8.5)):
         arrow(ax, x1, 2.75, x2, 2.75)
 
-    # Mesures, toutes par rapport à l'image propre
+    # Measurements, all against the clean image
     box(ax, 1.6, 0.95, 2.6, 0.75, "PSNR$(x, d)$\ndegradation amplitude", ORANGE, size=9)
     box(ax, 5.8, 0.95, 2.6, 0.75, "PSNR$(x, r)$\ndistance to the clean image", ORANGE, size=9)
     arrow(ax, 0.9, 2.3, 2.3, 1.7, dashed=True)

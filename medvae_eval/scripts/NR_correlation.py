@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import scipy.stats as stats
 
-# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+# Outputs in <repo>/medvae_eval/outputs/, whatever the current folder
 _OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
 
 arniqa = pd.read_csv(f"{_OUTPUTS}/metrics/arniqa_scores.csv")
@@ -16,7 +16,7 @@ df = pd.DataFrame({
 
 a, p = df['arniqa'], df['psnr']
 
-print("--- ARNIQA (dataset sain, sans dégradation) ---")
+print("--- ARNIQA (clean dataset, no degradation) ---")
 print(f"n          : {len(df)}")
 print(f"min / max  : {a.min():.4f} / {a.max():.4f}")
 print(f"range      : {a.max() - a.min():.4f}")

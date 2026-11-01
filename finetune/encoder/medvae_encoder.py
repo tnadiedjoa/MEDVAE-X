@@ -5,12 +5,12 @@ from medvae import MVAE
 
 class MedVAEEncoder(nn.Module):
     """
-    Encodeur MedVAE gelé utilisé comme extracteur de feature.
+    Frozen MedVAE encoder used as a feature extractor.
 
-    Condition B : poids pré-entraînés HuggingFace (checkpoint_path=None).
-    Condition C : poids fine-tunés sur ARCADE chargés depuis checkpoint_path.
+    Condition B: HuggingFace pre-trained weights (checkpoint_path=None).
+    Condition C: weights fine-tuned on ARCADE, loaded from checkpoint_path.
 
-    Dans les deux cas l'encodeur est entièrement gelé après chargement.
+    In both cases the encoder is fully frozen after loading.
     """
 
     def __init__(
@@ -25,7 +25,7 @@ class MedVAEEncoder(nn.Module):
         self.model_name = model_name
         self.modality   = modality
 
-        print(f"Chargement de MedVAE ({model_name})...")
+        print(f"Loading MedVAE ({model_name})...")
         self.mvae = MVAE(
             model_name=model_name,
             modality=modality,
@@ -35,19 +35,19 @@ class MedVAEEncoder(nn.Module):
         if checkpoint_path is not None:
             self._load_finetuned(checkpoint_path, device)
 
-        # Gèle tous les poids
+        # Freeze all weights
         for param in self.mvae.parameters():
             param.requires_grad = False
         self.mvae.eval()
 
-        source = f"checkpoint ({checkpoint_path})" if checkpoint_path else "HuggingFace pré-entraîné"
-        print(f"MedVAE chargé et gelé — source : {source}")
+        source = f"checkpoint ({checkpoint_path})" if checkpoint_path else "HuggingFace pre-trained"
+        print(f"MedVAE loaded and frozen — source: {source}")
 
     def _load_finetuned(self, checkpoint_path: str, device: torch.device) -> None:
-        print(f"Chargement du checkpoint fine-tuné : {checkpoint_path}")
+        print(f"Loading the fine-tuned checkpoint: {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device)
 
-        # Supporte les checkpoints PyTorch Lightning, Phase1Trainer et PyTorch natifs
+        # Supports PyTorch Lightning, Phase1Trainer and plain PyTorch checkpoints
         if isinstance(ckpt, dict):
             if "state_dict" in ckpt:
                 state = ckpt["state_dict"]
@@ -60,7 +60,7 @@ class MedVAEEncoder(nn.Module):
         else:
             raise ValueError(f"Format de checkpoint non reconnu : {type(ckpt)}")
 
-        # Essaie de charger uniquement les poids de l'encodeur
+        # Try to load the encoder weights only
         encoder_state = {
             k[len("encoder."):]: v
             for k, v in state.items()
@@ -69,24 +69,24 @@ class MedVAEEncoder(nn.Module):
 
         if encoder_state and hasattr(self.mvae, "encoder"):
             result = self.mvae.encoder.load_state_dict(encoder_state, strict=False)
-            print(f"  Poids encodeur chargés — manquants : {result.missing_keys[:5]}")
+            print(f"  Encoder weights loaded — missing: {result.missing_keys[:5]}")
         else:
-            # Fallback : charge tout le modèle avec strict=False
+            # Fallback: load the whole model with strict=False
             result = self.mvae.load_state_dict(state, strict=False)
-            print(f"  Poids modèle complet chargés (strict=False) — manquants : {result.missing_keys[:5]}")
+            print(f"  Full model weights loaded (strict=False) — missing: {result.missing_keys[:5]}")
 
     def train(self, mode: bool = True):
-        # L'encodeur reste toujours en eval pour que ses BN utilisent les stats fixes
+        # The encoder always stays in eval mode, so that its normalisation layers behave as at inference
         super().train(mode)
         self.mvae.eval()
         return self
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Encode une image en représentation latente.
+        Encode an image into its latent representation.
 
-        MedVAE attend des images dans [-1, 1].
-        Notre dataset produit des images dans [0, 1].
+        MedVAE expects images in [-1, 1].
+        The dataset produces images in [0, 1].
         """
         x_norm = x * 2.0 - 1.0
 
@@ -110,14 +110,14 @@ def build_encoder(config: dict, device: torch.device) -> MedVAEEncoder:
 
 class MedVAEAutoencoder(nn.Module):
     """
-    MedVAE gelé utilisé comme préprocesseur : encode puis décode l'image.
+    Frozen MedVAE used as a preprocessor: encodes then decodes the image.
 
-    Condition D : l'image 512×512 passe par le cycle encode→decode (gelé)
-    avant d'être donnée au U-Net. Le U-Net voit donc des images à la
-    qualité de reconstruction MedVAE et s'y adapte pendant l'entraînement.
+    Condition D: the 512×512 image goes through the (frozen) encode→decode cycle
+    before being given to the U-Net. The U-Net therefore sees images at the
+    MedVAE reconstruction quality and adapts to it during training.
 
-    Sortie : image reconstruite 512×512 dans [0, 1], même format que
-    l'image originale — le U-Net ne voit aucune différence d'interface.
+    Output: reconstructed 512×512 image in [0, 1], same format as the
+    original image — the U-Net sees no difference of interface.
     """
 
     def __init__(
@@ -129,19 +129,19 @@ class MedVAEAutoencoder(nn.Module):
     ):
         super().__init__()
 
-        # Images traitées par paquets : l'attention de MedVAE en 512×512 coûte
-        # ~1 Go par image, un batch de 8 d'un coup dépasse les 24 Go d'une 3090.
-        # Sans effet sur le résultat (modèle gelé, normalisations par image).
+        # Images processed in groups: MedVAE attention at 512×512 costs ~1 GB per
+        # image, and a batch of 8 at once exceeds the 24 GB of a 3090.
+        # No effect on the result (frozen model, per-image normalisations).
         self.chunk_size = chunk_size
 
-        print(f"Chargement de MedVAE autoencoder ({model_name})...")
+        print(f"Loading the MedVAE autoencoder ({model_name})...")
         self.mvae = MVAE(model_name=model_name, modality=modality).to(device)
 
         for param in self.mvae.parameters():
             param.requires_grad = False
         self.mvae.eval()
 
-        print("MedVAE autoencoder chargé et gelé.")
+        print("MedVAE autoencoder loaded and frozen.")
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -150,18 +150,18 @@ class MedVAEAutoencoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x : [B, 1, 512, 512] dans [0, 1]
-        sortie : [B, 1, 512, 512] dans [0, 1]  (reconstruite par MedVAE)
+        x: [B, 1, 512, 512] in [0, 1]
+        output: [B, 1, 512, 512] in [0, 1]  (reconstructed by MedVAE)
 
-        Cycle : [0,1] → [-1,1] → encode → decode → [-1,1] → [0,1]
+        Cycle: [0,1] → [-1,1] → encode → decode → [-1,1] → [0,1]
         """
         x_norm = x * 2.0 - 1.0
 
         with torch.no_grad():
             reconstructed = torch.cat([
-                self.mvae.decode(self.mvae.encode(chunk))  # [b,1,128,128] → [b,1,512,512] dans [-1,1]
+                self.mvae.decode(self.mvae.encode(chunk))  # [b,1,128,128] → [b,1,512,512] in [-1,1]
                 for chunk in x_norm.split(self.chunk_size)
             ])
 
-        # Renormalise [-1,1] → [0,1] et clippe pour sécurité
+        # Map [-1,1] → [0,1] and clip for safety
         return ((reconstructed + 1.0) / 2.0).clamp(0.0, 1.0)

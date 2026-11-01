@@ -50,8 +50,8 @@ class SegLoss(nn.Module):
         self.dice_weight = dice_weight
         self.ce_weight = ce_weight
 
-        # Dice Loss de SMP mode MULTICLASS pour 26 classes
-        # from_logits=True car notre U-Net retourne des logits bruts
+        # SMP Dice loss, MULTICLASS mode, 26 classes
+        # from_logits=True because the U-Net returns raw logits
         self.dice_loss = DiceLoss(
             mode="multiclass",
             classes=list(range(num_classes)),
@@ -60,7 +60,7 @@ class SegLoss(nn.Module):
         )
 
         # Cross-Entropy standard de PyTorch
-        # ignore_index permet d'ignorer le fond si besoin
+        # ignore_index can ignore the background if needed
         self.ce_loss = nn.CrossEntropyLoss(
             ignore_index=ignore_index if ignore_index is not None else -100
         )
@@ -70,11 +70,11 @@ class SegLoss(nn.Module):
         logits: torch.Tensor,
         targets: torch.Tensor,
     ) -> tuple[torch.Tensor, dict]:
-        # dice + ce  sur logits vs targets
+        # dice + ce on logits vs targets
         dice = self.dice_loss(logits, targets)
         ce   = self.ce_loss(logits, targets)
 
-        # cl dice — sauté si cl_weight=0 pour économiser la mémoire GPU
+        # clDice — skipped when cl_weight=0 to save GPU memory
         if self.cl_weight > 0.0:
             probs_fg     = torch.softmax(logits, dim=1)[:, 1:, :, :]
             target_oh_fg = F.one_hot(targets, self.num_classes).permute(0,3,1,2).float()[:, 1:, :, :]
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     criterion = SegLoss(num_classes=NUM_CLASSES, dice_weight=0.5, ce_weight=0.5)
 
-    # Simule des logits et un masque ground truth
+    # Simulate logits and a ground-truth mask
     logits  = torch.randn(B, NUM_CLASSES, H, W)
     targets = torch.randint(0, NUM_CLASSES, (B, H, W))
 

@@ -3,18 +3,18 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Sorties dans <repo>/medvae_eval/outputs/, quel que soit le dossier courant
+# Outputs in <repo>/medvae_eval/outputs/, whatever the current folder
 _OUTPUTS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "outputs")
 
 OUTPUT_DIR = f"{_OUTPUTS}/degradation"
-MODE = "nr"  # "nr" (arniqa) ou "masked" (poisson/jpeg/blur)
-DEGRADATION = "poisson"  # "poisson" ou "jpeg" ou "blur" (si MODE="masked")
+MODE = "nr"  # "nr" (arniqa) or "masked" (poisson/jpeg/blur)
+DEGRADATION = "poisson"  # "poisson", "jpeg" or "blur" (if MODE="masked")
 
 if MODE == "nr":
     metric_label = "arniqa"
     score_col = "masked_psnr_degra"
     cleanrec_col = "masked_psnr_cleanrec"
-    score_label = "ARNIQA moyen (image dégradée)"
+    score_label = "Mean ARNIQA (degraded image)"
     csv_path = f"{OUTPUT_DIR}/arniqa_sweep_{DEGRADATION}.csv"
     recon_cols = [("masked_psnr_recon", "MaskedPSNR reconstruction (dB)", "blue", "Blues")]
     suffix = metric_label
@@ -23,7 +23,7 @@ else:
     metric_label = f"masked_{DEGRADATION}"
     score_col = "masked_psnr_degra"
     cleanrec_col = "masked_psnr_cleanrec"
-    score_label = "MaskedPSNR dégradée vs clean (dB)"
+    score_label = "MaskedPSNR degraded vs clean (dB)"
     csv_path = f"{OUTPUT_DIR}/masked_sweep_{DEGRADATION}.csv"
     recon_cols = [("masked_psnr_recon", "MaskedPSNR reconstruction (dB)", "blue", "Blues")]
     suffix = metric_label
@@ -43,7 +43,7 @@ y_padding = (y_max - y_min) * 0.05
 
 fig, axes = plt.subplots(1, len(recon_cols), figsize=(7 * len(recon_cols), 5), squeeze=False)
 axes = axes[0]
-fig.suptitle(f"Évolution des métriques par niveau de dégradation ({score_label})", fontsize=13, fontweight="bold")
+fig.suptitle(f"Metrics by degradation level ({score_label})", fontsize=13, fontweight="bold")
 for ax, (col, label, color, _) in zip(axes, recon_cols):
     ax2 = ax.twinx()
     l1, = ax.plot(df["level"], df[col], color=color, marker="o", markersize=3, label=label)
@@ -69,7 +69,7 @@ for ax, (col, label, color, _) in zip(axes, recon_cols):
         slo, shi = df[score_col].min(), df[score_col].max()
         spad = (shi - slo) * 0.05 or 0.01
         ax2.set_ylim(slo - spad, shi + spad)
-    ax.set_xlabel("Niveau de dégradation")
+    ax.set_xlabel("Degradation level")
     ax.set_ylabel(label, color=color)
     ax2.set_ylabel(score_label, color="gray")
     ax.set_ylim(y_min - y_padding, y_max + y_padding)

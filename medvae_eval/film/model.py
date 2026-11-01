@@ -1,8 +1,8 @@
-"""MedVAE conditionné par un score de qualité c via FiLM (repris du notebook 04 de l'axe B).
+"""MedVAE conditioned on a quality score c through FiLM (taken from notebook 04 of part B).
 
-Après chaque ResnetBlock de l'encodeur et du décodeur : h ← (1 + γ_i(c)) · h + β_i(c),
-avec (γ_i, β_i) produits par un MLP partagé et des têtes linéaires initialisées à zéro
-(le modèle conditionné est identique au MedVAE de départ avant entraînement).
+After each ResnetBlock of the encoder and decoder: h ← (1 + γ_i(c)) · h + β_i(c),
+with (γ_i, β_i) produced by a shared MLP and linear heads initialised at zero
+(the conditioned model is identical to the starting MedVAE before training).
 """
 
 import sys
@@ -17,7 +17,7 @@ from medvae_standalone import AutoencoderKL, DiagonalGaussianDistribution  # noq
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRETRAINED_CKPT = REPO_ROOT / "medvae_eval" / "cvae" / "outputs_cvae" / "pretrained_weights" / "vae_4x_4c_2D.ckpt"
 
-# Configuration de medvae_4_4_2d (vae_4x_4c_2D) : facteur 4 par côté, 4 canaux latents
+# Configuration of medvae_4_4_2d (vae_4x_4c_2D): factor 4 per side, 4 latent channels
 DDCONFIG = {"double_z": True, "z_channels": 4, "resolution": 64, "in_channels": 1, "out_ch": 1,
             "ch": 128, "ch_mult": [1, 2, 4], "num_res_blocks": 2, "attn_resolutions": [],
             "dropout": 0.0}
@@ -25,7 +25,7 @@ EMBED_DIM = 4
 
 
 def pretrained_ckpt() -> Path:
-    """Poids officiels MedVAE vae_4x_4c_2D (téléchargés depuis HuggingFace si absents)."""
+    """Official MedVAE vae_4x_4c_2D weights (downloaded from HuggingFace if missing)."""
     if not PRETRAINED_CKPT.exists():
         import shutil
         from huggingface_hub import hf_hub_download
@@ -36,11 +36,11 @@ def pretrained_ckpt() -> Path:
 
 def load_medvae() -> AutoencoderKL:
     return AutoencoderKL(ddconfig=DDCONFIG, embed_dim=EMBED_DIM, ckpt_path=str(pretrained_ckpt()),
-                         apply_channel_ds=False)   # channel_ds : non utilisé par encode/decode
+                         apply_channel_ds=False)   # channel_ds: not used by encode/decode
 
 
 class FiLMConditioner(nn.Module):
-    """c ∈ [0,1] → liste de (γ_i, β_i) de forme (B, ch_i, 1, 1), têtes initialisées à zéro."""
+    """c ∈ [0,1] → list of (γ_i, β_i) of shape (B, ch_i, 1, 1), heads initialised at zero."""
 
     def __init__(self, channels_per_block: list, hidden_dim: int = 128):
         super().__init__()
@@ -97,7 +97,7 @@ class FiLMMedVAE(nn.Module):
 
 
 class PlainMedVAE(nn.Module):
-    """MedVAE sans conditionnement, même interface forward(x, c) (c ignoré)."""
+    """MedVAE without conditioning, same forward(x, c) interface (c ignored)."""
 
     def __init__(self, base: AutoencoderKL):
         super().__init__()

@@ -11,7 +11,7 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 NOTEBOOK="$PROJECT_ROOT/jepa_adaptation/downstream/downstream_1.ipynb"
 LOG_DIR="$PROJECT_ROOT/jepa_adaptation/jobs/logs"
@@ -32,4 +32,4 @@ jupyter nbconvert \
     --ExecutePreprocessor.kernel_name=python3 \
     "$NOTEBOOK" 2>&1 | tee "$LOG_DIR/downstream_1_${SLURM_JOB_ID}_exec.log"
 
-echo "=== terminé — $(date) ==="
+echo "=== done — $(date) ==="

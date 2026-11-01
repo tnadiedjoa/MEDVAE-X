@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 import albumentations as A
 
-# Racine du dataset ARCADE : $ARCADE_ROOT si défini, sinon <repo>/data/arcade
+# Root of the ARCADE dataset: $ARCADE_ROOT if set, otherwise <repo>/data/arcade
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_ROOT = os.environ.get("ARCADE_ROOT", os.path.join(_REPO_ROOT, "data", "arcade"))
 
@@ -30,19 +30,19 @@ def _train_transforms(img_size: int) -> A.Compose:
         A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1, rotate_limit=15,
                            border_mode=0, p=0.7),
         A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
-        # Bruit léger, comme finetune/ (E07) : sans paramètre, albumentations >= 2 ajoute
-        # un bruit d'écart-type 50 à 86 niveaux sur 255, qui détruit presque l'image
+        # Light noise, as in finetune/ (E07): without parameters, albumentations >= 2 adds
+        # a noise with a standard deviation of 50 to 86 levels out of 255, which almost destroys the image
         A.GaussNoise(std_range=(0.0124, 0.0277), p=0.3),
         A.CLAHE(clip_limit=2.0, p=0.3),
     ])
 
 
 def seed_worker_augmentations(worker_id: int) -> None:
-    """worker_init_fn : augmentations propres à chaque worker et à chaque epoch.
+    """worker_init_fn: augmentations specific to each worker and each epoch.
 
-    albumentations >= 2 a son propre générateur, copié tel quel dans les workers : sans
-    réensemencement, tous les workers tirent la même suite d'augmentations, rejouée à
-    chaque epoch (même correction que finetune/dataset.py).
+    albumentations >= 2 has its own generator, copied as is into the workers: without
+    reseeding, all workers draw the same sequence of augmentations, replayed at every
+    epoch (same fix as finetune/dataset.py).
     """
     info = torch.utils.data.get_worker_info()
     seed = info.seed % 2**32
@@ -58,7 +58,7 @@ def _val_transforms(img_size: int) -> A.Compose:
 
 
 class ArcadeSegDataset(Dataset):
-    """Images ARCADE avec masques de segmentation (26 classes)."""
+    """ARCADE images with segmentation masks (26 classes)."""
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class ArcadeSegDataset(Dataset):
 
 
 class ArcadeImageDataset(Dataset):
-    """Images ARCADE seules (sans masques) — pour le pretraining self-supervised."""
+    """ARCADE images only (no masks) — for self-supervised pre-training."""
 
     def __init__(self, images_dir: str, img_size: int = 512, augment: bool = False):
         self.images_dir = images_dir
@@ -141,12 +141,12 @@ def get_pretraining_datasets(
     include_test: bool = False,
 ) -> tuple[Dataset, Dataset]:
     """
-    Datasets pour le pretraining self-supervised (à passer aux trainers stage 1 & 2).
+    Datasets for self-supervised pre-training (to pass to the stage 1 & 2 trainers).
 
-    Images ARCADE sans masques : seg_train + seg_val. Les 300 images de test
-    (dataset_final_phase) sont exclues par défaut, car les évaluations en aval sont
-    faites sur elles ; include_test=True reproduit l'ancien comportement.
-    Renvoie (train_dataset, val_dataset).
+    ARCADE images without masks: seg_train + seg_val. The 300 test images
+    (dataset_final_phase) are excluded by default, since the downstream evaluations
+    use them; include_test=True reproduces the former behaviour.
+    Returns (train_dataset, val_dataset).
     """
     all_dirs = [_SEG_TRAIN_IMAGES, _SEG_VAL_IMAGES] + ([_SEG_TEST_IMAGES] if include_test else [])
     all_files = []

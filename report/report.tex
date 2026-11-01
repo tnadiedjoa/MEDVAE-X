@@ -154,7 +154,7 @@ over images. The code is in \texttt{medvae\_eval/robustness/}.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.92\textwidth]{figures/elias/pipeline_corrected.pdf}
+  \includegraphics[width=0.92\textwidth]{figures/robustness/pipeline.pdf}
   \caption{Evaluation pipeline. A batch of clean images is degraded in
   a controlled manner over $N$ levels, then reconstructed by MedVAE. The
   reconstruction is compared to the \emph{clean} image, and the
@@ -197,7 +197,7 @@ Table~\ref{tab:restoration} summarises $\Delta$ over the sweep.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/elias/robustness_corrected.png}
+  \includegraphics[width=\linewidth]{figures/robustness/robustness.png}
   \caption{Robustness of MedVAE on vessel pixels ($100$ \texttt{seg\_val}
   images, $95\%$ bootstrap confidence intervals). Top: PSNR of the
   degraded input (grey) and of MedVAE's reconstruction (blue) with
@@ -408,7 +408,7 @@ described below.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.85\columnwidth]{figures/theophile/pipeline_A_features.pdf}
+  \includegraphics[width=0.85\columnwidth]{figures/film/pipeline_A_features.pdf}
   \caption{Construction of quality features: per-patch IQA metrics and
   ResNet-18 features.}
   \label{fig:featpipe}
@@ -435,7 +435,7 @@ the real images.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.92\textwidth]{figures/theophile/pipeline_B_score.pdf}
+  \includegraphics[width=0.92\textwidth]{figures/film/pipeline_B_score.pdf}
   \caption{The three approaches for computing the quality score $c$.}
   \label{fig:scorepipe}
 \end{figure*}
@@ -454,7 +454,7 @@ sharpness and contrast.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/theophile/result_gallery_score.png}
+  \includegraphics[width=\columnwidth]{figures/film/result_gallery_score.png}
   \caption{ARCADE images sorted by increasing quality score (approach A,
   weighted): from least sharp (left) to most contrasted (right).}
   \label{fig:gallery}
@@ -541,7 +541,7 @@ their differences are free of the variability between training runs.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.85\textwidth]{figures/theophile/pipeline_film_corrected.pdf}
+  \includegraphics[width=0.85\textwidth]{figures/film/pipeline.pdf}
   \caption{Revised protocol: identical training for the baseline and the
   FiLM model, evaluation on unseen images, and two controls on $c$
   computed on the same FiLM model.}
@@ -573,7 +573,7 @@ their differences are free of the variability between training runs.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.9\textwidth]{figures/theophile/film_results.pdf}
+  \includegraphics[width=0.9\textwidth]{figures/film/film_results.pdf}
   \caption{Left: test PSNR per model (mean $\pm$ standard deviation over
   3 seeds). Right: per-image paired PSNR differences, averaged over the 3
   seeds; the dots are the 200 test images.}
@@ -691,7 +691,7 @@ In the original MedVAE formulation (Fig.~\ref{fig:stage2ori}), stage 2 freezes t
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\columnwidth]{figures/yanic/stage_2_medvae_ori.png}
+    \includegraphics[width=\columnwidth]{figures/jepa/medvae_stage2_original.png}
     \caption{Original stage 2: latent space alignment on BioMedCLIP embeddings. Reproduced from Varma et al.~\cite{varma2025medvaeefficientautomatedinterpretation}, Fig.~1b.}
     \label{fig:stage2ori}
 \end{figure}
@@ -707,7 +707,7 @@ We replace the BioMedCLIP alignment with JEPA training directly on coronary angi
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\columnwidth]{figures/yanic/stage_2_pipeline.pdf}
+    \includegraphics[width=\columnwidth]{figures/jepa/pipeline.pdf}
     \caption{Modified stage 2: JEPA adaptation --- the context encoder predicts the target latent of the EMA encoder (stop-grad).}
     \label{fig:stage2}
 \end{figure}
@@ -762,7 +762,7 @@ Components for 90\,\% variance & 61 & 46 & 50 \\
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\columnwidth]{figures/yanic/recon.png}
+    \includegraphics[width=\columnwidth]{figures/jepa/recon.png}
     \caption{Reconstruction of a test image by MedVAE, stage 1 and stage 2 (left to right after the original; pre-training seed 42).}
     \label{fig:recon}
 \end{figure}
@@ -774,7 +774,7 @@ Projecting the same features on their first three principal components (PC1$\to$
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\columnwidth]{figures/yanic/pca.png}
+    \includegraphics[width=\columnwidth]{figures/jepa/pca.png}
     \caption{RGB PCA of the encoder features before \texttt{conv\_out} for three test angiographies (PCA fitted on 50 other test images; pre-training seed 42). Columns: image, MedVAE, stage 1, stage 2.}
     \label{fig:pca}
 \end{figure}
@@ -819,7 +819,7 @@ We compare three strategies accounting for compression against a full-resolution
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/theo/conditions.pdf}
+\includegraphics[width=0.85\textwidth]{figures/segmentation/conditions.pdf}
 \caption{The five segmentation conditions, illustrated on a test image: the input angiography, the MedVAE latent or reconstruction, and the 26-class mask. Dark boxes are trained, light dashed boxes are frozen. The trivial-compression controls R and A$^{\downarrow\uparrow}$ (not shown) replace MedVAE by a $4\times4$ average pooling.}
 \label{fig:conditions}
 \end{figure*}
@@ -855,7 +855,7 @@ A$^{\downarrow\uparrow}$ & Downsampled, upsampled (eval. only) & 0.389 $\pm$ 0.0
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/theo/seg_results.pdf}
+\includegraphics[width=0.95\textwidth]{figures/segmentation/seg_results.pdf}
 \caption{Left: artery Dice on the test set per condition (bars: mean over seeds, dots: individual seeds). Right: per-class Dice, averaged over seeds. Conditions A, A$^{*}$ and D are nearly indistinguishable; B and C follow the same per-class profile a few points lower, with the largest gaps on thin, rare segments, and the trivial-compression control R is close to them. A$^{*}$: seed-42 model.}
 \label{fig:seg_results}
 \end{figure*}
@@ -864,7 +864,7 @@ Table~\ref{tab:results} and Fig.~\ref{fig:seg_results} summarise test performanc
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.9\columnwidth]{figures/theo/seg_curves.pdf}
+\includegraphics[width=0.9\columnwidth]{figures/segmentation/seg_curves.pdf}
 \caption{Validation Dice during training (mean over the three seeds). B and C, which segment from the compressed latent, learn more slowly and plateau a few points below A and D, as does the control R, which segments from the image downsampled to $128\times128$.}
 \label{fig:val_curves}
 \end{figure}
@@ -883,7 +883,7 @@ Section~\ref{sec:medvae-robustness} showed that MedVAE removes Poisson noise; do
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/theo/seg_robustness.pdf}
+\includegraphics[width=0.95\textwidth]{figures/segmentation/seg_robustness.pdf}
 \caption{Artery Dice on degraded test images (mean $\pm$ standard deviation over three seeds; dotted lines: clean images). A, A$^{*}$ and D collapse under the strongest Poisson noise and JPEG compression; training A with realistic degradations restores a large part of the robustness that the overly strong noise augmentation of the earlier version (dashed) provided by accident.}
 \label{fig:seg_robustness}
 \end{figure*}
@@ -926,7 +926,7 @@ Taken together, our results sketch a coherent picture: MedVAE's compression is a
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\columnwidth]{figures/theo/seg_predictions.png}
+\includegraphics[width=\columnwidth]{figures/segmentation/seg_predictions.png}
 \caption{Predictions of the seed-42 models on three test images (one colour per artery segment). A, A$^{*}$ and D are nearly identical; B and C, which segment from the $128\times128$ latent, and the control R, which segments from the image downsampled to $128\times128$, recover the main tree with slightly less regular contours and miss or confuse some thin branches.}
 \label{fig:predictions}
 \end{figure}
@@ -945,7 +945,7 @@ where $D$ is the intensity range ($D = 1$ for images normalised in $[0,1]$).
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.65\linewidth]{figures/elias/mpsnr.pdf}
+  \includegraphics[width=0.65\linewidth]{figures/robustness/mpsnr.pdf}
   \caption{Principle of vessel-masked PSNR on a real ARCADE example. The
   clean image and its degraded version share the same vessel mask $\mathcal{M}$
   (pink). The error is evaluated only on these pixels ($\approx 2\%$ of the area in this example, $3.5\%$ on average).}
@@ -959,7 +959,7 @@ where $D$ is the intensity range ($D = 1$ for images normalised in $[0,1]$).
 
 \begin{figure*}[h]
   \centering
-  \includegraphics[width=0.95\textwidth]{figures/elias/degradation_visual.png}
+  \includegraphics[width=0.95\textwidth]{figures/robustness/degradation_visual.png}
   \caption{Visualisation of synthetic input degradations (detail). From left to right: clean image, Poisson noise, JPEG compression, Gaussian blur. Degradation intensity increases from top to bottom, revealing the injection of high frequencies (noise, $8\times8$ blocks) or conversely their suppression (low-pass smoothing).}
   \label{fig:degradation-visual}
 \end{figure*}

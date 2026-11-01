@@ -11,7 +11,7 @@
 
 set -e
 
-# Dossier depuis lequel le job a été soumis (lancer sbatch depuis la racine du repo)
+# Folder the job was submitted from (run sbatch from the repository root)
 PROJECT_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 mkdir -p "$PROJECT_ROOT/jepa_adaptation/outputs/stage1/logs"
