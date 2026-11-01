@@ -293,7 +293,7 @@ MEDVAE-X/
 
 ---
 
-## Setup
+## Reproducing
 
 ```bash
 git clone https://github.com/tnadiedjoa/MEDVAE-X.git && cd MEDVAE-X
@@ -355,6 +355,21 @@ before/after results, whether it was kept or not.
 Returning to pixel space therefore needs **2 upsamplings** of ×2 (`n_upsample: 2`).
 
 ---
+
+## Limitations
+
+- **One dataset, a small test set**: every conclusion is drawn on ARCADE (300 test images), with
+  3 seeds per condition; many gaps between conditions have a 95 % confidence interval over seeds
+  that contains 0 (see [experiments.md](experiments.md)).
+- **Part C did not converge**: both JEPA stages were trained for 15 epochs, as in the original
+  study, and the best validation loss was reached at the last epochs; longer training could change
+  the levels (E19).
+- **Part B holds for its budget**: FiLM and the baseline were trained for 3000 steps, and the best
+  step was the last one for 8 runs out of 9 (E18).
+- **The degradation augmentation is evaluated in distribution**: it uses the same degradation
+  families and ranges as the robustness evaluation (E15, E17).
+- **The CNR rewards smoothing** and ignores the texture of the noise; a model observer
+  (detectability index) would be the rigorous measure of vessel visibility (E20).
 
 ## Acknowledgements
 
